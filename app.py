@@ -118,16 +118,14 @@ if st.session_state.current_page == "Accueil":
         
         # Création d'un message d'accueil avec des instructions
         st.markdown("""
-        ## Bienvenue dans l'application d'analyse de données
+        ## Bienvenue dans AlloGraph
         
-        Cette application vous permet d'analyser des données de patients importées depuis REDCap.
+        Cette application vous permet d'analyser des données de patients depuis le modèle de données EBMT.
         
         ### Instructions:
         1. Utilisez le bouton dans la barre latérale pour télécharger votre fichier CSV ou Excel.
         2. Une fois les données chargées, vous pourrez naviguer entre différentes pages d'analyse.
-        3. Chaque page offre des visualisations spécifiques adaptées à votre jeu de données.
-        
-        L'application s'adapte automatiquement selon le type de données (allogreffes ou injection de CAR).
+
         """)
 
 elif st.session_state.current_page == "Page 1":
