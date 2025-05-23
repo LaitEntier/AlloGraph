@@ -1,5 +1,5 @@
 import pandas as pd
-
+import numpy as np
 
 def load_data(file_path):
     """
@@ -37,7 +37,16 @@ def process_data(df):
         pd.DataFrame: DataFrame avec les données traitées
     """
 
-    # Calcul de l'âge en années
-    df["Age At Diagnosis"] = (df["Date Diagnosis"] - df["Date Of Birth"]).dt.days // 365
+    # Créer une colonne 'Year' à partir de 'Date Diagnosis'
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['Year'] = df['Treatment Date'].dt.year.astype(str)
+
+    # Calculer l'age au diagnostic en années
+    df['Age At Diagnosis'] = (df['Date Diagnosis'] - df['Date Of Birth']).dt.days // 365.25
+
+    # Créer une colone Age Groups regroupant les patients par tranche d'âge (<18, 18-39, 40-64, 65-74, 75+)
+    df['Age Groups'] = pd.cut(df['Age At Diagnosis'], bins=[-1, 17, 39, 64, 74, np.inf], labels=['<18', '18-39', '40-64', '65-74', '75+'], right=True)
+    # order the categories for display in barplot
+    df['Age Groups'] = pd.Categorical(df['Age Groups'], categories=['<18', '18-39', '40-64', '65-74', '75+'], ordered=True)
 
     return df
