@@ -1,17 +1,72 @@
 import dash
-from dash import dcc, html, Input, Output, State, callback, dash_table
+from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import numpy as np
 import base64
 import io
-import modules.data_processing as data_processing
-import visualizations.allogreffes.graphs as gr
-import modules.dashboard_layout as layouts  # Import du module de layouts
 
-# Initialisation de l'app Dash avec Bootstrap
+# Import des modules
+import modules.data_processing as data_processing
+import modules.dashboard_layout as layouts
+
+# Import des pages
+try:
+    import pages.home as home_page
+    HOME_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.home: {e}")
+    HOME_PAGE_AVAILABLE = False
+
+try:
+    import pages.patients as patients_page
+    PATIENTS_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.patients: {e}")
+    PATIENTS_PAGE_AVAILABLE = False
+    
+try:
+    import pages.hemopathies as hemopathies_page
+    HEMOPATHIES_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.hemopathies: {e}")
+    HEMOPATHIES_PAGE_AVAILABLE = False
+
+try:
+    import pages.procedures as procedures_page
+    PROCEDURES_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.procedures: {e}")
+    PROCEDURES_PAGE_AVAILABLE = False
+    
+try:
+    import pages.gvh as gvh_page
+    GVH_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.gvh: {e}")
+    GVH_PAGE_AVAILABLE = False
+
+try:
+    import pages.relapse as relapse_page
+    RELAPSE_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.relapse: {e}")
+    RELAPSE_PAGE_AVAILABLE = False
+
+try:
+    import pages.survival as survival_page
+    SURVIVAL_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.survival: {e}")
+    SURVIVAL_PAGE_AVAILABLE = False
+
+try:
+    import pages.indics as indic_page
+    INDIC_PAGE_AVAILABLE = True
+except ImportError as e:
+    print(f"Attention: Impossible d'importer pages.indic: {e}")
+    INDIC_PAGE_AVAILABLE = False
+
+# Initialisation de l'app Dash
 app = dash.Dash(
     __name__, 
     external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -19,66 +74,146 @@ app = dash.Dash(
 )
 app.title = "AlloGraph"
 
-# Layout principal utilisant le module de layouts
-app.layout = layouts.create_base_layout()
+# Layout de base avec navigation mise à jour
+app.layout = html.Div([
+    layouts.create_base_layout(),
+    dcc.Store(id='metadata-store')
+])
 
-# Callback pour la navigation
+# Enregistrement des callbacks des pages
+if HOME_PAGE_AVAILABLE:
+    home_page.register_callbacks(app)
+
+if PATIENTS_PAGE_AVAILABLE:
+    patients_page.register_callbacks(app)
+
+if HEMOPATHIES_PAGE_AVAILABLE:
+    hemopathies_page.register_callbacks(app)
+
+if PROCEDURES_PAGE_AVAILABLE:
+    procedures_page.register_callbacks(app)
+
+if GVH_PAGE_AVAILABLE:
+    gvh_page.register_callbacks(app)
+
+if RELAPSE_PAGE_AVAILABLE:
+    relapse_page.register_callbacks(app)
+
+if SURVIVAL_PAGE_AVAILABLE:
+    survival_page.register_callbacks(app)
+
+if INDIC_PAGE_AVAILABLE:
+    indic_page.register_callbacks(app)
+
+# ========== CALLBACKS GLOBAUX UNIQUEMENT ==========
+
 @app.callback(
     [Output('current-page', 'data'),
      Output('nav-accueil', 'className'),
      Output('nav-patients', 'className'),
      Output('nav-page1', 'className'),
-     Output('nav-page2', 'className'),
+     Output('nav-procedures', 'className'),
+     Output('nav-gvh', 'className'),
+     Output('nav-rechute', 'className'),
+     Output('nav-survival', 'className'),        
+     Output('nav-indics', 'className'),
      Output('nav-patients', 'disabled'),
      Output('nav-page1', 'disabled'),
-     Output('nav-page2', 'disabled')],
+     Output('nav-procedures', 'disabled'),
+     Output('nav-gvh', 'disabled'),
+     Output('nav-rechute', 'disabled'),
+     Output('nav-survival', 'disabled'),         
+     Output('nav-indics', 'disabled')],
     [Input('nav-accueil', 'n_clicks'),
      Input('nav-patients', 'n_clicks'),
      Input('nav-page1', 'n_clicks'),
-     Input('nav-page2', 'n_clicks')],
-    [State('data-store', 'data'),
-     State('current-page', 'data')]
+     Input('nav-procedures', 'n_clicks'),
+     Input('nav-gvh', 'n_clicks'),
+     Input('nav-rechute', 'n_clicks'),
+     Input('nav-survival', 'n_clicks'),          
+     Input('nav-indics', 'n_clicks'),
+     Input('data-store', 'data')],
+    [State('current-page', 'data')]
 )
-def navigate(acc_clicks, pat_clicks, p1_clicks, p2_clicks, data, current_page):
+def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, data, current_page):
     ctx = dash.callback_context
     
     if not ctx.triggered:
-        return current_page, 'btn btn-primary me-2', 'btn btn-secondary me-2', 'btn btn-secondary me-2', 'btn btn-secondary me-2', True, True, True
+        disabled = data is None
+        if current_page is None:
+            current_page = 'Accueil'
+        
+        styles = {
+            'Accueil': 'btn btn-primary me-2' if current_page == 'Accueil' else 'btn btn-secondary me-2',
+            'Patients': 'btn btn-primary me-2' if current_page == 'Patients' else 'btn btn-secondary me-2',
+            'Hemopathies': 'btn btn-primary me-2' if current_page == 'Hemopathies' else 'btn btn-secondary me-2',
+            'Procedures': 'btn btn-primary me-2' if current_page == 'Procedures' else 'btn btn-secondary me-2',
+            'GvH': 'btn btn-primary me-2' if current_page == 'GvH' else 'btn btn-secondary me-2',
+            'Rechute': 'btn btn-primary me-2' if current_page == 'Rechute' else 'btn btn-secondary me-2',
+            'Survie': 'btn btn-primary me-2' if current_page == 'Survie' else 'btn btn-secondary me-2',  
+            'Indicateurs': 'btn btn-primary me-2' if current_page == 'Indicateurs' else 'btn btn-secondary me-2'
+        }
+
+        return (current_page, styles['Accueil'], styles['Patients'],
+                styles['Hemopathies'], styles['Procedures'], styles['GvH'], styles['Rechute'], styles['Survie'], styles['Indicateurs'],
+                disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
-    # Déterminer la nouvelle page
+    if button_id == 'data-store':
+        disabled = data is None
+        current_page = current_page or 'Accueil'
+        
+        styles = {
+            'Accueil': 'btn btn-primary me-2' if current_page == 'Accueil' else 'btn btn-secondary me-2',
+            'Patients': 'btn btn-primary me-2' if current_page == 'Patients' else 'btn btn-secondary me-2',
+            'Hemopathies': 'btn btn-primary me-2' if current_page == 'Hemopathies' else 'btn btn-secondary me-2',
+            'Procedures': 'btn btn-primary me-2' if current_page == 'Procedures' else 'btn btn-secondary me-2',
+            'GvH': 'btn btn-primary me-2' if current_page == 'GvH' else 'btn btn-secondary me-2',
+            'Rechute': 'btn btn-primary me-2' if current_page == 'Rechute' else 'btn btn-secondary me-2',
+            'Survie': 'btn btn-primary me-2' if current_page == 'Survie' else 'btn btn-secondary me-2',  
+            'Indicateurs': 'btn btn-primary me-2' if current_page == 'Indicateurs' else 'btn btn-secondary me-2'
+        }
+
+        return (current_page, styles['Accueil'], styles['Patients'],
+                styles['Hemopathies'], styles['Procedures'], styles['GvH'], styles['Rechute'], styles['Survie'], styles['Indicateurs'],
+                disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+    
+    # Navigation normale
     page_map = {
         'nav-accueil': 'Accueil',
         'nav-patients': 'Patients',
-        'nav-page1': 'Page 1',
-        'nav-page2': 'Page 2'
+        'nav-page1': 'Hemopathies',
+        'nav-procedures': 'Procedures',
+        'nav-gvh': 'GvH',
+        'nav-rechute': 'Rechute',
+        'nav-survival': 'Survie',               
+        'nav-indics': 'Indicateurs'
     }
     new_page = page_map.get(button_id, current_page or 'Accueil')
     
-    # Styles des boutons
     btn_styles = {
         'Accueil': 'nav-accueil',
         'Patients': 'nav-patients',
-        'Page 1': 'nav-page1',
-        'Page 2': 'nav-page2'
+        'Hemopathies': 'nav-page1',
+        'Procedures': 'nav-procedures',
+        'GvH': 'nav-gvh',
+        'Rechute': 'nav-rechute',
+        'Survie': 'nav-survival',               
+        'Indicateurs': 'nav-indics'
     }
     
     styles = {}
     for page, btn_id in btn_styles.items():
         styles[btn_id] = 'btn btn-primary me-2' if new_page == page else 'btn btn-secondary me-2'
     
-    # Désactiver les boutons si pas de données
     disabled = data is None
-    
-    return (new_page, 
-            styles['nav-accueil'], 
-            styles['nav-patients'], 
-            styles['nav-page1'], 
-            styles['nav-page2'],
-            disabled, disabled, disabled)
 
-# Callback pour le titre de la page
+    return (new_page, styles['nav-accueil'], styles['nav-patients'],
+            styles['nav-page1'], styles['nav-procedures'], styles['nav-gvh'], styles['nav-rechute'], styles['nav-survival'], styles['nav-indics'],
+            disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+
+
 @app.callback(
     Output('page-title', 'children'),
     Input('current-page', 'data')
@@ -86,27 +221,85 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, p2_clicks, data, current_page):
 def update_title(current_page):
     return f'Dashboard - {current_page or "Accueil"}'
 
-# Callback pour la sidebar
 @app.callback(
     Output('sidebar-content', 'children'),
     [Input('current-page', 'data'),
-     Input('data-store', 'data')]
+     Input('data-store', 'data'),
+     Input('metadata-store', 'data')]
 )
-def update_sidebar(current_page, data):
+def update_sidebar(current_page, data, metadata):
+    """Gère la sidebar selon la page active"""
     if current_page == 'Accueil':
-        content = html.Div([
-            layouts.create_upload_component(),
-            html.Div(id='upload-status')
-        ])
-        return layouts.create_sidebar_layout('Chargement des données', content)
+        # Sidebar pour l'upload sur la page d'accueil
+        if data is None:
+            # Pas de données : afficher l'upload
+            content = html.Div([
+                layouts.create_upload_component(),
+                html.Div(id='upload-status')
+            ])
+            return layouts.create_sidebar_layout('Chargement', content)
+        else:
+            # Données chargées : afficher les informations
+            df = pd.DataFrame(data)
+            
+            # Utiliser les métadonnées si disponibles
+            if metadata:
+                original_shape = metadata.get('original_shape', (0, 0))
+                filename = metadata.get('filename', 'Fichier inconnu')
+                content = html.Div([
+                    # Informations sur le dataset
+                    dbc.Alert([
+                        html.H6("✅ Données chargées", className="mb-2"),
+                        html.P([
+                            "📁 ", html.Strong(filename)
+                        ], className="mb-2", style={'fontSize': '11px'}),
+                        html.P([
+                            "📊 Dimensions: ", html.Strong(f"{original_shape[0]:,} × {original_shape[1]}")
+                        ], className="mb-1", style={'fontSize': '12px'}),
+                        html.Hr(className="my-2"),
+                        html.P("Naviguez vers les autres pages pour analyser vos données", 
+                               className="mb-0", style={'fontSize': '10px'})
+                    ], color="success", className="mb-3"),
+                    
+                    # Option pour recharger des données
+                    html.Div([
+                        html.H6("Nouveau fichier :", className="mb-2"),
+                        layouts.create_upload_component(),
+                        html.Div(id='upload-status')
+                    ])
+                ])
+            else:
+                # Fallback si pas de métadonnées
+                content = html.Div([
+                    dbc.Alert([
+                        html.H6("✅ Données chargées", className="mb-2"),
+                        html.P([
+                            html.Strong(f"{df.shape[0]:,}"), " lignes"
+                        ], className="mb-1", style={'fontSize': '14px'}),
+                        html.P([
+                            html.Strong(f"{df.shape[1]}"), " colonnes"
+                        ], className="mb-1", style={'fontSize': '14px'}),
+                        html.Hr(className="my-2"),
+                        html.P("Naviguez vers les autres pages pour analyser vos données", 
+                               className="mb-0", style={'fontSize': '11px'})
+                    ], color="success", className="mb-3"),
+                    
+                    html.Div([
+                        html.H6("Nouveau fichier :", className="mb-2"),
+                        layouts.create_upload_component(),
+                        html.Div(id='upload-status')
+                    ])
+                ])
+            
+            return layouts.create_sidebar_layout('Données', content)
     
     elif current_page == 'Patients' and data is not None:
+        # Sidebar avec filtres pour la page Patients
         df = pd.DataFrame(data)
         categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
         if 'Year' in categorical_columns:
             categorical_columns.remove('Year')
         
-        # Récupérer les années disponibles
         years_options = []
         if 'Year' in df.columns:
             available_years = sorted(df['Year'].unique().tolist())
@@ -115,299 +308,216 @@ def update_sidebar(current_page, data):
         content = layouts.create_filter_controls(categorical_columns, years_options)
         return layouts.create_sidebar_layout('Paramètres', content)
     
+    elif current_page == 'Hemopathies' and data is not None:
+        # Sidebar avec filtres pour la page Hemopathies
+        df = pd.DataFrame(data)
+        categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
+        # Retirer les colonnes spéciales
+        for col in ['Year', 'Main Diagnosis', 'Subclass Diagnosis']:
+            if col in categorical_columns:
+                categorical_columns.remove(col)
+        
+        years_options = []
+        if 'Year' in df.columns:
+            available_years = sorted(df['Year'].unique().tolist())
+            years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+        
+        content = layouts.create_hemopathies_filter_controls(categorical_columns, years_options)
+        return layouts.create_sidebar_layout('Paramètres', content)
+    
+    elif current_page == 'Procedures' and data is not None:
+        # Sidebar spécifique pour la page Procedures
+        content = layouts.create_procedures_sidebar_content(data)
+        return layouts.create_sidebar_layout('Paramètres', content)
+
+    elif current_page == 'GvH' and data is not None:  
+        # Sidebar spécifique pour la page GvH
+        content = gvh_page.create_gvh_sidebar_content(data)
+        return layouts.create_sidebar_layout('Paramètres GvH', content)
+    
+    elif current_page == 'Rechute' and data is not None:
+        # Sidebar spécifique pour la page Rechute
+        content = relapse_page.create_relapse_sidebar_content(data)
+        return layouts.create_sidebar_layout('Paramètres Rechute', content)
+
+    elif current_page == 'Survie' and data is not None:  
+        # Sidebar spécifique pour la page Survie
+        content = survival_page.create_survival_sidebar_content(data)
+        return layouts.create_sidebar_layout('Paramètres Survie', content)
+    
+    elif current_page == 'Indicateurs' and data is not None:
+        # Sidebar spécifique pour la page Indicateurs
+        content = indic_page.create_indicators_sidebar_content(data)
+        return layouts.create_sidebar_layout('Indicateurs', content)
+
     else:
+        # Sidebar par défaut
         if data is None:
-            content = html.P('Retournez à la page Accueil pour charger des données.', className='text-info')
-            return layouts.create_sidebar_layout('Navigation', content)
+            content = html.Div([
+                html.P('Retournez à la page Accueil pour charger des données.', 
+                       className='text-info', style={'fontSize': '12px'})
+            ])
         else:
             df = pd.DataFrame(data)
             content = html.Div([
-                html.P('Données chargées', className='text-success'),
-                html.P(f'{df.shape[0]} lignes, {df.shape[1]} colonnes', className='text-info')
+                dbc.Alert([
+                    html.P([
+                        "✅ ", html.Strong(f"{df.shape[0]:,}"), " lignes"
+                    ], className="mb-1", style={'fontSize': '13px'}),
+                    html.P([
+                        "📊 ", html.Strong(f"{df.shape[1]}"), " colonnes"
+                    ], className="mb-0", style={'fontSize': '13px'})
+                ], color="info", className="py-2")
             ])
-            return layouts.create_sidebar_layout('Navigation', content)
+        return layouts.create_sidebar_layout('Navigation', content)
 
-# Callback pour traiter l'upload de fichier
 @app.callback(
     [Output('data-store', 'data'),
+     Output('metadata-store', 'data'),
      Output('upload-status', 'children')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename'),
     prevent_initial_call=True
 )
 def process_uploaded_file(contents, filename):
+    """Traite l'upload de fichier - callback global"""
     if contents is None:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
     
     try:
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
         
         if filename.endswith('.csv'):
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            df_original = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
         elif filename.endswith(('.xlsx', '.xls')):
-            df = pd.read_excel(io.BytesIO(decoded))
+            df_original = pd.read_excel(io.BytesIO(decoded))
         else:
-            return dash.no_update, dbc.Alert('Format de fichier non supporté', color='danger')
+            return dash.no_update, dash.no_update, dbc.Alert('Format de fichier non supporté', color='danger')
         
-        # Traitement des données avec data_processing
-        df = data_processing.process_data(df)
+        # Stocker les dimensions originales
+        original_shape = df_original.shape
         
-        return df.to_dict('records'), dbc.Alert(
-            f'Données chargées avec succès! {df.shape[0]} lignes et {df.shape[1]} colonnes.',
-            color='success'
-        )
+        # Traitement des données
+        df_processed = data_processing.process_data(df_original)
+        processed_shape = df_processed.shape
+        
+        # Créer les métadonnées
+        metadata = {
+            'original_shape': original_shape,
+            'processed_shape': processed_shape,
+            'filename': filename
+        }
+        
+        # Message de succès avec les deux dimensions
+        success_message = dbc.Alert([
+            html.H6("✅ Fichier chargé avec succès!", className="mb-2"),
+            html.P([
+                "📁 ", html.Strong(filename)
+            ], className="mb-2", style={'fontSize': '12px'}),
+            html.P([
+                "📊 Données originales: ", 
+                html.Strong(f"{original_shape[0]:,} lignes × {original_shape[1]} colonnes")
+            ], className="mb-1", style={'fontSize': '11px'}),
+            html.P([
+                "⚙️ Après traitement: ", 
+                html.Strong(f"{processed_shape[0]:,} lignes × {processed_shape[1]} colonnes")
+            ], className="mb-0", style={'fontSize': '11px'})
+        ], color='success')
+        
+        return df_processed.to_dict('records'), metadata, success_message
     
     except Exception as e:
-        return dash.no_update, dbc.Alert(f'Erreur lors du chargement: {str(e)}', color='danger')
+        return dash.no_update, dash.no_update, dbc.Alert(f'Erreur lors du chargement: {str(e)}', color='danger')
 
-# Callback pour le contenu principal
 @app.callback(
     Output('main-content', 'children'),
     [Input('current-page', 'data'),
      Input('data-store', 'data')]
 )
 def update_main_content(current_page, data):
+    """Callback de routage principal - délègue aux pages"""
+    
     if current_page == 'Accueil':
-        if data is not None:
-            df = pd.DataFrame(data)
-            
-            if 'Year' in df.columns:
-                try:
-                    fig = gr.create_cumulative_barplot(
-                        data=df,
-                        category_column='Year',
-                        title="Nombre de greffes par an",
-                        x_axis_title="Année",
-                        bar_y_axis_title="Nombre de greffes",
-                        line_y_axis_title="Effectif cumulé",
-                        custom_order=df['Year'].unique().tolist()
-                    )
-                    return dbc.Card([
-                        dbc.CardBody([
-                            dcc.Graph(figure=fig, style={'height': '600px'})
-                        ])
-                    ])
-                except Exception as e:
-                    return dbc.Alert(f'Erreur lors de la création du graphique: {str(e)}', color='danger')
-            else:
-                available_cols = ', '.join(df.columns.tolist()[:10])
-                return dbc.Alert([
-                    html.H5('Colonne "Year" non trouvée dans les données'),
-                    html.P(f'Colonnes disponibles: {available_cols}...')
-                ], color='warning')
+        if HOME_PAGE_AVAILABLE:
+            return home_page.get_layout()
         else:
-            return dbc.Card([
-                dbc.CardBody([
-                    html.H2('Bienvenue dans AlloGraph'),
-                    html.P('Cette application vous permet d\'analyser des données de patients depuis le modèle de données EBMT.'),
-                    html.Hr(),
-                    html.H4('Instructions:'),
-                    html.Ol([
-                        html.Li('Utilisez le bouton dans la barre latérale pour télécharger votre fichier CSV ou Excel.'),
-                        html.Li('Une fois les données chargées, vous pourrez naviguer entre différentes pages d\'analyse.')
-                    ])
-                ])
-            ])
+            return create_fallback_home()
     
     elif current_page == 'Patients':
         if data is not None:
-            # Utiliser le layout spécifique pour la page Patients
-            # Les placeholders seront remplis par les callbacks
-            return layouts.create_patients_layout(
-                main_content=html.Div(),  # Sera rempli par le callback tab-content
-                boxplot_content=html.Div(),  # Sera rempli par le callback boxplot-container
-                barplot_content=html.Div()  # Sera rempli par le callback barplot-container
-            )
+            if PATIENTS_PAGE_AVAILABLE:
+                return patients_page.get_layout()
+            else:
+                return dbc.Alert('Page Patients non disponible', color='warning')
         else:
             return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
     
-    elif current_page in ['Page 1', 'Page 2']:
-        return dbc.Card([
-            dbc.CardBody([
-                html.H3(f'Contenu de la {current_page}'),
-                html.P('En cours de développement')
-            ])
-        ])
+    elif current_page == 'Hemopathies':
+        if data is not None:
+            if HEMOPATHIES_PAGE_AVAILABLE:
+                return hemopathies_page.get_layout()
+            else:
+                return dbc.Alert('Page Hemopathies non disponible', color='warning')
+        else:
+            return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
+    
+    elif current_page == 'Procedures':
+        if data is not None:
+            if PROCEDURES_PAGE_AVAILABLE:
+                return procedures_page.get_layout()
+            else:
+                return dbc.Alert('Page Procedures non disponible', color='warning')
+        else:
+            return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
+    
+    elif current_page == 'GvH':  
+        if data is not None:
+            if GVH_PAGE_AVAILABLE:
+                return gvh_page.get_layout()
+            else:
+                return dbc.Alert('Page GvH non disponible', color='warning')
+        else:
+            return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
+    
+    elif current_page == 'Rechute':
+        if data is not None:
+            if RELAPSE_PAGE_AVAILABLE:
+                return relapse_page.get_layout()
+            else:
+                return dbc.Alert('Page Rechute non disponible', color='warning')
+        else:
+            return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
+
+    elif current_page == 'Survie':  
+        if data is not None:
+            if SURVIVAL_PAGE_AVAILABLE:
+                return survival_page.get_layout()
+            else:
+                return dbc.Alert('Page Survie non disponible', color='warning')
+        else:
+            return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
+
+    elif current_page == 'Indicateurs':
+        if data is not None:
+            if INDIC_PAGE_AVAILABLE:
+                return indic_page.get_layout()
+            else:
+                return dbc.Alert('Page Indicateurs non disponible', color='warning')
+        else:
+            return dbc.Alert('Veuillez charger un fichier de données pour accéder à cette page.', color='info')
     
     return html.Div()
 
-# Callback pour les onglets de la page Patients
-@app.callback(
-    Output('tab-content', 'children'),
-    [Input('main-tabs', 'value'),
-     Input('data-store', 'data'),
-     Input('x-axis-dropdown', 'value'),
-     Input('stack-variable-dropdown', 'value'),
-     Input('year-filter-checklist', 'value')],
-    prevent_initial_call=True
-)
-def update_tab_content(tab, data, x_axis, stack_var, selected_years):
-    if data is None:
-        return html.Div()
-    
-    df = pd.DataFrame(data)
-    
-    # Filtrer les données
-    if selected_years and 'Year' in df.columns:
-        filtered_df = df[df['Year'].isin(selected_years)]
-    else:
-        filtered_df = df
-    
-    if filtered_df.empty:
-        return dbc.Alert('Aucune donnée disponible avec les filtres sélectionnés', color='warning')
-    
-    if tab == 'tab-normalized':
-        try:
-            if x_axis not in filtered_df.columns:
-                return dbc.Alert(f'Colonne "{x_axis}" non trouvée dans les données', color='warning')
-            
-            stack_col = None if stack_var == 'Aucune' else stack_var
-            fig = gr.create_normalized_barplot(
-                data=filtered_df,
-                x_column=x_axis,
-                y_column='Count',
-                stack_column=stack_col,
-                title=f"Distribution normalisée par {x_axis}",
-                x_axis_title=x_axis,
-                y_axis_title="Proportion (%)",
-                height=420,  # Ajusté pour le conteneur principal
-                width=None
-            )
-            return dcc.Graph(
-                figure=fig, 
-                style={'height': '100%'},
-                config={'responsive': True}
-            )
-        except Exception as e:
-            return dbc.Alert(f'Erreur: {str(e)}', color='danger')
-    
-    elif tab == 'tab-table':
-        return html.Div([
-            dash_table.DataTable(
-                data=filtered_df.to_dict('records'),
-                columns=[{"name": i, "id": i} for i in filtered_df.columns],
-                page_size=20,
-                style_table={'height': '400px', 'overflowY': 'auto'},
-                style_cell={'textAlign': 'left'},
-                style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
-                filter_action="native",
-                sort_action="native",
-                page_action="native"
-            ),
-            html.P(f'{len(filtered_df)} lignes affichées sur {len(df)} au total', 
-                   className='text-info mt-2')
+def create_fallback_home():
+    """Fallback simple si home.py n'est pas disponible"""
+    return dbc.Card([
+        dbc.CardBody([
+            html.H2('AlloGraph - Page d\'accueil'),
+            html.P('Page home.py non disponible.'),
+            html.P('Utilisez la sidebar pour charger des données.')
         ])
-    
-    return html.Div()
-
-# Callback pour le boxplot
-@app.callback(
-    Output('boxplot-container', 'children'),
-    [Input('data-store', 'data'),
-     Input('x-axis-dropdown', 'value'),
-     Input('stack-variable-dropdown', 'value'),
-     Input('year-filter-checklist', 'value')],
-    prevent_initial_call=True
-)
-def update_boxplot(data, x_axis, stack_var, selected_years):
-    if data is None:
-        return html.Div()
-    
-    df = pd.DataFrame(data)
-    
-    # Filtrer les données
-    if selected_years and 'Year' in df.columns:
-        filtered_df = df[df['Year'].isin(selected_years)]
-    else:
-        filtered_df = df
-    
-    if filtered_df.empty:
-        return html.Div('Aucune donnée disponible', className='text-warning text-center')
-    
-    try:
-        # Déterminer la variable Y pour le boxplot
-        numeric_columns = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
-        
-        if x_axis and x_axis in numeric_columns:
-            y_variable = x_axis
-        else:
-            y_variable = numeric_columns[0] if numeric_columns else None
-        
-        if y_variable:
-            group_col = None if stack_var == 'Aucune' else stack_var
-            fig = gr.create_boxplot(
-                data=filtered_df,
-                x_column=group_col,
-                y_column=y_variable,
-                title=f"Boxplot de {y_variable}" + (f" par {group_col}" if group_col else ""),
-                x_axis_title=group_col,
-                y_axis_title=y_variable,
-                height=320,  # Ajusté pour s'adapter au container
-                width=None  # Laisser Plotly gérer la largeur
-            )
-            
-            return dcc.Graph(
-                figure=fig, 
-                style={'height': '100%'},
-                config={'responsive': True, 'displayModeBar': False}
-            )
-        else:
-            return html.Div('Aucune variable numérique disponible', className='text-warning text-center')
-    
-    except Exception as e:
-        return html.Div(f'Erreur: {str(e)}', className='text-danger')
-
-# Callback pour le barplot
-@app.callback(
-    Output('barplot-container', 'children'),
-    [Input('data-store', 'data'),
-     Input('x-axis-dropdown', 'value'),
-     Input('stack-variable-dropdown', 'value'),
-     Input('year-filter-checklist', 'value')],
-    prevent_initial_call=True
-)
-def update_barplot(data, x_axis, stack_var, selected_years):
-    if data is None:
-        return html.Div()
-    
-    df = pd.DataFrame(data)
-    
-    # Filtrer les données
-    if selected_years and 'Year' in df.columns:
-        filtered_df = df[df['Year'].isin(selected_years)]
-    else:
-        filtered_df = df
-    
-    if filtered_df.empty:
-        return html.Div('Aucune donnée disponible', className='text-warning text-center')
-    
-    try:
-        if x_axis not in filtered_df.columns:
-            return html.Div(f'Colonne "{x_axis}" non trouvée', className='text-warning text-center')
-        
-        stack_col = None if stack_var == 'Aucune' else stack_var
-        fig = gr.create_stacked_barplot(
-            data=filtered_df,
-            x_column=x_axis,
-            y_column='Count',
-            stack_column=stack_col,
-            title=f"Barplot de {x_axis}" + (f" par {stack_col}" if stack_col else ""),
-            x_axis_title=x_axis,
-            y_axis_title="Nombre de greffes",
-            custom_order=filtered_df[x_axis].unique().tolist(),
-            height=320,  # Ajusté pour s'adapter au container
-            width=None  # Laisser Plotly gérer la largeur
-        )
-        
-        return dcc.Graph(
-            figure=fig, 
-            style={'height': '100%'},
-            config={'responsive': True, 'displayModeBar': False}
-        )
-    
-    except Exception as e:
-        return html.Div(f'Erreur: {str(e)}', className='text-danger')
+    ])
 
 if __name__ == '__main__':
     app.run(debug=True)

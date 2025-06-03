@@ -1,9 +1,10 @@
 import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
+import pandas as pd
 
 def create_base_layout():
-    """Crée la structure de base du dashboard"""
+    """Crée la structure de base du dashboard avec toutes les pages"""
     return dbc.Container([
         # Store pour les données
         dcc.Store(id='data-store'),
@@ -15,11 +16,16 @@ def create_base_layout():
                 html.Div([
                     html.Button('Accueil', id='nav-accueil', className='btn btn-primary me-2'),
                     html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2', disabled=False),
-                    html.Button('Page 1', id='nav-page1', className='btn btn-secondary me-2', disabled=True),
-                    html.Button('Page 2', id='nav-page2', className='btn btn-secondary me-2', disabled=True),
+                    html.Button('Hemopathies', id='nav-page1', className='btn btn-secondary me-2', disabled=True),
+                    html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2', disabled=True),
+                    html.Button('GvH', id='nav-gvh', className='btn btn-secondary me-2', disabled=True),
+                    html.Button('Rechute', id='nav-rechute', className='btn btn-secondary me-2', disabled=True),
+                    html.Button('Survie', id='nav-survival', className='btn btn-secondary me-2', disabled=True),
+                    html.Button('Indicateurs', id='nav-indics', className='btn btn-secondary me-2', disabled=True),
                 ], className='d-flex mb-3 p-3', style={'background-color': '#f0f2f6', 'border-radius': '5px'})
             ])
         ]),
+
         
         # Titre dynamique
         dbc.Row([
@@ -30,11 +36,20 @@ def create_base_layout():
         
         # Container principal avec sidebar et contenu
         dbc.Row([
-            # Sidebar
-            dbc.Col(id='sidebar-content', width=3),
+            # Sidebar (réduite) avec position sticky
+            dbc.Col(
+                id='sidebar-content', 
+                width=2,
+                style={
+                    'position': 'sticky',
+                    'top': '20px',
+                    'height': 'fit-content',
+                    'z-index': '1000'
+                }
+            ),
             
-            # Contenu principal
-            dbc.Col(id='main-content', width=9)
+            # Contenu principal (élargi)
+            dbc.Col(id='main-content', width=10)
         ]),
         
         # Footer
@@ -45,6 +60,7 @@ def create_base_layout():
             ])
         ])
     ], fluid=True, className='p-4')
+
 
 def create_split_layout(left_component, right_components):
     """
@@ -61,14 +77,65 @@ def create_split_layout(left_component, right_components):
         dbc.Col(right_rows, width=6)
     ], className='h-100')
 
-def create_patients_layout(main_content, boxplot_content, barplot_content):
+def create_patients_layout(main_content=None, boxplot_content=None, barplot_content=None, page_prefix='patients'):
     """
     Crée le layout spécifique pour la page Patients
     
     Args:
-        main_content: Contenu principal avec les onglets
-        boxplot_content: Contenu du boxplot
-        barplot_content: Contenu du barplot
+        main_content: Contenu principal avec les onglets (optionnel, pour rétrocompatibilité)
+        boxplot_content: Contenu du boxplot (optionnel, pour rétrocompatibilité)
+        barplot_content: Contenu du barplot (optionnel, pour rétrocompatibilité)
+        page_prefix: Préfixe pour les IDs (par défaut 'patients')
+    """
+    return dbc.Row([
+        # Colonne principale (50% de l'espace)
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader(html.H4('Analyses principales')),
+                dbc.CardBody([
+                    dcc.Tabs(id='main-tabs', value='tab-normalized', children=[
+                        dcc.Tab(label='Graphique normalisé', value='tab-normalized'),
+                        dcc.Tab(label='Table de données', value='tab-table')
+                    ]),
+                    html.Div(
+                        id=f'{page_prefix}-tab-content',  # ← ID adapté avec préfixe
+                        className='mt-3', 
+                        style={'height': '450px', 'overflow': 'hidden'}
+                    )
+                ], className='p-2')
+            ])
+        ], width=6),
+        
+        # Colonne avec les deux graphiques empilés (50% de l'espace)
+        dbc.Col([
+            # Boxplot
+            dbc.Card([
+                dbc.CardHeader(html.H5('Boxplot')),
+                dbc.CardBody([
+                    html.Div(
+                        id=f'{page_prefix}-boxplot-container',  # ← ID adapté avec préfixe
+                        style={'height': '350px', 'overflow': 'hidden'}
+                    )
+                ], className='p-2')
+            ], className='mb-3'),
+            
+            # Barplot
+            dbc.Card([
+                dbc.CardHeader(html.H5('Barplot')),
+                dbc.CardBody([
+                    html.Div(
+                        id=f'{page_prefix}-barplot-container',  # ← ID adapté avec préfixe
+                        style={'height': '350px', 'overflow': 'hidden'}
+                    )
+                ], className='p-2')
+            ])
+        ], width=6)
+    ])
+
+def create_patients_layout_legacy(main_content, boxplot_content, barplot_content):
+    """
+    Version legacy de create_patients_layout pour la rétrocompatibilité
+    Utilise les anciens IDs sans préfixe
     """
     return dbc.Row([
         # Colonne principale (50% de l'espace)
@@ -138,12 +205,16 @@ def create_quad_layout(top_left, top_right, bottom_left, bottom_right):
 
 def create_sidebar_layout(title, content):
     """
-    Crée un layout standardisé pour la sidebar
+    Crée un layout standardisé pour la sidebar avec style sticky amélioré
     """
     return dbc.Card([
-        dbc.CardHeader(html.H4(title)),
-        dbc.CardBody(content)
-    ])
+        dbc.CardHeader(html.H4(title, style={'fontSize': '16px', 'margin': '0'})),
+        dbc.CardBody(content, className='p-3')
+    ], style={
+        'maxHeight': '85vh',  # Hauteur maximale pour éviter que la sidebar soit trop haute
+        'overflowY': 'auto',  # Scroll interne si le contenu est trop long
+        'boxShadow': '0 2px 8px rgba(0,0,0,0.1)'  # Ombre légère pour un effet visuel
+    })
 
 def create_upload_component():
     """
@@ -152,26 +223,53 @@ def create_upload_component():
     return dcc.Upload(
         id='upload-data',
         children=html.Div([
-            'Glissez-déposez ou ',
-            html.A('sélectionnez un fichier')
+            html.Div('Glissez-déposez', style={'fontSize': '12px'}),
+            html.Div('ou', style={'fontSize': '10px', 'margin': '2px 0'}),
+            html.A('sélectionnez', style={'fontSize': '12px'})
         ]),
         style={
             'width': '100%',
-            'height': '60px',
-            'lineHeight': '60px',
+            'height': '70px',
+            'lineHeight': '16px',
             'borderWidth': '1px',
             'borderStyle': 'dashed',
             'borderRadius': '5px',
             'textAlign': 'center',
-            'margin': '10px 0'
+            'margin': '10px 0',
+            'padding': '8px',
+            'display': 'flex',
+            'flexDirection': 'column',
+            'justifyContent': 'center',
+            'alignItems': 'center'
         },
         multiple=False
     )
 
 def create_filter_controls(categorical_columns, years_options):
     """
-    Crée les contrôles de filtrage pour la sidebar
+    Crée les contrôles de filtrage pour la sidebar de la page Patients.
+    Limite les variables de stratification aux variables importantes uniquement.
+    
+    Args:
+        categorical_columns (list): Liste des colonnes catégorielles disponibles (non utilisée maintenant)
+        years_options (list): Options pour le filtre des années
+        
+    Returns:
+        html.Div: Composant contenant les contrôles de filtrage
     """
+    # Variables de stratification spécifiquement sélectionnées pour la page Patients
+    stratification_variables = [
+        'Sex',
+        'Blood + Rh', 
+        'Main Diagnosis',
+        'Number HCT',
+        'Number Allo HCT'
+    ]
+    
+    # Créer les options pour le dropdown de stratification
+    stratification_options = [{'label': 'Aucune', 'value': 'Aucune'}]
+    stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
+    
     return html.Div([
         html.Label('Axe X des graphiques:', className='mb-2'),
         dcc.Dropdown(
@@ -180,16 +278,15 @@ def create_filter_controls(categorical_columns, years_options):
                 {'label': 'Age At Diagnosis', 'value': 'Age At Diagnosis'},
                 {'label': 'Age Groups', 'value': 'Age Groups'}
             ],
-            value='Age At Diagnosis',
+            value='Age Groups',  # Valeur par défaut modifiée
             className='mb-3'
         ),
         
         html.Label('Variable de stratification:', className='mb-2'),
         dcc.Dropdown(
             id='stack-variable-dropdown',
-            options=[{'label': 'Aucune', 'value': 'Aucune'}] + 
-                    [{'label': col, 'value': col} for col in categorical_columns],
-            value='Aucune',
+            options=stratification_options,
+            value='Main Diagnosis',  # Valeur par défaut
             className='mb-3'
         ),
         
@@ -202,4 +299,138 @@ def create_filter_controls(categorical_columns, years_options):
             inline=False,
             className='mb-3'
         )
+    ])
+
+def create_hemopathies_filter_controls(categorical_columns, years_options):
+    """
+    Crée les contrôles de filtrage spécifiques pour la page Hemopathies.
+    Limite les variables de stratification aux variables importantes uniquement.
+    
+    Args:
+        categorical_columns (list): Liste des colonnes catégorielles disponibles (non utilisée maintenant)
+        years_options (list): Options pour le filtre des années
+        
+    Returns:
+        html.Div: Composant contenant les contrôles de filtrage
+    """
+    # Variables de stratification spécifiquement sélectionnées pour la page Hemopathies
+    stratification_variables = [
+        'Age Groups',
+        'Blood + Rh',
+        'Disease Status At Treatment'
+    ]
+    
+    # Créer les options pour le dropdown de stratification
+    stratification_options = [{'label': 'Aucune', 'value': 'Aucune'}]
+    stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
+    
+    return html.Div([
+        html.Label('Variable principale:', className='mb-2'),
+        dcc.Dropdown(
+            id='x-axis-dropdown',
+            options=[
+                {'label': 'Main Diagnosis', 'value': 'Main Diagnosis'},
+                {'label': 'Subclass Diagnosis', 'value': 'Subclass Diagnosis'}
+            ],
+            value='Main Diagnosis',
+            className='mb-3'
+        ),
+        
+        html.Label('Variable de stratification:', className='mb-2'),
+        dcc.Dropdown(
+            id='stack-variable-dropdown',
+            options=stratification_options,
+            value='Aucune',  # Valeur par défaut
+            className='mb-3'
+        ),
+        
+        html.Hr(),
+        html.H5('Filtres par année', className='mb-2'),
+        dcc.Checklist(
+            id='year-filter-checklist',
+            options=years_options,
+            value=[year['value'] for year in years_options],
+            inline=False,
+            className='mb-3'
+        )
+    ])
+
+
+def create_procedures_sidebar_content(data):
+    """
+    Crée le contenu de la sidebar spécifique à la page Procedures.
+    
+    Args:
+        data (list): Liste de dictionnaires (format store Dash) avec les données
+        
+    Returns:
+        html.Div: Contenu de la sidebar
+    """
+    if data is None or len(data) == 0:
+        return html.Div([
+            html.P('Aucune donnée disponible', className='text-warning')
+        ])
+    
+    # Convertir la liste en DataFrame
+    df = pd.DataFrame(data)
+    
+    # Variables disponibles pour le graphique principal
+    main_chart_options = []
+    
+    # Vérifier les colonnes disponibles
+    possible_columns = {
+        'Donor Type': 'Type de donneur',
+        'Source Stem Cells': 'Source des cellules souches', 
+        'Match Type': 'Type de compatibilité',
+        'Greffes': 'Greffes'
+    }
+    
+    for col, label in possible_columns.items():
+        if col in df.columns:
+            main_chart_options.append({'label': label, 'value': col})
+    
+    # Si aucune colonne n'est disponible, ajouter une option par défaut
+    if not main_chart_options:
+        main_chart_options.append({'label': 'Aucune variable disponible', 'value': 'none'})
+    
+    # Obtenir les années disponibles pour les filtres
+    years_options = []
+    if 'Year' in df.columns:
+        available_years = sorted(df['Year'].unique().tolist())
+        years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+    
+    return html.Div([
+        # Sélection de la variable principale
+        html.Label('Variable du graphique principal:', className='mb-2'),
+        dcc.Dropdown(
+            id='procedures-main-variable',
+            options=main_chart_options,
+            value=main_chart_options[0]['value'] if main_chart_options else 'none',
+            className='mb-3'
+        ),
+        
+        html.Hr(),
+        
+        # Filtres par année
+        html.H5('Filtres par année', className='mb-2'),
+        dcc.Checklist(
+            id='procedures-year-filter',
+            options=years_options,
+            value=[year['value'] for year in years_options],
+            inline=False,
+            className='mb-3'
+        ),
+        
+        html.Hr(),
+        
+        # Informations sur les données
+        html.Div([
+            html.H6("📊 Informations", className="mb-2"),
+            html.P([
+                "Patients: ", html.Strong(f"{len(df):,}")
+            ], className="mb-1", style={'fontSize': '12px'}),
+            html.P([
+                "Années: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
+            ], className="mb-0", style={'fontSize': '12px'})
+        ])
     ])
