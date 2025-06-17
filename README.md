@@ -45,11 +45,8 @@ The application requires several Python packages including Dash for web framewor
 
 ## Local Setup
 
-### Installation Process
-Clone the repository from the designated source control system. Navigate to the project directory and install the required dependencies using the provided requirements file. For enhanced survival analysis capabilities, install the optional Lifelines package.
-
 ### Application Launch
-Execute the main application file using Python. The application will be accessible via web browser at the default localhost address on port 8050.
+Download the latest release and execute the main application file using Python. The application will be accessible via web browser at the default localhost address on port 8050 (http://127.0.0.1:8050/).
 
 ## Data Format Requirements
 
