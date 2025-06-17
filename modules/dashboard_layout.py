@@ -68,14 +68,6 @@ def create_base_layout():
         
         # Header unifié avec logo, titre et navigation
         create_header_with_logo(),
-
-        
-        # Titre dynamique
-        dbc.Row([
-            dbc.Col([
-                html.H1(id='page-title', className='mb-4')
-            ])
-        ]),
         
         # Container principal avec sidebar et contenu
         dbc.Row([

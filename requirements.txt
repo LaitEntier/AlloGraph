@@ -1,6 +1,15 @@
-streamlit==1.32.0
-plotly==5.18.0
-numpy==1.26.2
+# Core Dash dependencies
+dash==2.14.1
+dash-bootstrap-components==1.5.0
+plotly==5.17.0
+
+# Data processing
 pandas==2.1.4
-openpyxl==3.1.2  # Pour la prise en charge des fichiers Excel (.xlsx)
-xlrd==2.0.1  # Pour la prise en charge des anciens fichiers Excel (.xls)
+numpy==1.24.3
+
+# Analysis libraries
+scipy==1.11.4
+lifelines==0.27.7
+
+# Web server for Heroku
+gunicorn==21.2.0

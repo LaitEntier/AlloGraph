@@ -36,3 +36,52 @@ visualizations/allogreffes/__pycache__/graphs.cpython-310.pyc
 modules/__pycache__/data_processing.cpython-310.pyc
 
 modules/glassmorphism_theme.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+.env
+.env.local
+
+# Logs
+*.log
+
+# Data files (optionnel - décommentez si vous ne voulez pas uploader de données de test)
+# *.csv
+# *.xlsx
+# *.xls

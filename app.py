@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import base64
 import io
+import os
 import plotly
 # Import des modules
 import modules.data_processing as data_processing
@@ -215,14 +216,6 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
     return (new_page, styles['nav-accueil'], styles['nav-patients'],
             styles['nav-page1'], styles['nav-procedures'], styles['nav-gvh'], styles['nav-rechute'], styles['nav-survival'], styles['nav-indics'],
             disabled, disabled, disabled, disabled, disabled, disabled, disabled)
-
-
-@app.callback(
-    Output('page-title', 'children'),
-    Input('current-page', 'data')
-)
-def update_title(current_page):
-    return f'Dashboard - {current_page or "Accueil"}'
 
 @app.callback(
     Output('sidebar-content', 'children'),
@@ -653,5 +646,11 @@ def purge_data(confirm_clicks):
     
     return dash.no_update, dash.no_update, dash.no_update
 
+server = app.server
+
 if __name__ == '__main__':
+    # Pour le développement local
     app.run(debug=True)
+else:
+    # Pour la production Heroku
+    server = app.server
