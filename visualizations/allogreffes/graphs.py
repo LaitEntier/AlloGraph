@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.colors
 from scipy.stats import gaussian_kde
 from typing import Optional, List, Tuple
+import numpy as np
 
 def create_consistent_color_map(data, color_column):
     """
@@ -2040,7 +2041,7 @@ def create_stacked_yes_no_barplot(data, treatment_columns, title="", x_axis_titl
 
 def create_competing_risks_analysis(data, gvh_type):
     """
-    Crée l'analyse de risques compétitifs pour GvH aiguë ou chronique
+    Crée l'analyse de risques compétitifs pour GvH aiguë ou chronique - Version simplifiée
     
     Args:
         data (pd.DataFrame): DataFrame avec les données
@@ -2063,15 +2064,15 @@ def create_competing_risks_analysis(data, gvh_type):
     if gvh_type == 'acute':
         required_gvh_columns = ['First Agvhd Occurrence', 'First Agvhd Occurrence Date']
         max_days = 100
-        title = "Analyse de Risques Compétitifs : GvH Aiguë vs Décès (100 jours post-allogreffe)"
+        title = "Analyse de Risques Compétitifs : GvH Aiguë vs Décès (100 jours)"
         event_label = 'GvH Aiguë'
-        event_color = 'red'
+        event_color = '#e74c3c'
     else:  # chronic
         required_gvh_columns = ['First Cgvhd Occurrence', 'First Cgvhd Occurrence Date']
         max_days = 365
         title = "Analyse de Risques Compétitifs : GvH Chronique vs Décès (365 jours)"
         event_label = 'GvH Chronique'
-        event_color = 'orange'
+        event_color = '#f39c12'
     
     # Vérifier que toutes les colonnes nécessaires existent
     all_required_columns = required_base_columns + required_gvh_columns
@@ -2081,15 +2082,21 @@ def create_competing_risks_analysis(data, gvh_type):
         # Créer un graphique d'erreur informatif
         fig = go.Figure()
         fig.add_annotation(
-            text=f"Colonnes manquantes pour l'analyse GvH :<br>{', '.join(missing_columns)}",
+            text=f"<b>Colonnes manquantes pour l'analyse GvH :</b><br>{', '.join(missing_columns)}",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
-            showarrow=False, font_size=16
+            showarrow=False, 
+            font=dict(size=16, family='Arial, sans-serif', color='#e74c3c'),
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="#e74c3c",
+            borderwidth=2
         )
         fig.update_layout(
             title=title,
-            height=500,
-            showlegend=False
+            height=600,
+            showlegend=False,
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(248, 249, 250, 0.8)'
         )
         return fig
     
@@ -2100,15 +2107,21 @@ def create_competing_risks_analysis(data, gvh_type):
         # Graphique vide si pas de données
         fig = go.Figure()
         fig.add_annotation(
-            text="Aucune donnée disponible pour l'analyse",
+            text="<b>Aucune donnée disponible pour l'analyse</b>",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
-            showarrow=False, font_size=16
+            showarrow=False, 
+            font=dict(size=16, family='Arial, sans-serif', color='#f39c12'),
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="#f39c12",
+            borderwidth=2
         )
         fig.update_layout(
             title=title,
-            height=500,
-            showlegend=False
+            height=600,
+            showlegend=False,
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(248, 249, 250, 0.8)'
         )
         return fig
     
@@ -2148,7 +2161,7 @@ def create_competing_risks_analysis(data, gvh_type):
             events_config, followup_config, max_days=max_days
         )
         
-        # Créer le graphique
+        # Créer le graphique simplifié
         fig = analyzer.create_competing_risks_plot(
             results, processed_data, events_config, title=title
         )
@@ -2159,14 +2172,498 @@ def create_competing_risks_analysis(data, gvh_type):
         # Graphique d'erreur si l'analyse échoue
         fig = go.Figure()
         fig.add_annotation(
-            text=f"Erreur lors de l'analyse des risques compétitifs :<br>{str(e)}",
+            text=f"<b>Erreur lors de l'analyse des risques compétitifs :</b><br>{str(e)}",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
-            showarrow=False, font_size=14
+            showarrow=False, 
+            font=dict(size=14, family='Arial, sans-serif', color='#e74c3c'),
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="#e74c3c",
+            borderwidth=2
         )
         fig.update_layout(
             title=title,
-            height=500,
+            height=600,
+            showlegend=False,
+            paper_bgcolor='white',
+            plot_bgcolor='rgba(248, 249, 250, 0.8)'
+        )
+        return fig
+    
+def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_title="", 
+                                      y_axis_title="", height=400, width=None, show_values=True,
+                                      remove_prefix=None):
+    """
+    Crée un graphique en barres empilées uniformisé montrant les proportions Oui/Non pour chaque traitement
+    
+    Args:
+        data (pd.DataFrame): DataFrame contenant les données
+        treatment_columns (list): Liste des colonnes de traitement à analyser
+        title (str): Titre du graphique
+        x_axis_title (str): Titre de l'axe X
+        y_axis_title (str): Titre de l'axe Y
+        height (int): Hauteur du graphique
+        width (int): Largeur du graphique
+        show_values (bool): Afficher les valeurs sur les barres
+        remove_prefix (str): Préfixe à supprimer des noms de colonnes pour l'affichage
+    
+    Returns:
+        plotly.graph_objects.Figure: Figure Plotly
+    """
+    import plotly.graph_objects as go
+    import pandas as pd
+
+    # Calculer les proportions pour chaque traitement
+    proportions_data = []
+    
+    for col in treatment_columns:
+        if col not in data.columns:
+            continue
+            
+        # Compter les Oui et Non
+        counts = data[col].value_counts()
+        total = len(data)
+        
+        oui_count = counts.get('Oui', 0) + counts.get('Yes', 0)  # Support pour 'Yes' et 'Oui'
+        non_count = counts.get('Non', 0) + counts.get('No', 0)   # Support pour 'No' et 'Non'
+        
+        oui_percent = (oui_count / total) * 100 if total > 0 else 0
+        non_percent = (non_count / total) * 100 if total > 0 else 0
+        
+        # Nettoyer le nom du traitement pour l'affichage
+        treatment_name = col
+        if remove_prefix and col.startswith(remove_prefix):
+            treatment_name = col.replace(remove_prefix, '').strip()
+        
+        proportions_data.append({
+            'Traitement': treatment_name,
+            'Oui_percent': oui_percent,
+            'Non_percent': non_percent,
+            'Oui_count': oui_count,
+            'Non_count': non_count
+        })
+    
+    if not proportions_data:
+        # Graphique vide si pas de données
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Aucune donnée de traitement disponible",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(
+            title=title,
+            height=height,
+            width=width
+        )
+        return fig
+    
+    proportions_df = pd.DataFrame(proportions_data)
+    
+    # Trier par proportion de Oui (descendant)
+    proportions_df = proportions_df.sort_values('Oui_percent', ascending=False)
+    
+    # Créer le graphique avec les couleurs standardisées
+    fig = go.Figure()
+    
+    # Barre pour "Oui" - couleur bleu-vert cohérente
+    fig.add_trace(go.Bar(
+        name='Oui',
+        x=proportions_df['Traitement'],
+        y=proportions_df['Oui_percent'],
+        marker_color='#27BDBE',  # Couleur unifiée bleu-vert
+        text=[f'{p:.1f}%<br>({c})' for p, c in zip(proportions_df['Oui_percent'], proportions_df['Oui_count'])],
+        textposition='inside' if show_values else 'none',
+        textfont=dict(color='white', size=10),
+        hovertemplate='<b>%{x}</b><br>' +
+                      'Patients avec traitement: %{text}<br>' +
+                      '<extra></extra>'
+    ))
+    
+    # Barre pour "Non" - couleur rouge-rose cohérente
+    fig.add_trace(go.Bar(
+        name='Non',
+        x=proportions_df['Traitement'],
+        y=proportions_df['Non_percent'],
+        marker_color='#FF6B6B',  # Couleur unifiée rouge-rose
+        text=[f'{p:.1f}%<br>({c})' for p, c in zip(proportions_df['Non_percent'], proportions_df['Non_count'])],
+        textposition='inside' if show_values else 'none',
+        textfont=dict(color='white', size=10),
+        hovertemplate='<b>%{x}</b><br>' +
+                      'Patients sans traitement: %{text}<br>' +
+                      '<extra></extra>'
+    ))
+    
+    # Configuration du layout uniformisé
+    fig.update_layout(
+        title=dict(
+            text=title,
+            x=0.5,
+            font=dict(size=14)
+        ),
+        xaxis=dict(
+            title=x_axis_title,
+            tickfont=dict(size=10),
+            tickangle=-45  # Rotation uniforme pour la lisibilité
+        ),
+        yaxis=dict(
+            title=y_axis_title,
+            range=[0, 100],
+            tickfont=dict(size=10)
+        ),
+        barmode='stack',  # Barres empilées pour montrer le total de 100%
+        legend=dict(
+            x=1.02,
+            y=1,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        ),
+        height=height,
+        width=width,
+        margin=dict(l=50, r=100, t=60, b=80),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        font=dict(family='Arial, sans-serif')
+    )
+    
+    # Ajout de la grille uniforme
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+    
+    return fig
+
+def create_grouped_barplot_with_cumulative_by_category(
+    data,
+    x_column,
+    group_column,
+    title="Distribution par année avec effectifs cumulés par catégorie",
+    x_axis_title=None,
+    bar_y_axis_title="Nombre de patients",
+    line_y_axis_title="Effectif cumulé par catégorie",
+    height=500,
+    width=1500,
+    custom_x_order=None,
+    show_bars=True
+):
+    """
+    Crée un barplot groupé (barres côte à côte) avec des courbes d'effectif cumulé PAR CATÉGORIE.
+    Chaque catégorie a sa propre courbe cumulative.
+    
+    Args:
+        data (pd.DataFrame): DataFrame contenant les données
+        x_column (str): Colonne pour l'axe X (ex: Year)
+        group_column (str): Colonne pour grouper les barres (ex: Donor Type)
+        title (str): Titre du graphique
+        x_axis_title (str): Titre de l'axe X
+        bar_y_axis_title (str): Titre de l'axe Y pour les barres
+        line_y_axis_title (str): Titre de l'axe Y pour les courbes cumulatives
+        height (int): Hauteur du graphique
+        width (int): Largeur du graphique
+        custom_x_order (list): Ordre personnalisé pour l'axe X
+        show_bars (bool): Afficher les barres (True) ou seulement les courbes (False)
+        
+    Returns:
+        plotly.graph_objects.Figure: Figure Plotly du barplot groupé avec cumuls par catégorie
+    """
+    
+    # Calculer les données groupées
+    grouped_data = data.groupby([x_column, group_column]).size().unstack(fill_value=0)
+    
+    # Appliquer l'ordre personnalisé si fourni
+    if custom_x_order is not None:
+        grouped_data = grouped_data.reindex(custom_x_order, fill_value=0)
+    
+    # Réinitialiser l'index pour avoir x_column comme colonne
+    grouped_data = grouped_data.reset_index()
+    
+    # Obtenir les catégories de groupe
+    group_categories = [col for col in grouped_data.columns if col != x_column]
+    
+    # Créer la figure
+    fig = go.Figure()
+    
+    # Palette de couleurs
+    colors = px.colors.qualitative.Plotly
+    
+    # Ajouter les barres groupées si demandé
+    if show_bars:
+        for i, category in enumerate(group_categories):
+            fig.add_trace(go.Bar(
+                name=f'{category} (effectifs)',
+                x=grouped_data[x_column],
+                y=grouped_data[category],
+                marker_color=colors[i % len(colors)],
+                text=grouped_data[category],
+                textposition='inside',
+                yaxis='y',
+                opacity=0.8,
+                showlegend=True
+            ))
+    
+    # Calculer et ajouter les courbes cumulatives PAR CATÉGORIE
+    for i, category in enumerate(group_categories):
+        # Calculer le cumul pour cette catégorie spécifique
+        cumulative_data = grouped_data[category].cumsum()
+        
+        # Couleur plus foncée pour la courbe cumulative
+        line_color = colors[i % len(colors)]
+        # Rendre la couleur plus foncée/saturée
+        if line_color.startswith('rgb'):
+            # Extraire les valeurs RGB et les assombrir
+            rgb_values = line_color.replace('rgb(', '').replace(')', '').split(',')
+            r, g, b = [max(0, int(float(val.strip()) * 0.7)) for val in rgb_values]
+            line_color = f'rgb({r},{g},{b})'
+        
+        fig.add_trace(go.Scatter(
+            name=f'{category} (cumulé)',
+            x=grouped_data[x_column],
+            y=cumulative_data,
+            mode='lines+markers+text',
+            line=dict(color=line_color, width=2, dash='dash'),
+            marker=dict(size=6),
+            text=cumulative_data,
+            textposition='top center',
+            textfont=dict(size=12),
+            yaxis='y2',
+            hovertemplate=f'<b>{category} (cumulé)</b><br>' +
+                         'Année: %{x}<br>' +
+                         'Effectif cumulé: %{y}<br>' +
+                         '<extra></extra>'
+        ))
+    
+    # Définir les titres par défaut
+    x_axis_title = x_axis_title or x_column
+    
+    # Configuration du layout
+    layout_config = {
+        'title': {
+            'text': title,
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 16}
+        },
+        'xaxis_title': x_axis_title,
+        'yaxis_title': bar_y_axis_title,
+        'height': height,
+        'width': width,
+        'template': 'plotly_white',
+        'barmode': 'group',  # Barres côte à côte
+        'legend': dict(
+            orientation='v',
+            yanchor='top',
+            y=1,
+            xanchor='left',
+            x=1.07,
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='rgba(0,0,0,0.2)',
+            borderwidth=1
+        ),
+        'yaxis': dict(
+            title=bar_y_axis_title,
+            side='left'
+        ),
+        'yaxis2': dict(
+            title=line_y_axis_title,
+            overlaying='y',
+            side='right',
+            showgrid=False
+        ),
+        'hovermode': 'x unified'
+    }
+    
+    fig.update_layout(**layout_config)
+    
+    return fig
+
+def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400, width=None):
+    """
+    Crée 3 pie charts pour analyser le statut CMV des donneurs et receveurs.
+    
+    Args:
+        data (pd.DataFrame): DataFrame contenant les données
+        title (str): Titre principal de la visualisation
+        height (int): Hauteur des graphiques
+        width (int): Largeur totale
+        
+    Returns:
+        plotly.graph_objects.Figure: Figure avec 3 sous-graphiques (pie charts)
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    import pandas as pd
+    
+    # Vérifier les colonnes nécessaires
+    required_cols = ['CMV Status Donor', 'CMV Status Patient']
+    missing_cols = [col for col in required_cols if col not in data.columns]
+    
+    if missing_cols:
+        # Créer un graphique d'erreur informatif
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Colonnes manquantes pour l'analyse CMV :<br>{', '.join(missing_cols)}",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(
+            title=title,
+            height=height,
+            width=width,
             showlegend=False
         )
         return fig
+    
+    # Nettoyer et standardiser les données
+    df_clean = data.copy()
+    
+    # Mapper les valeurs pour les rendre plus lisibles
+    donor_mapping = {
+        'Transplant donor cytomegalovirus antibody positive': 'Positif',
+        'Transplant donor cytomegalovirus antibody negative': 'Négatif'
+    }
+    
+    patient_mapping = {
+        'Positive': 'Positif',
+        'Negative': 'Négatif'
+    }
+    
+    # Appliquer les mappings
+    df_clean['CMV_Donor_Clean'] = df_clean['CMV Status Donor'].map(donor_mapping)
+    df_clean['CMV_Patient_Clean'] = df_clean['CMV Status Patient'].map(patient_mapping)
+    
+    # Supprimer les lignes avec des valeurs manquantes
+    df_clean = df_clean.dropna(subset=['CMV_Donor_Clean', 'CMV_Patient_Clean'])
+    
+    if df_clean.empty:
+        # Graphique vide si pas de données valides
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Aucune donnée CMV valide disponible",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(
+            title=title,
+            height=height,
+            width=width,
+            showlegend=False
+        )
+        return fig
+    
+    # Créer les sous-graphiques
+    fig = make_subplots(
+        rows=1, cols=3,
+        specs=[[{"type": "pie"}, {"type": "pie"}, {"type": "pie"}]],
+        subplot_titles=[
+            'Statut CMV Donneur',
+            'Statut CMV Receveur', 
+            'Combinaisons Donneur/Receveur'
+        ],
+        horizontal_spacing=0.05
+    )
+    
+    # Couleurs cohérentes
+    colors_pos_neg = ['#e74c3c', '#2ecc71']  # Rouge pour négatif, vert pour positif
+    colors_combinations = ['#27ae60', '#f39c12', '#e67e22', '#c0392b']  # Vert, orange, orange foncé, rouge
+    
+    # 1. Pie chart Statut Donneur
+    donor_counts = df_clean['CMV_Donor_Clean'].value_counts()
+    if len(donor_counts) > 0:
+        fig.add_trace(
+            go.Pie(
+                labels=donor_counts.index,
+                values=donor_counts.values,
+                name="Donneur",
+                marker_colors=colors_pos_neg,
+                textinfo='label+percent+value',
+                texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
+                hovertemplate='<b>Statut Donneur: %{label}</b><br>' +
+                             'Nombre: %{value}<br>' +
+                             'Pourcentage: %{percent}<br>' +
+                             '<extra></extra>'
+            ),
+            row=1, col=1
+        )
+    
+    # 2. Pie chart Statut Patient
+    patient_counts = df_clean['CMV_Patient_Clean'].value_counts()
+    if len(patient_counts) > 0:
+        fig.add_trace(
+            go.Pie(
+                labels=patient_counts.index,
+                values=patient_counts.values,
+                name="Patient",
+                marker_colors=colors_pos_neg,
+                textinfo='label+percent+value',
+                texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
+                hovertemplate='<b>Statut Patient: %{label}</b><br>' +
+                             'Nombre: %{value}<br>' +
+                             'Pourcentage: %{percent}<br>' +
+                             '<extra></extra>'
+            ),
+            row=1, col=2
+        )
+    
+    # 3. Pie chart Combinaisons
+    # Créer les combinaisons Donneur/Receveur
+    df_clean['CMV_Combination'] = df_clean['CMV_Donor_Clean'] + '/' + df_clean['CMV_Patient_Clean']
+    combination_counts = df_clean['CMV_Combination'].value_counts()
+    
+    # Ordonner les combinaisons de manière logique
+    preferred_order = ['Positif/Positif', 'Positif/Négatif', 'Négatif/Positif', 'Négatif/Négatif']
+    ordered_combinations = []
+    ordered_values = []
+    ordered_colors = []
+    
+    for i, combo in enumerate(preferred_order):
+        if combo in combination_counts:
+            ordered_combinations.append(combo)
+            ordered_values.append(combination_counts[combo])
+            ordered_colors.append(colors_combinations[i])
+    
+    # Ajouter les combinaisons restantes si il y en a
+    for combo in combination_counts.index:
+        if combo not in ordered_combinations:
+            ordered_combinations.append(combo)
+            ordered_values.append(combination_counts[combo])
+            ordered_colors.append('#95a5a6')  # Gris pour les combinaisons inattendues
+    
+    if len(ordered_combinations) > 0:
+        fig.add_trace(
+            go.Pie(
+                labels=ordered_combinations,
+                values=ordered_values,
+                name="Combinaisons",
+                marker_colors=ordered_colors,
+                textinfo='label+percent+value',
+                texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
+                hovertemplate='<b>Combinaison: %{label}</b><br>' +
+                             'Nombre: %{value}<br>' +
+                             'Pourcentage: %{percent}<br>' +
+                             '<extra></extra>'
+            ),
+            row=1, col=3
+        )
+    
+    # Mise en forme globale
+    fig.update_layout(
+        title={
+            'text': title,
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 16, 'family': 'Arial, sans-serif'}
+        },
+        height=height,
+        width=width,
+        showlegend=False,  # Désactiver les légendes car les labels sont sur les secteurs
+        font=dict(family="Arial, sans-serif", size=10),
+        margin=dict(t=80, b=20, l=20, r=20),
+    )
+    
+    # Mettre à jour les annotations des sous-titres
+    fig.update_annotations(font_size=12, font_color="#2c3e50")
+    
+    return fig

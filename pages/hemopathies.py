@@ -1,8 +1,8 @@
-# pages/hemopathies.py
 import dash
-from dash import dcc, html, Input, Output, State, callback
+from dash import dcc, html, Input, Output, State, callback, dash_table
 import dash_bootstrap_components as dbc
 import pandas as pd
+import plotly.graph_objects as go
 
 # Import des modules communs
 import modules.dashboard_layout as layouts
@@ -41,36 +41,38 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
         
-        # Troisième graphique - Performance Status
+        # Troisième graphique - Boxplot des Performance Scores
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Performance Status par diagnostic')),
+                    dbc.CardHeader(html.H5('Performance Scores par diagnostic')),
                     dbc.CardBody([
                         html.Div(
-                            id='hemopathies-performance-viz',
-                            style={'height': '400px', 'overflow': 'hidden'}
+                            id='hemopathies-performance-scores-boxplot',
+                            style={'height': '500px', 'overflow': 'hidden'}
                         )
                     ], className='p-2')
                 ])
             ], width=12)
-        ], className='mb-4'),
-        
-        # Quatrième graphique - Number Allo HCT
+        ]),
+
+        # Quatrième section - DataTable Main Diagnosis par année
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Number Allo HCT par diagnostic')),
+                    dbc.CardHeader(html.H5('Répartition des diagnostics principaux par année')),
                     dbc.CardBody([
                         html.Div(
-                            id='hemopathies-boxplot',
-                            style={'height': '400px', 'overflow': 'hidden'}
+                            id='hemopathies-datatable',
+                            style={'height': '500px', 'overflow': 'auto'}
                         )
                     ], className='p-2')
                 ])
             ], width=12)
         ])
+        
     ], fluid=True)
+
 
 def create_safe_truncated_mapping(processed_df, x_axis, truncated_col):
     """
@@ -311,15 +313,14 @@ def register_callbacks(app):
             return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
 
     @app.callback(
-        Output('hemopathies-performance-viz', 'children'),
+        Output('hemopathies-performance-scores-boxplot', 'children'),
         [Input('data-store', 'data'),
-         Input('current-page', 'data'),
-         Input('x-axis-dropdown', 'value'),
-         Input('stack-variable-dropdown', 'value'),
-         Input('year-filter-checklist', 'value')]
+        Input('current-page', 'data'),
+        Input('x-axis-dropdown', 'value'),
+        Input('year-filter-checklist', 'value')]
     )
-    def update_performance_visualization(data, current_page, x_axis, stack_var, selected_years):
-        """Visualisation du Performance Status par diagnostic"""
+    def update_performance_scores_boxplot(data, current_page, x_axis, selected_years):
+        """Boxplot des Performance Scores avec boutons pour switcher entre les échelles"""
         if current_page != 'Hemopathies' or data is None:
             return html.Div()
         
@@ -335,25 +336,41 @@ def register_callbacks(app):
         else:
             filtered_df = df
         
-        # Vérifier les colonnes nécessaires
-        required_cols = ['Performance Status At Treatment Score', 'Performance Status At Treatment Scale']
-        available_cols = [col for col in required_cols if col in filtered_df.columns]
+        if filtered_df.empty or x_axis not in filtered_df.columns:
+            return html.Div('Aucune donnée disponible', className='text-warning text-center')
         
-        if not available_cols or x_axis not in filtered_df.columns:
-            return html.Div([
-                html.P('Colonnes Performance Status non disponibles', className='text-warning text-center'),
-                html.P(f'Colonnes trouvées: {", ".join(available_cols)}', className='text-muted text-center', style={'fontSize': '10px'})
-            ])
+        # Vérifier que les colonnes nécessaires existent
+        scale_col = 'Performance Status At Treatment Scale'
+        score_col = 'Performance Status At Treatment Score'
+        
+        if scale_col not in filtered_df.columns or score_col not in filtered_df.columns:
+            return html.Div('Colonnes Performance Status manquantes', className='text-warning text-center')
         
         try:
-            # Utiliser le score comme variable principale
-            score_col = 'Performance Status At Treatment Score'
-            scale_col = 'Performance Status At Treatment Scale' if 'Performance Status At Treatment Scale' in filtered_df.columns else None
+            # Nettoyer les données pour x_axis
+            clean_df = filtered_df.dropna(subset=[x_axis, scale_col, score_col])
             
-            # Nettoyer les données (supprimer les valeurs nulles et "Unknown")
-            clean_df = filtered_df.dropna(subset=[score_col, x_axis])
+            # Obtenir les échelles uniques disponibles
+            available_scales = clean_df[scale_col].dropna().unique()
             
-            # Convertir le score en numérique en gérant les cas "Unknown"
+            if len(available_scales) == 0:
+                return html.Div('Aucune échelle de performance disponible', className='text-warning text-center')
+            
+            # Préparer les données avec labels tronqués si c'est un diagnostic
+            if x_axis in ['Main Diagnosis', 'Subclass Diagnosis']:
+                max_length = 20
+                processed_df, truncated_col = gr.prepare_data_with_truncated_labels(
+                    clean_df, x_axis, max_length
+                )
+                display_column = truncated_col
+            else:
+                processed_df = clean_df
+                display_column = x_axis
+            
+            # Créer la figure
+            fig = go.Figure()
+            
+            # Fonction pour convertir le score en numérique
             def convert_score_to_numeric(score):
                 if pd.isna(score) or str(score).strip().lower() in ['unknown', 'nan', '']:
                     return None
@@ -362,65 +379,116 @@ def register_callbacks(app):
                 except (ValueError, TypeError):
                     return None
             
-            clean_df = clean_df.copy()
-            clean_df['numeric_score'] = clean_df[score_col].apply(convert_score_to_numeric)
-            
-            # Supprimer les lignes où la conversion a échoué
-            clean_df = clean_df.dropna(subset=['numeric_score'])
-            
-            if clean_df.empty:
-                return html.Div('Aucune donnée numérique valide pour le Performance Status', className='text-warning text-center')
-            
-            # Préparer les données avec labels tronqués si c'est un diagnostic
-            if x_axis in ['Main Diagnosis', 'Subclass Diagnosis']:
-                max_length = 20
-                processed_df, truncated_col = gr.prepare_data_with_truncated_labels(
-                    clean_df, x_axis, max_length
-                )
-                display_column = truncated_col
-            else:
-                processed_df = clean_df
-                display_column = x_axis
-            
-            # Créer un boxplot avec le score numérique par diagnostic
-            color_col = None
-            if stack_var == 'Aucune' and scale_col:
-                color_col = scale_col
-            elif stack_var != 'Aucune':
-                color_col = stack_var
-            
-            fig = gr.create_enhanced_boxplot(
-                data=processed_df,
-                x_column=display_column,
-                y_column='numeric_score',
-                color_column=color_col,
-                title=f"Performance Status Score par {x_axis.lower()}",
-                x_axis_title=x_axis,
-                y_axis_title="Performance Status Score",
-                height=380,  # Ajusté pour le nouveau layout
-                width=None,
-                show_points=True,
-                force_zero_start=True
-            )
-            
-            # Ajouter rotation pour les diagnostics
-            if x_axis in ['Main Diagnosis', 'Subclass Diagnosis']:
-                fig.update_layout(
-                    xaxis=dict(
-                        title=x_axis,
-                        tickangle=45,
-                        tickmode='linear'
-                    )
-                )
+            # Créer les traces pour chaque échelle
+            for i, scale in enumerate(available_scales):
+                # Filtrer les données pour cette échelle
+                scale_df = processed_df[processed_df[scale_col] == scale].copy()
+                scale_df['numeric_score'] = scale_df[score_col].apply(convert_score_to_numeric)
+                scale_df = scale_df.dropna(subset=['numeric_score'])
                 
-                # Ajouter le texte complet au hover si c'est tronqué
-                try:
-                    fig.update_traces(
-                        hovertemplate=f'<b>%{{x}}</b><br>{x_axis}: %{{customdata}}<br>Score: %{{y}}<extra></extra>',
-                        customdata=processed_df[x_axis]
+                # Obtenir les catégories
+                categories = sorted(scale_df[display_column].unique())
+                
+                # Créer un boxplot pour chaque catégorie
+                for category in categories:
+                    cat_data = scale_df[scale_df[display_column] == category]['numeric_score']
+                    
+                    fig.add_trace(go.Box(
+                        y=cat_data,
+                        x=[category] * len(cat_data),
+                        name=category,
+                        showlegend=False,
+                        marker_color='#2E86AB',
+                        boxpoints='all',
+                        jitter=0.3,
+                        pointpos=0,
+                        marker=dict(size=4, opacity=0.6),
+                        visible=(i == 0)  # Seule la première échelle est visible au début
+                    ))
+            
+            # Fonction pour déterminer la plage Y selon l'échelle
+            def get_y_axis_config(scale_name):
+                if 'ECOG' in scale_name:
+                    return {'range': [0, 5], 'dtick': 1}
+                elif 'Karnofsky' in scale_name or 'Lansky' in scale_name:
+                    return {'range': [0, 100], 'dtick': 10}
+                else:
+                    return {'range': [0, None], 'dtick': 1}
+            
+            # Créer les boutons pour switcher entre les échelles
+            buttons = []
+            for i, scale in enumerate(available_scales):
+                # Créer la visibilité pour ce bouton
+                visibility = []
+                for j in range(len(available_scales)):
+                    n_categories = len(processed_df[processed_df[scale_col] == available_scales[j]][display_column].unique())
+                    if j == i:
+                        visibility.extend([True] * n_categories)
+                    else:
+                        visibility.extend([False] * n_categories)
+                
+                # Obtenir la configuration de l'axe Y pour cette échelle
+                y_config = get_y_axis_config(scale)
+                
+                buttons.append(
+                    dict(
+                        label=scale,
+                        method='update',
+                        args=[
+                            {
+                                'visible': visibility
+                            },
+                            {
+                                'title': f'Performance Score ({scale}) par {x_axis}',
+                                'yaxis': dict(
+                                    title='Performance Score',
+                                    range=y_config['range'],
+                                    dtick=y_config['dtick'],
+                                    tick0=0
+                                )
+                            }
+                        ]
                     )
-                except:
-                    pass
+                )
+            
+            # Configuration initiale de l'axe Y
+            initial_y_config = get_y_axis_config(available_scales[0])
+            
+            # Mise en forme du graphique avec marges ajustées
+            fig.update_layout(
+                title=f'Performance Score ({available_scales[0]}) par {x_axis}',
+                xaxis_title=x_axis,
+                yaxis_title='Performance Score',
+                height=480,
+                width=None,
+                template='plotly_white',
+                showlegend=False,
+                margin=dict(t=80, r=200, b=80, l=80),  # Marge droite augmentée pour le menu
+                updatemenus=[
+                    dict(
+                        buttons=buttons,
+                        direction='down',
+                        pad={'r': 10, 't': 10},
+                        showactive=True,
+                        x=1.02,  # Position à droite du graphique
+                        xanchor='left',
+                        y=1,     # Aligné en haut
+                        yanchor='top',
+                        bgcolor='rgba(255, 255, 255, 0.9)',
+                        bordercolor='#2E86AB',
+                        borderwidth=1
+                    )
+                ],
+                yaxis=dict(
+                    range=initial_y_config['range'],
+                    dtick=initial_y_config['dtick'],
+                    tick0=0
+                ),
+                xaxis=dict(
+                    tickangle=45 if x_axis in ['Main Diagnosis', 'Subclass Diagnosis'] else 0,
+                    tickmode='linear'
+                )
+            )
             
             return dcc.Graph(
                 figure=fig,
@@ -430,96 +498,181 @@ def register_callbacks(app):
         
         except Exception as e:
             return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
-
+        
     @app.callback(
-        Output('hemopathies-boxplot', 'children'),
+        Output('hemopathies-datatable', 'children'),
         [Input('data-store', 'data'),
-         Input('current-page', 'data'),
-         Input('x-axis-dropdown', 'value'),
-         Input('stack-variable-dropdown', 'value'),
-         Input('year-filter-checklist', 'value')]
+        Input('current-page', 'data'),
+        Input('year-filter-checklist', 'value')]
     )
-    def update_number_allo_boxplot(data, current_page, x_axis, stack_var, selected_years):
-        """Boxplot de Number Allo HCT par diagnostic"""
+    def update_hemopathies_datatable(data, current_page, selected_years):
+        """DataTable avec la répartition des Main Diagnosis par année"""
         if current_page != 'Hemopathies' or data is None:
             return html.Div()
         
         df = pd.DataFrame(data)
         
-        # Valeurs par défaut
-        if x_axis is None:
-            x_axis = 'Main Diagnosis' if 'Main Diagnosis' in df.columns else None
+        # Vérifier les colonnes nécessaires
+        required_cols = ['Year', 'Main Diagnosis']
+        missing_cols = [col for col in required_cols if col not in df.columns]
         
-        # Filtrer les données par année
-        if selected_years and 'Year' in df.columns:
+        if missing_cols:
+            return dbc.Alert(f'Colonnes manquantes: {", ".join(missing_cols)}', color='warning')
+        
+        # Filtrer selon les années sélectionnées
+        if selected_years:
             filtered_df = df[df['Year'].isin(selected_years)]
+            years_to_process = selected_years
         else:
             filtered_df = df
+            years_to_process = sorted(df['Year'].unique())
         
-        # Vérifier les colonnes nécessaires
-        y_col = 'Number Allo HCT'
-        if y_col not in filtered_df.columns or x_axis not in filtered_df.columns:
-            return html.Div('Colonne "Number Allo HCT" non disponible', className='text-warning text-center')
+        if filtered_df.empty:
+            return dbc.Alert('Aucune donnée disponible pour les années sélectionnées', color='info')
         
-        try:
-            # Nettoyer les données
-            clean_df = filtered_df.dropna(subset=[y_col, x_axis])
+        # Calculer la table croisée Year x Main Diagnosis
+        crosstab = pd.crosstab(filtered_df['Year'], filtered_df['Main Diagnosis'], margins=True, margins_name='TOTAL')
+        
+        # Calculer les pourcentages par année (ligne)
+        crosstab_percent = crosstab.div(crosstab['TOTAL'], axis=0) * 100
+        
+        # Créer les données pour la table
+        table_data = []
+        
+        # Obtenir tous les diagnostics (colonnes sauf TOTAL)
+        diagnoses = [col for col in crosstab.columns if col != 'TOTAL']
+        
+        # Tronquer les noms de diagnostics longs pour l'affichage
+        def truncate_diagnosis(diagnosis, max_length=30):
+            if pd.isna(diagnosis) or len(str(diagnosis)) <= max_length:
+                return str(diagnosis)
+            return str(diagnosis)[:max_length-3] + "..."
+        
+        # Créer les lignes pour chaque année
+        for year in crosstab.index:
+            row_data = {'Année': str(year)}
             
-            if clean_df.empty:
-                return html.Div('Aucune donnée valide pour Number Allo HCT', className='text-warning text-center')
+            # Ajouter l'effectif total
+            row_data['Effectif total'] = int(crosstab.loc[year, 'TOTAL'])
             
-            # Préparer les données avec labels tronqués si c'est un diagnostic
-            if x_axis in ['Main Diagnosis', 'Subclass Diagnosis']:
-                max_length = 20
-                processed_df, truncated_col = gr.prepare_data_with_truncated_labels(
-                    clean_df, x_axis, max_length
-                )
-                display_column = truncated_col
-            else:
-                processed_df = clean_df
-                display_column = x_axis
-            
-            # Utiliser la variable de stratification pour colorer les points
-            color_col = None if stack_var == 'Aucune' else stack_var
-            
-            fig = gr.create_enhanced_boxplot(
-                data=processed_df,
-                x_column=display_column,
-                y_column=y_col,
-                color_column=color_col,
-                title=f"Number Allo HCT par {x_axis.lower()}",
-                x_axis_title=x_axis,
-                y_axis_title="Number Allo HCT",
-                height=380,  # Ajusté pour le nouveau layout
-                width=None,
-                show_points=True,
-                force_zero_start=True
-            )
-            
-            # Ajouter rotation pour les diagnostics
-            if x_axis in ['Main Diagnosis', 'Subclass Diagnosis']:
-                fig.update_layout(
-                    xaxis=dict(
-                        title=x_axis,
-                        tickangle=45,
-                        tickmode='linear'
-                    )
-                )
+            # Ajouter chaque diagnostic avec count et pourcentage
+            for diagnosis in diagnoses:
+                count = int(crosstab.loc[year, diagnosis])
+                percent = crosstab_percent.loc[year, diagnosis]
                 
-                # Ajouter le texte complet au hover si c'est tronqué
-                try:
-                    fig.update_traces(
-                        hovertemplate=f'<b>%{{x}}</b><br>{x_axis}: %{{customdata}}<br>{y_col}: %{{y}}<extra></extra>',
-                        customdata=processed_df[x_axis]
-                    )
-                except:
-                    pass
+                # Nom tronqué pour les colonnes
+                trunc_diagnosis = truncate_diagnosis(diagnosis, 25)
+                
+                # Colonnes count et pourcentage
+                row_data[f'{trunc_diagnosis} (n)'] = count
+                row_data[f'{trunc_diagnosis} (%)'] = round(percent, 1)
             
-            return dcc.Graph(
-                figure=fig,
-                style={'height': '100%'},
-                config={'responsive': True, 'displayModeBar': False}
-            )
+            table_data.append(row_data)
         
-        except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+        # Préparer les colonnes pour la DataTable
+        columns = [
+            {"name": "Année", "id": "Année", "type": "text"},
+            {"name": "Effectif total", "id": "Effectif total", "type": "numeric"}
+        ]
+        
+        # Ajouter les colonnes pour chaque diagnostic
+        for diagnosis in diagnoses:
+            trunc_diagnosis = truncate_diagnosis(diagnosis, 25)
+            columns.extend([
+                {
+                    "name": f"{trunc_diagnosis} (n)", 
+                    "id": f"{trunc_diagnosis} (n)", 
+                    "type": "numeric"
+                },
+                {
+                    "name": f"{trunc_diagnosis} (%)", 
+                    "id": f"{trunc_diagnosis} (%)", 
+                    "type": "numeric",
+                    "format": {"specifier": ".1f"}
+                }
+            ])
+        
+        # Créer la DataTable
+        return html.Div([
+            html.P(f"Répartition de {len(diagnoses)} diagnostics principaux sur {len(years_to_process)} années", 
+                className='text-info mb-3', style={'fontSize': '12px'}),
+            
+            dash_table.DataTable(
+                data=table_data,
+                columns=columns,
+                style_table={
+                    'height': '400px', 
+                    'overflowY': 'auto', 
+                    'overflowX': 'auto',
+                    'border': '1px solid #ddd'
+                },
+                style_cell={
+                    'textAlign': 'center',
+                    'padding': '6px',
+                    'fontFamily': 'Arial, sans-serif',
+                    'fontSize': '10px',
+                    'minWidth': '60px',
+                    'maxWidth': '120px',
+                    'whiteSpace': 'normal',
+                    'height': 'auto',
+                },
+                style_header={
+                    'backgroundColor': '#0D3182', 
+                    'color': 'white',
+                    'fontWeight': 'bold',
+                    'textAlign': 'center',
+                    'fontSize': '9px',
+                    'padding': '8px',
+                    'border': '1px solid white'
+                },
+                style_data_conditional=[
+                    {
+                        # Mise en évidence de la ligne TOTAL
+                        'if': {'filter_query': '{Année} = TOTAL'},
+                        'backgroundColor': '#e6f3ff',
+                        'fontWeight': 'bold',
+                        'border': '2px solid #0D3182'
+                    },
+                    {
+                        # Style pour les colonnes de nombres (alternance)
+                        'if': {'column_id': [col['id'] for col in columns if '(n)' in col['id']]},
+                        'backgroundColor': '#f8f9fa',
+                    },
+                    {
+                        # Style pour les colonnes de pourcentages
+                        'if': {'column_id': [col['id'] for col in columns if '(%)' in col['id']]},
+                        'backgroundColor': '#e8f5e8',
+                    }
+                ],
+                style_cell_conditional=[
+                    {
+                        'if': {'column_id': 'Année'},
+                        'fontWeight': 'bold',
+                        'textAlign': 'left',
+                        'width': '80px',
+                        'backgroundColor': '#f0f0f0',
+                        'position': 'sticky',
+                        'left': 0
+                    },
+                    {
+                        'if': {'column_id': 'Effectif total'},
+                        'width': '90px',
+                        'fontWeight': 'bold',
+                        'backgroundColor': '#fff2cc'
+                    },
+                    {
+                        # Largeur pour les colonnes de count
+                        'if': {'column_id': [col['id'] for col in columns if '(n)' in col['id']]},
+                        'width': '60px'
+                    },
+                    {
+                        # Largeur pour les colonnes de pourcentage  
+                        'if': {'column_id': [col['id'] for col in columns if '(%)' in col['id']]},
+                        'width': '60px'
+                    }
+                ],
+                # Retirer fixed_columns car non supporté dans toutes les versions
+                # Supprimer les tooltips qui peuvent causer des problèmes
+                # tooltip_data et tooltip_duration supprimés pour compatibilité
+            )
+        ], style={'height': '100%'})

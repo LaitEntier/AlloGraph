@@ -10,21 +10,23 @@ import visualizations.allogreffes.graphs as gr
 
 def get_layout():
     """
-    Retourne le layout de la page GvH
+    Retourne le layout de la page GvH avec uniquement le graphique de risques compétitifs
     """
-    return dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader(html.H4('Analyse des Risques Compétitifs GvH')),
-                dbc.CardBody([
-                    html.Div(
-                        id='gvh-main-graph',
-                        style={'height': '800px', 'width': '100%'}
-                    )
-                ], className='p-2')
-            ])
-        ], width=12)
-    ])
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs GvH')),
+                    dbc.CardBody([
+                        html.Div(
+                            id='gvh-main-graph',
+                            style={'height': '800px', 'width': '100%'}
+                        )
+                    ], className='p-2')
+                ])
+            ], width=12)
+        ])
+    ], fluid=True)
 
 def create_gvh_sidebar_content(data):
     """
@@ -65,6 +67,11 @@ def create_gvh_sidebar_content(data):
         
         html.Hr(),
         
+        # Filtres de grade/score dynamiques
+        html.Div(id='gvh-grade-filter-container'),
+        
+        html.Hr(),
+        
         # Filtres par année
         html.H5('Filtres par année', className='mb-2'),
         dcc.Checklist(
@@ -94,74 +101,171 @@ def register_callbacks(app):
     Enregistre les callbacks pour la page GvH
     """
     
-    # Callback principal pour le graphique GvH
+    # Callback pour mettre à jour les filtres de grade/score selon le type de GvH
+    @app.callback(
+        Output('gvh-grade-filter-container', 'children'),
+        [Input('gvh-type-selection', 'value'),
+         Input('data-store', 'data')],
+        prevent_initial_call=False
+    )
+    def update_grade_filters(gvh_type, data):
+        """Met à jour les filtres de grade/score selon le type de GvH sélectionné"""
+        if data is None:
+            return html.Div()
+        
+        df = pd.DataFrame(data)
+        
+        if gvh_type == 'acute':
+            # Filtres pour GvH Aiguë
+            column_name = 'First aGvHD Maximum Score'
+            title = 'Filtres par Grade aGvH'
+            filter_id = 'gvh-grade-filter'
+            
+            # Ordre spécifique demandé
+            grade_order = ['Grade 0 (none)', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
+            
+            if column_name in df.columns:
+                # Obtenir les valeurs disponibles dans les données
+                available_grades = df[column_name].dropna().unique().tolist()
+                
+                # Créer les options dans l'ordre spécifié, seulement pour les valeurs présentes
+                grade_options = []
+                for grade in grade_order:
+                    if grade in available_grades:
+                        grade_options.append({'label': grade, 'value': grade})
+                
+                # Ajouter les valeurs non prévues qui pourraient exister
+                for grade in available_grades:
+                    if grade not in grade_order:
+                        grade_options.append({'label': grade, 'value': grade})
+                
+                # Sélectionner toutes les valeurs par défaut
+                default_values = [option['value'] for option in grade_options]
+            else:
+                grade_options = []
+                default_values = []
+        
+        else:  # chronic
+            # Filtres pour GvH Chronique
+            column_name = 'First cGvHD Maximum NIH Score'
+            title = 'Filtres par Score NIH cGvH'
+            filter_id = 'gvh-grade-filter'
+            
+            # Ordre spécifique demandé
+            score_order = ['Mild', 'Limited', 'Moderate', 'Extensive', 'Severe', 'Not done', 'Unknown']
+            
+            if column_name in df.columns:
+                # Obtenir les valeurs disponibles dans les données
+                available_scores = df[column_name].dropna().unique().tolist()
+                
+                # Créer les options dans l'ordre spécifié, seulement pour les valeurs présentes
+                grade_options = []
+                for score in score_order:
+                    if score in available_scores:
+                        grade_options.append({'label': score, 'value': score})
+                
+                # Ajouter les valeurs non prévues qui pourraient exister
+                for score in available_scores:
+                    if score not in score_order:
+                        grade_options.append({'label': score, 'value': score})
+                
+                # Sélectionner toutes les valeurs par défaut
+                default_values = [option['value'] for option in grade_options]
+            else:
+                grade_options = []
+                default_values = []
+        
+        if not grade_options:
+            return html.Div([
+                html.H6(title, className='mb-2'),
+                html.P(f'Colonne "{column_name}" non disponible', className='text-muted small')
+            ])
+        
+        return html.Div([
+            html.H6(title, className='mb-2'),
+            dcc.Checklist(
+                id='gvh-grade-filter',  # ID unique pour les deux types
+                options=grade_options,
+                value=default_values,
+                inline=False,
+                className='mb-3',
+                style={'fontSize': '12px'}
+            )
+        ])
+    
+    # Callback principal pour le graphique GvH (mis à jour avec les nouveaux filtres)
     @app.callback(
         Output('gvh-main-graph', 'children'),
         [Input('gvh-type-selection', 'value'),
          Input('gvh-year-filter', 'value'),
-         Input('data-store', 'data')],
-        prevent_initial_call=True
+         Input('gvh-grade-filter', 'value'),
+         Input('data-store', 'data'),
+         Input('current-page', 'data')],
+        prevent_initial_call=False
     )
-    def update_gvh_main_graph(gvh_type, selected_years, data):
+    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs"""
+        # Ne rien afficher si on n'est pas sur la page GvH
+        if current_page != 'GvH':
+            return html.Div()
+            
         if data is None:
             return dbc.Alert("Aucune donnée disponible", color="warning")
         
         df = pd.DataFrame(data)
+        print(f"Dataset initial: {len(df)} patients")
         
         # Filtrer les données par années sélectionnées
         if selected_years and 'Year' in df.columns:
             df = df[df['Year'].isin(selected_years)]
+            print(f"Après filtre années: {len(df)} patients")
+        
+        # CORRECTION : Filtrer par grade/score SEULEMENT pour les patients avec GvH
+        if gvh_type == 'acute':
+            column_name = 'First aGvHD Maximum Score'
+            occurrence_col = 'First Agvhd Occurrence'
+        else:
+            column_name = 'First cGvHD Maximum NIH Score'
+            occurrence_col = 'First Cgvhd Occurrence'
+        
+        # Appliquer le filtre de grade/score UNIQUEMENT aux patients avec GvH = "Yes"
+        if column_name in df.columns and selected_grades:
+            # Garder tous les patients SANS GvH (occurrence != "Yes") 
+            # + les patients AVEC GvH qui ont le bon grade/score
+            patients_sans_gvh = df[df[occurrence_col] != 'Yes']
+            patients_avec_gvh_filtre = df[
+                (df[occurrence_col] == 'Yes') & 
+                (df[column_name].isin(selected_grades))
+            ]
+            
+            # Combiner les deux groupes
+            df = pd.concat([patients_sans_gvh, patients_avec_gvh_filtre], ignore_index=True)
+            print(f"Après filtre grade/score: {len(df)} patients")
+            print(f"  - Patients sans GvH: {len(patients_sans_gvh)}")
+            print(f"  - Patients avec GvH et grade sélectionné: {len(patients_avec_gvh_filtre)}")
+            
+        elif column_name in df.columns and not selected_grades:
+            # Si aucun grade n'est sélectionné, garder seulement les patients sans GvH
+            df = df[df[occurrence_col] != 'Yes']
+            print(f"Aucun grade sélectionné - gardé seulement patients sans GvH: {len(df)} patients")
+            
+            if len(df) == 0:
+                return dbc.Alert(
+                    f"Aucun {'grade' if gvh_type == 'acute' else 'score'} sélectionné pour l'analyse", 
+                    color="info"
+                )
+        
+        if df.empty:
+            return dbc.Alert("Aucune donnée disponible avec les filtres sélectionnés", color="warning")
+        
+        print(f"Dataset final pour analyse: {len(df)} patients")
         
         try:
             fig = gr.create_competing_risks_analysis(df, gvh_type)
-            return dcc.Graph(figure=fig, style={'height': '100%', 'width': '100%'})
+            return dcc.Graph(
+                figure=fig, 
+                style={'height': '100%', 'width': '100%'},
+                config={'responsive': True}
+            )
         except Exception as e:
             return dbc.Alert(f"Erreur lors de la création du graphique: {str(e)}", color="danger")
-
-def create_gvh_data_table(df, gvh_type):
-    """
-    Crée une table avec les données pertinentes pour le type de GvH sélectionné
-    
-    Args:
-        df (pd.DataFrame): DataFrame avec les données
-        gvh_type (str): Type de GvH ('acute' ou 'chronic')
-        
-    Returns:
-        html.Div: Composant contenant la table
-    """
-    if gvh_type == 'acute':
-        relevant_columns = [
-            'Treatment Date', 'First Agvhd Occurrence', 'First Agvhd Occurrence Date',
-            'Status Last Follow Up', 'Date Of Last Follow Up', 'Year'
-        ]
-        title = "Données GvH Aiguë"
-    else:
-        relevant_columns = [
-            'Treatment Date', 'First Cgvhd Occurrence', 'First Cgvhd Occurrence Date',
-            'Status Last Follow Up', 'Date Of Last Follow Up', 'Year'
-        ]
-        title = "Données GvH Chronique"
-    
-    # Filtrer les colonnes qui existent réellement
-    available_columns = [col for col in relevant_columns if col in df.columns]
-    
-    if not available_columns:
-        return dbc.Alert("Colonnes de données GvH non trouvées", color="warning")
-    
-    # Créer la table
-    table_df = df[available_columns].head(100)  # Limiter à 100 lignes pour l'affichage
-    
-    return html.Div([
-        html.H5(title, className="mb-3"),
-        html.P(f"Affichage des {len(table_df)} premières lignes sur {len(df)} total", 
-               className="text-muted small"),
-        dbc.Table.from_dataframe(
-            table_df, 
-            striped=True, 
-            bordered=True, 
-            hover=True, 
-            responsive=True,
-            size="sm"
-        )
-    ], style={'height': '400px', 'overflow': 'auto'})

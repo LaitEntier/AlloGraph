@@ -3,6 +3,62 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 import pandas as pd
 
+def create_header_with_logo():
+    """Crée le header unifié avec logo, titre et navigation"""
+    return dbc.Row([
+        dbc.Col([
+            html.Div([
+                # Section supérieure : Logo et titre
+                html.Div([
+                    # Logo à gauche
+                    html.Img(
+                        src="/assets/images/logo.svg",
+                        className="app-logo",
+                        style={
+                            'height': '50px',
+                            'width': 'auto',
+                            'marginRight': '15px'
+                        }
+                    ),
+                    # Titre avec styling spécial
+                    html.H1([
+                        html.Span("Allo", style={'color': '#2c3e50'}),
+                        html.Span("Graph", style={'color': '#c0392b'})
+                    ], className="main-title", style={
+                        'margin': '0',
+                        'fontSize': '32px',
+                        'fontWeight': 'bold',
+                        'fontFamily': 'Arial, sans-serif'
+                    })
+                ], style={
+                    'display': 'flex',
+                    'alignItems': 'center',
+                    'justifyContent': 'flex-start',
+                    'marginBottom': '15px'
+                }),
+                
+                # Section navigation intégrée
+                html.Div([
+                    html.Button('Accueil', id='nav-accueil', className='btn btn-primary me-2 nav-button'),
+                    html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2 nav-button', disabled=False),
+                    html.Button('Hemopathies', id='nav-page1', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    html.Button('GvH', id='nav-gvh', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    html.Button('Rechute', id='nav-rechute', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    html.Button('Survie', id='nav-survival', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    html.Button('Indicateurs', id='nav-indics', className='btn btn-secondary me-2 nav-button', disabled=True),
+                ], className='d-flex', style={'flexWrap': 'wrap', 'gap': '8px'})
+                
+            ], className="header-container", style={
+                'padding': '20px',
+                'backgroundColor': '#ffffff00',
+                'marginBottom': '20px',
+                'borderRadius': '0 0 0 0',
+                'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+            })
+        ])
+    ])
+
 def create_base_layout():
     """Crée la structure de base du dashboard avec toutes les pages"""
     return dbc.Container([
@@ -10,21 +66,8 @@ def create_base_layout():
         dcc.Store(id='data-store'),
         dcc.Store(id='current-page', data='Accueil'),
         
-        # Header avec navigation
-        dbc.Row([
-            dbc.Col([
-                html.Div([
-                    html.Button('Accueil', id='nav-accueil', className='btn btn-primary me-2'),
-                    html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2', disabled=False),
-                    html.Button('Hemopathies', id='nav-page1', className='btn btn-secondary me-2', disabled=True),
-                    html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2', disabled=True),
-                    html.Button('GvH', id='nav-gvh', className='btn btn-secondary me-2', disabled=True),
-                    html.Button('Rechute', id='nav-rechute', className='btn btn-secondary me-2', disabled=True),
-                    html.Button('Survie', id='nav-survival', className='btn btn-secondary me-2', disabled=True),
-                    html.Button('Indicateurs', id='nav-indics', className='btn btn-secondary me-2', disabled=True),
-                ], className='d-flex mb-3 p-3', style={'background-color': '#f0f2f6', 'border-radius': '5px'})
-            ])
-        ]),
+        # Header unifié avec logo, titre et navigation
+        create_header_with_logo(),
 
         
         # Titre dynamique
@@ -359,6 +402,7 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
 def create_procedures_sidebar_content(data):
     """
     Crée le contenu de la sidebar spécifique à la page Procedures.
+    Simplifié car le sélecteur de variable principale est maintenant intégré dans l'interface.
     
     Args:
         data (list): Liste de dictionnaires (format store Dash) avec les données
@@ -374,25 +418,6 @@ def create_procedures_sidebar_content(data):
     # Convertir la liste en DataFrame
     df = pd.DataFrame(data)
     
-    # Variables disponibles pour le graphique principal
-    main_chart_options = []
-    
-    # Vérifier les colonnes disponibles
-    possible_columns = {
-        'Donor Type': 'Type de donneur',
-        'Source Stem Cells': 'Source des cellules souches', 
-        'Match Type': 'Type de compatibilité',
-        'Greffes': 'Greffes'
-    }
-    
-    for col, label in possible_columns.items():
-        if col in df.columns:
-            main_chart_options.append({'label': label, 'value': col})
-    
-    # Si aucune colonne n'est disponible, ajouter une option par défaut
-    if not main_chart_options:
-        main_chart_options.append({'label': 'Aucune variable disponible', 'value': 'none'})
-    
     # Obtenir les années disponibles pour les filtres
     years_options = []
     if 'Year' in df.columns:
@@ -400,17 +425,6 @@ def create_procedures_sidebar_content(data):
         years_options = [{'label': f'{year}', 'value': year} for year in available_years]
     
     return html.Div([
-        # Sélection de la variable principale
-        html.Label('Variable du graphique principal:', className='mb-2'),
-        dcc.Dropdown(
-            id='procedures-main-variable',
-            options=main_chart_options,
-            value=main_chart_options[0]['value'] if main_chart_options else 'none',
-            className='mb-3'
-        ),
-        
-        html.Hr(),
-        
         # Filtres par année
         html.H5('Filtres par année', className='mb-2'),
         dcc.Checklist(

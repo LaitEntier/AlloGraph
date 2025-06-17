@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 
 class CompetingRisksAnalyzer:
@@ -61,16 +60,35 @@ class CompetingRisksAnalyzer:
         for event_name, config in events_config.items():
             df[config['date_col']] = pd.to_datetime(df[config['date_col']])
         
-        # Calculer les temps d'événement
+        # Calculer les temps d'événement avec validation
         df['time_to_last_followup'] = (df[followup_config['date_col']] - df[self.reference_date_col]).dt.days
         
         for event_name, config in events_config.items():
             time_col = f'time_to_{event_name}'
             df[time_col] = (df[config['date_col']] - df[self.reference_date_col]).dt.days
+            
+        # Nettoyer les temps négatifs ou invalides
+        df['time_to_last_followup'] = df['time_to_last_followup'].fillna(-1)
+        
+        for event_name, config in events_config.items():
+            time_col = f'time_to_{event_name}'
+            df[time_col] = df[time_col].fillna(-1)
         
         # Déterminer l'événement et le temps pour chaque patient
         events = []
         times = []
+        
+        # Variables de debug
+        debug_stats = {
+            'total_patients': len(df),
+            'gvh_yes_count': 0,
+            'gvh_valid_time_count': 0,
+            'gvh_invalid_time_count': 0,
+            'death_count': 0,
+            'censored_count': 0,
+            'negative_times': 0,
+            'times_over_max': 0
+        }
         
         for idx, row in df.iterrows():
             patient_events = []
@@ -78,26 +96,57 @@ class CompetingRisksAnalyzer:
             # Vérifier chaque événement d'intérêt
             for event_name, config in events_config.items():
                 time_col = f'time_to_{event_name}'
-                if (pd.notna(row[time_col]) and 
-                    row[config['occurrence_col']] == 'Yes' and 
+                occurrence_value = str(row[config['occurrence_col']]).strip() if pd.notna(row[config['occurrence_col']]) else ""
+                
+                # Debug : compter les "Yes"
+                if occurrence_value.lower() == 'yes':
+                    debug_stats['gvh_yes_count'] += 1
+                    
+                    # Vérifier le temps
+                    if pd.isna(row[time_col]):
+                        debug_stats['gvh_invalid_time_count'] += 1
+                        print(f"Patient {idx}: GvH 'Yes' mais temps NaN")
+                    elif row[time_col] < 0:
+                        debug_stats['negative_times'] += 1
+                        print(f"Patient {idx}: GvH 'Yes' mais temps négatif: {row[time_col]}")
+                    elif row[time_col] > max_days:
+                        debug_stats['times_over_max'] += 1
+                        print(f"Patient {idx}: GvH 'Yes' mais temps > {max_days}: {row[time_col]}")
+                
+                # Vérifier les conditions pour ajouter l'événement
+                if (not pd.isna(row[time_col]) and 
+                    occurrence_value.lower() == 'yes' and 
+                    row[time_col] >= 0 and  # Temps positif ou nul
                     row[time_col] <= max_days):
+                    debug_stats['gvh_valid_time_count'] += 1
                     patient_events.append((event_name, row[time_col]))
             
             # Vérifier le décès si configuré comme risque compétitif
+            death_added = False
             if death_as_competing:
-                if (row[followup_config['status_col']] == followup_config['death_value'] and 
+                death_status = str(row[followup_config['status_col']]).strip() if pd.notna(row[followup_config['status_col']]) else ""
+                if (death_status.lower() == followup_config['death_value'].lower() and 
+                    not pd.isna(row['time_to_last_followup']) and
+                    row['time_to_last_followup'] >= 0 and  # Temps positif ou nul
                     row['time_to_last_followup'] <= max_days):
-                    # Vérifier si décès avant tout autre événement
+                    
+                    # Vérifier si décès avant tout autre événement GvH
                     death_before_events = True
                     for event_name, config in events_config.items():
                         time_col = f'time_to_{event_name}'
-                        if (pd.notna(row[time_col]) and 
-                            row[time_col] <= row['time_to_last_followup']):
+                        occurrence_value = str(row[config['occurrence_col']]).strip() if pd.notna(row[config['occurrence_col']]) else ""
+                        # Un événement GvH s'est produit avant le décès
+                        if (not pd.isna(row[time_col]) and 
+                            occurrence_value.lower() == 'yes' and
+                            row[time_col] >= 0 and
+                            row[time_col] < row['time_to_last_followup']):  # Strictement avant le décès
                             death_before_events = False
                             break
                     
                     if death_before_events:
+                        debug_stats['death_count'] += 1
                         patient_events.append(('Décès', row['time_to_last_followup']))
+                        death_added = True
             
             # Prendre le premier événement (temps le plus court)
             if patient_events:
@@ -105,9 +154,42 @@ class CompetingRisksAnalyzer:
                 events.append(first_event[0])
                 times.append(first_event[1])
             else:
-                # Censuré
+                # Censuré - utiliser le temps de suivi disponible
+                debug_stats['censored_count'] += 1
+                censoring_time = row['time_to_last_followup']
+                
+                # Gestion robuste du temps de censure
+                if pd.isna(censoring_time) or censoring_time < 0:
+                    censoring_time = max_days  # Si temps invalide, censurer à la fin de la période
+                elif censoring_time > max_days:
+                    censoring_time = max_days  # Limiter au maximum
+                    
                 events.append('Censuré')
-                times.append(min(row['time_to_last_followup'], max_days))
+                times.append(censoring_time)
+        
+        # Afficher les statistiques de debug
+        print(f"\n=== DEBUG COMPETING RISKS ===")
+        print(f"Total patients: {debug_stats['total_patients']}")
+        print(f"Patients avec GvH 'Yes': {debug_stats['gvh_yes_count']}")
+        print(f"Patients avec GvH 'Yes' et temps valide (0-{max_days}j): {debug_stats['gvh_valid_time_count']}")
+        print(f"Patients avec GvH 'Yes' mais temps invalide: {debug_stats['gvh_invalid_time_count']}")
+        print(f"Patients avec GvH 'Yes' mais temps négatif: {debug_stats['negative_times']}")
+        print(f"Patients avec GvH 'Yes' mais temps > {max_days}j: {debug_stats['times_over_max']}")
+        print(f"Décès détectés: {debug_stats['death_count']}")
+        print(f"Patients censurés: {debug_stats['censored_count']}")
+        print(f"Somme vérification: {debug_stats['gvh_valid_time_count'] + debug_stats['death_count'] + debug_stats['censored_count']}")
+        
+        # Afficher la répartition des événements finaux
+        from collections import Counter
+        event_counts = Counter(events)
+        print(f"Répartition finale des événements: {dict(event_counts)}")
+        
+        # Calculer les pourcentages attendus
+        total = len(events)
+        for event, count in event_counts.items():
+            percentage = (count / total) * 100 if total > 0 else 0
+            print(f"  {event}: {count}/{total} = {percentage:.1f}%")
+        print(f"===============================\n")
         
         df['event_type'] = events
         df['event_time'] = times
@@ -132,33 +214,60 @@ class CompetingRisksAnalyzer:
                 count = day_events[day_events['event_type'] == event_name].shape[0]
                 event_counts[event_name].append(count)
         
-        # Calculer les incidences cumulées selon Kalbfleisch-Prentice
+        # Calculer les incidences cumulées selon la méthode des risques compétitifs
         cum_incidences = {event_name: np.zeros(len(days)) for event_name in events_config.keys()}
         if death_as_competing:
             cum_incidences['Décès'] = np.zeros(len(days))
         
         survival = np.ones(len(days))  # Probabilité de survie sans événement
         
+        print(f"\n=== DEBUG CALCUL INCIDENCES ===")
+        print(f"Nombre de jours à analyser: {len(days)} (0 à {max_days})")
+        
         for i in range(1, len(days)):
+            day = days[i]
+            
             if n_at_risk[i-1] > 0:
                 # Calculer le total des événements ce jour
-                total_events = sum(event_counts[event][i-1] for event in event_counts.keys() 
-                                 if event != 'Censuré')
+                total_events_today = sum(event_counts[event][i-1] for event in event_counts.keys() 
+                                       if event != 'Censuré')
+                
+                if total_events_today > 0:
+                    print(f"Jour {day}: {n_at_risk[i-1]} à risque, {total_events_today} événements")
                 
                 # Probabilité de survie sans événement ce jour
-                daily_survival = (n_at_risk[i-1] - total_events) / n_at_risk[i-1]
+                if n_at_risk[i-1] > 0:
+                    daily_survival = (n_at_risk[i-1] - total_events_today) / n_at_risk[i-1]
+                else:
+                    daily_survival = 1.0
                 
-                # Hazard spécifique pour chaque événement
+                # Hazard spécifique pour chaque événement et calcul de l'incidence cumulative
                 for event_name in cum_incidences.keys():
-                    hazard = event_counts[event_name][i-1] / n_at_risk[i-1] if n_at_risk[i-1] > 0 else 0
-                    cum_incidences[event_name][i] = cum_incidences[event_name][i-1] + survival[i-1] * hazard
+                    if event_name in event_counts:
+                        hazard = event_counts[event_name][i-1] / n_at_risk[i-1] if n_at_risk[i-1] > 0 else 0
+                        # Formule de Gray pour les risques compétitifs
+                        cum_incidences[event_name][i] = cum_incidences[event_name][i-1] + survival[i-1] * hazard
+                        
+                        if hazard > 0:
+                            print(f"  {event_name}: hazard={hazard:.4f}, incidence_cum={cum_incidences[event_name][i]:.4f}")
                 
-                # Mise à jour de la survie
+                # Mise à jour de la survie globale
                 survival[i] = survival[i-1] * daily_survival
+                
             else:
+                # Pas de patients à risque : maintenir les valeurs précédentes
                 for event_name in cum_incidences.keys():
                     cum_incidences[event_name][i] = cum_incidences[event_name][i-1]
                 survival[i] = survival[i-1]
+        
+        # Afficher les incidences finales
+        print(f"\nIncidences cumulées finales (à J{max_days}):")
+        for event_name in cum_incidences.keys():
+            final_incidence = cum_incidences[event_name][-1] * 100
+            print(f"  {event_name}: {final_incidence:.1f}%")
+        print(f"Survie sans événement: {survival[-1]*100:.1f}%")
+        print(f"Total (vérification): {sum(cum_incidences[e][-1] for e in cum_incidences.keys()) + survival[-1]:.3f}")
+        print(f"===============================\n")
         
         # Créer le DataFrame de résultats
         results_data = {
@@ -183,7 +292,7 @@ class CompetingRisksAnalyzer:
                                    title="Analyse de Risques Compétitifs", 
                                    colors=None):
         """
-        Crée un graphique d'incidences cumulées avec risques compétitifs (style ggcompetingrisks)
+        Crée un graphique d'incidences cumulées avec risques compétitifs (graphique unique)
         
         Parameters:
         - results_df: DataFrame des résultats
@@ -194,20 +303,14 @@ class CompetingRisksAnalyzer:
         """
         
         if colors is None:
-            default_colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
+            default_colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
             colors = {}
             all_events = list(events_config.keys()) + ['Décès']
             for i, event in enumerate(all_events):
                 colors[event] = default_colors[i % len(default_colors)]
         
-        # Créer les sous-graphiques
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=('Incidences Cumulées (Empilées)', 'Nombre de Patients à Risque', 
-                           'Événements par Jour', 'Répartition des Événements'),
-            specs=[[{"secondary_y": False}, {"secondary_y": False}],
-                   [{"secondary_y": False}, {"type": "pie"}]]
-        )
+        # Créer la figure principale
+        fig = go.Figure()
         
         # Préparer les données pour l'empilement
         event_names = []
@@ -234,10 +337,10 @@ class CompetingRisksAnalyzer:
             # Obtenir la configuration et couleur
             if event_name in events_config:
                 label = events_config[event_name].get('label', event_name)
-                color = colors.get(event_name, events_config[event_name].get('color', 'blue'))
+                color = colors.get(event_name, events_config[event_name].get('color', '#3498db'))
             else:
                 label = event_name
-                color = colors.get(event_name, 'black')
+                color = colors.get(event_name, '#2c3e50')
             
             # Ajouter l'aire empilée
             fig.add_trace(
@@ -252,13 +355,12 @@ class CompetingRisksAnalyzer:
                     opacity=0.7,
                     hovertemplate=f'Jour %{{x}}<br>Incidence {label}: %{{customdata:.1f}}%<br>Total cumulé: %{{y:.1f}}%<extra></extra>',
                     customdata=y_data
-                ),
-                row=1, col=1
+                )
             )
             
             y_lower = y_upper
         
-        # Ajouter la ligne de survie sans événement (optionnel)
+        # Ajouter la zone "Sans événement" pour atteindre 100%
         survival_pct = results_df['survie_sans_evenement'] * 100
         total_events = y_lower  # somme de tous les événements
         
@@ -274,93 +376,76 @@ class CompetingRisksAnalyzer:
                 opacity=0.3,
                 hovertemplate='Jour %{x}<br>Sans événement: %{customdata:.1f}%<br>Total: 100%<extra></extra>',
                 customdata=survival_pct
-            ),
-            row=1, col=1
-        )
-        
-        # Mise en forme du graphique principal
-        fig.update_xaxes(title_text="Jours post-référence", row=1, col=1)
-        fig.update_yaxes(title_text="Incidence Cumulative (%)", row=1, col=1, range=[0, 100])
-        
-        # Ajouter une ligne à 100% pour référence
-        fig.add_hline(y=100, line_dash="dash", line_color="black", opacity=0.3, row=1, col=1)
-        
-        # Graphique : Patients à risque
-        fig.add_trace(
-            go.Scatter(
-                x=results_df['jour'],
-                y=results_df['n_at_risk'],
-                mode='lines+markers',
-                name='Patients à risque',
-                line=dict(color='green'),
-                marker=dict(size=4),
-                showlegend=False,
-                hovertemplate='Jour %{x}<br>Patients à risque: %{y}<extra></extra>'
-            ),
-            row=1, col=2
-        )
-        
-        # Graphique : Événements par jour (empilé)
-        for event_name in events_config.keys():
-            event_col = f'{event_name.lower()}_events'
-            if event_col in results_df.columns:
-                fig.add_trace(
-                    go.Bar(
-                        x=results_df['jour'],
-                        y=results_df[event_col],
-                        name=f'{event_name}/jour',
-                        marker_color=colors.get(event_name, 'blue'),
-                        opacity=0.7,
-                        showlegend=False
-                    ),
-                    row=2, col=1
-                )
-        
-        if 'décès_events' in results_df.columns:
-            fig.add_trace(
-                go.Bar(
-                    x=results_df['jour'],
-                    y=results_df['décès_events'],
-                    name='Décès/jour',
-                    marker_color=colors.get('Décès', 'black'),
-                    opacity=0.7,
-                    showlegend=False
-                ),
-                row=2, col=1
             )
-        
-        # Graphique circulaire : Répartition des événements
-        event_counts = patient_data['event_type'].value_counts()
-        pie_colors = [colors.get(event, 'gray') for event in event_counts.index]
-        
-        fig.add_trace(
-            go.Pie(
-                labels=event_counts.index,
-                values=event_counts.values,
-                name="Répartition",
-                showlegend=False,
-                marker_colors=pie_colors
-            ),
-            row=2, col=2
         )
         
-        # Mise en forme
-        fig.update_xaxes(title_text="Jours post-référence", row=1, col=1)
-        fig.update_yaxes(title_text="Incidence Cumulative (%)", row=1, col=1)
-        fig.update_xaxes(title_text="Jours post-référence", row=1, col=2)
-        fig.update_yaxes(title_text="Nombre de patients", row=1, col=2)
-        fig.update_xaxes(title_text="Jours post-référence", row=2, col=1)
-        fig.update_yaxes(title_text="Nombre d'événements", row=2, col=1)
-        
+        # Mise en forme du graphique
         fig.update_layout(
             title=dict(
                 text=title,
                 x=0.5,
-                font=dict(size=16)
+                font=dict(size=18, family='Arial, sans-serif', color='#2c3e50')
             ),
-            height=800,
-            showlegend=True,
-            legend=dict(x=0.02, y=0.98)
+            xaxis_title="<b>Jours post-greffe</b>",
+            yaxis_title="<b>Incidence Cumulative (%)</b>",
+            xaxis=dict(
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                zeroline=True,
+                zerolinewidth=2,
+                zerolinecolor='rgba(128, 128, 128, 0.5)',
+                tickfont=dict(size=12, family='Arial, sans-serif', color='#34495e'),
+                titlefont=dict(size=14, family='Arial, sans-serif', color='#2c3e50'),
+                showline=True,
+                linewidth=2,
+                linecolor='#bdc3c7',
+                mirror=True
+            ),
+            yaxis=dict(
+                range=[0, 100],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                zeroline=True,
+                zerolinewidth=2,
+                zerolinecolor='rgba(128, 128, 128, 0.5)',
+                tickfont=dict(size=12, family='Arial, sans-serif', color='#34495e'),
+                titlefont=dict(size=14, family='Arial, sans-serif', color='#2c3e50'),
+                showline=True,
+                linewidth=2,
+                linecolor='#bdc3c7',
+                mirror=True,
+                tickformat='.0f',
+                ticksuffix='%'
+            ),
+            plot_bgcolor='rgba(248, 249, 250, 0.8)',
+            paper_bgcolor='white',
+            height=600,
+            margin=dict(l=80, r=120, t=80, b=60),
+            font=dict(family='Arial, sans-serif', color='#2c3e50'),
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=1,
+                xanchor="left",
+                x=1.02,
+                bgcolor='rgba(255, 255, 255, 0.9)',
+                bordercolor='#bdc3c7',
+                borderwidth=1,
+                font=dict(size=12, family='Arial, sans-serif', color='#2c3e50')
+            ),
+            hovermode='x unified'
+        )
+        
+        # Ajouter une ligne à 100% pour référence
+        fig.add_hline(
+            y=100, 
+            line_dash="dash", 
+            line_color="rgba(0,0,0,0.3)", 
+            opacity=0.5,
+            annotation_text="100%",
+            annotation_position="bottom right"
         )
         
         return fig

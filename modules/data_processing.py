@@ -317,7 +317,8 @@ def process_prophylaxis_drugs(df):
     drug_mapping = {
         'lymphocyte immune globulin': 'Sérum Anti-Lymphocytaire - ATG',
         'anti-thymocyte globulin': 'Sérum Anti-Lymphocytaire - ATG',
-        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'Sérum Anti-Lymphocytaire - ALTG'
+        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'Sérum Anti-Lymphocytaire - ALTG',
+        'antilymphocyte immunoglobulin': 'Sérum Anti-Lymphocytaire - ALTG'
     }
     
     # Collecter tous les traitements uniques
@@ -344,8 +345,6 @@ def process_prophylaxis_drugs(df):
     
     # Supprimer les valeurs vides
     all_drugs = {drug for drug in all_drugs if drug.strip()}
-    
-    print(f"Traitements prophylactiques identifiés : {sorted(all_drugs)}")
     
     # Créer les nouvelles colonnes binaires
     for drug in sorted(all_drugs):
@@ -377,9 +376,104 @@ def process_prophylaxis_drugs(df):
         for drug in patient_drugs:
             if drug in df.columns:
                 df.at[idx, drug] = 'Oui'
+
+    return df
+
+def process_upset_plot(df):
+    """
+    Parse les colonnes Prophylaxis Drug 1-6 et les transforme en colonnes binaires
+    pour chaque traitement unique. Supprime ensuite les colonnes originales.
     
-    # Supprimer les colonnes Prophylaxis Drug originales
-    df = df.drop(columns=existing_cols)
-    print(f"Colonnes {existing_cols} supprimées après traitement")
+    Args:
+        df (pd.DataFrame): DataFrame contenant les colonnes Prophylaxis Drug 1 à 6
+        
+    Returns:
+        pd.DataFrame: DataFrame avec les nouvelles colonnes de traitement (Oui/Non)
+                     et sans les colonnes Prophylaxis Drug originales
+    """
+    df = df.copy()
     
+    # Colonnes de traitement prophylactique
+    prophylaxis_cols = [f'Prophylaxis Drug {i}' for i in range(1, 7)]
+    # garder uniquement ces colonnes
+    df = df[prophylaxis_cols]
+
+    # Vérifier que les colonnes existent
+    existing_cols = [col for col in prophylaxis_cols if col in df.columns]
+    if not existing_cols:
+        print("Aucune colonne Prophylaxis Drug trouvée")
+        return df
+    
+    print(f"Traitement de {len(existing_cols)} colonnes de prophylaxie trouvées")
+    
+    # Dictionnaire de mapping pour les transformations spéciales
+    drug_mapping = {
+        'lymphocyte immune globulin': 'Sérum Anti-Lymphocytaire - ATG',
+        'anti-thymocyte globulin': 'Sérum Anti-Lymphocytaire - ATG',
+        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'Sérum Anti-Lymphocytaire - ALTG',
+        'antilymphocyte immunoglobulin': 'Sérum Anti-Lymphocytaire - ALTG'
+    }
+    
+    # Collecter tous les traitements uniques
+    all_drugs = set()
+    
+    for col in existing_cols:
+        # Remplacer les valeurs NaN/None par des chaînes vides
+        drugs_in_col = df[col].fillna('').astype(str)
+        
+        # Appliquer le mapping et collecter les traitements non vides
+        for drug in drugs_in_col:
+            if drug and drug.lower() != 'nan' and drug.strip():
+                # Appliquer le mapping si nécessaire (insensible à la casse)
+                mapped_drug = None
+                for original, mapped in drug_mapping.items():
+                    if original.lower() in drug.lower():
+                        mapped_drug = mapped
+                        break
+                
+                if mapped_drug is None:
+                    mapped_drug = drug
+                
+                all_drugs.add(mapped_drug)
+    
+    # Supprimer les valeurs vides
+    all_drugs = {drug for drug in all_drugs if drug.strip()}
+    
+    # Créer les nouvelles colonnes binaires
+    for drug in sorted(all_drugs):
+        df[drug] = 0
+    
+    # Remplir les colonnes binaires
+    for idx, row in df.iterrows():
+        patient_drugs = []
+        
+        # Collecter tous les traitements du patient
+        for col in existing_cols:
+            drug_value = row[col]
+            if pd.notna(drug_value) and str(drug_value).strip():
+                # Appliquer le mapping si nécessaire (insensible à la casse)
+                mapped_drug = None
+                drug_str = str(drug_value)
+                
+                for original, mapped in drug_mapping.items():
+                    if original.lower() in drug_str.lower():
+                        mapped_drug = mapped
+                        break
+                
+                if mapped_drug is None:
+                    mapped_drug = drug_str
+                
+                patient_drugs.append(mapped_drug)
+        
+        # Marquer 'Oui' pour tous les traitements du patient
+        for drug in patient_drugs:
+            if drug in df.columns:
+                df.at[idx, drug] = 1
+
+    # Supprimer les colonnes originales de traitement prophylactique
+    df.drop(columns=existing_cols, inplace=True)
+
+    # Réinitialiser l'index pour le plot
+    df.reset_index(drop=True, inplace=True)
+
     return df

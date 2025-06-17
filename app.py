@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import base64
 import io
-
+import plotly
 # Import des modules
 import modules.data_processing as data_processing
 import modules.dashboard_layout as layouts
@@ -69,7 +69,10 @@ except ImportError as e:
 # Initialisation de l'app Dash
 app = dash.Dash(
     __name__, 
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP,
+        dbc.icons.BOOTSTRAP
+    ],
     suppress_callback_exceptions=True
 )
 app.title = "AlloGraph"
@@ -144,14 +147,14 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
             current_page = 'Accueil'
         
         styles = {
-            'Accueil': 'btn btn-primary me-2' if current_page == 'Accueil' else 'btn btn-secondary me-2',
-            'Patients': 'btn btn-primary me-2' if current_page == 'Patients' else 'btn btn-secondary me-2',
-            'Hemopathies': 'btn btn-primary me-2' if current_page == 'Hemopathies' else 'btn btn-secondary me-2',
-            'Procedures': 'btn btn-primary me-2' if current_page == 'Procedures' else 'btn btn-secondary me-2',
-            'GvH': 'btn btn-primary me-2' if current_page == 'GvH' else 'btn btn-secondary me-2',
-            'Rechute': 'btn btn-primary me-2' if current_page == 'Rechute' else 'btn btn-secondary me-2',
-            'Survie': 'btn btn-primary me-2' if current_page == 'Survie' else 'btn btn-secondary me-2',  
-            'Indicateurs': 'btn btn-primary me-2' if current_page == 'Indicateurs' else 'btn btn-secondary me-2'
+            'Accueil': 'btn btn-primary me-2 nav-button' if current_page == 'Accueil' else 'btn btn-secondary me-2 nav-button',
+            'Patients': 'btn btn-primary me-2 nav-button' if current_page == 'Patients' else 'btn btn-secondary me-2 nav-button',
+            'Hemopathies': 'btn btn-primary me-2 nav-button' if current_page == 'Hemopathies' else 'btn btn-secondary me-2 nav-button',
+            'Procedures': 'btn btn-primary me-2 nav-button' if current_page == 'Procedures' else 'btn btn-secondary me-2 nav-button',
+            'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
+            'Rechute': 'btn btn-primary me-2 nav-button' if current_page == 'Rechute' else 'btn btn-secondary me-2 nav-button',
+            'Survie': 'btn btn-primary me-2 nav-button' if current_page == 'Survie' else 'btn btn-secondary me-2 nav-button',
+            'Indicateurs': 'btn btn-primary me-2 nav-button' if current_page == 'Indicateurs' else 'btn btn-secondary me-2 nav-button'
         }
 
         return (current_page, styles['Accueil'], styles['Patients'],
@@ -165,14 +168,14 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
         current_page = current_page or 'Accueil'
         
         styles = {
-            'Accueil': 'btn btn-primary me-2' if current_page == 'Accueil' else 'btn btn-secondary me-2',
-            'Patients': 'btn btn-primary me-2' if current_page == 'Patients' else 'btn btn-secondary me-2',
-            'Hemopathies': 'btn btn-primary me-2' if current_page == 'Hemopathies' else 'btn btn-secondary me-2',
-            'Procedures': 'btn btn-primary me-2' if current_page == 'Procedures' else 'btn btn-secondary me-2',
-            'GvH': 'btn btn-primary me-2' if current_page == 'GvH' else 'btn btn-secondary me-2',
-            'Rechute': 'btn btn-primary me-2' if current_page == 'Rechute' else 'btn btn-secondary me-2',
-            'Survie': 'btn btn-primary me-2' if current_page == 'Survie' else 'btn btn-secondary me-2',  
-            'Indicateurs': 'btn btn-primary me-2' if current_page == 'Indicateurs' else 'btn btn-secondary me-2'
+            'Accueil': 'btn btn-primary me-2 nav-button' if current_page == 'Accueil' else 'btn btn-secondary me-2 nav-button',
+            'Patients': 'btn btn-primary me-2 nav-button' if current_page == 'Patients' else 'btn btn-secondary me-2 nav-button',
+            'Hemopathies': 'btn btn-primary me-2 nav-button' if current_page == 'Hemopathies' else 'btn btn-secondary me-2 nav-button',
+            'Procedures': 'btn btn-primary me-2 nav-button' if current_page == 'Procedures' else 'btn btn-secondary me-2 nav-button',
+            'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
+            'Rechute': 'btn btn-primary me-2 nav-button' if current_page == 'Rechute' else 'btn btn-secondary me-2 nav-button',
+            'Survie': 'btn btn-primary me-2 nav-button' if current_page == 'Survie' else 'btn btn-secondary me-2 nav-button',
+            'Indicateurs': 'btn btn-primary me-2 nav-button' if current_page == 'Indicateurs' else 'btn btn-secondary me-2 nav-button'
         }
 
         return (current_page, styles['Accueil'], styles['Patients'],
@@ -205,8 +208,8 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
     
     styles = {}
     for page, btn_id in btn_styles.items():
-        styles[btn_id] = 'btn btn-primary me-2' if new_page == page else 'btn btn-secondary me-2'
-    
+        styles[btn_id] = 'btn btn-primary me-2 nav-button' if new_page == page else 'btn btn-secondary me-2 nav-button'
+
     disabled = data is None
 
     return (new_page, styles['nav-accueil'], styles['nav-patients'],
@@ -261,6 +264,49 @@ def update_sidebar(current_page, data, metadata):
                                className="mb-0", style={'fontSize': '10px'})
                     ], color="success", className="mb-3"),
                     
+                    # Bouton de purge des données
+                    html.Div([
+                        html.H6("Gestion des données :", className="mb-2"),
+                        dbc.Button(
+                            [
+                                html.I(className="fas fa-trash-alt me-2"),
+                                "Purger les données"
+                            ],
+                            id="purge-data-button",
+                            color="danger",
+                            size="sm",
+                            className="mb-3 w-100",
+                            outline=True
+                        ),
+                        # Composant de confirmation
+                        dbc.Modal([
+                            dbc.ModalHeader(dbc.ModalTitle("Confirmer la purge")),
+                            dbc.ModalBody([
+                                html.P("Êtes-vous sûr de vouloir supprimer toutes les données chargées ?"),
+                                html.P("Cette action est irréversible.", className="text-muted small")
+                            ]),
+                            dbc.ModalFooter([
+                                dbc.Button(
+                                    "Annuler", 
+                                    id="cancel-purge", 
+                                    className="ms-auto", 
+                                    n_clicks=0,
+                                    color="secondary"
+                                ),
+                                dbc.Button(
+                                    "Confirmer", 
+                                    id="confirm-purge", 
+                                    className="ms-2", 
+                                    n_clicks=0,
+                                    color="danger"
+                                ),
+                            ]),
+                        ],
+                        id="purge-confirmation-modal",
+                        is_open=False,
+                        ),
+                    ], className="mb-3"),
+                    
                     # Option pour recharger des données
                     html.Div([
                         html.H6("Nouveau fichier :", className="mb-2"),
@@ -284,6 +330,49 @@ def update_sidebar(current_page, data, metadata):
                                className="mb-0", style={'fontSize': '11px'})
                     ], color="success", className="mb-3"),
                     
+                    # Bouton de purge des données
+                    html.Div([
+                        html.H6("Gestion des données :", className="mb-2"),
+                        dbc.Button(
+                            [
+                                html.I(className="fas fa-trash-alt me-2"),
+                                "Purger les données"
+                            ],
+                            id="purge-data-button",
+                            color="danger",
+                            size="sm",
+                            className="mb-3 w-100",
+                            outline=True
+                        ),
+                        # Composant de confirmation
+                        dbc.Modal([
+                            dbc.ModalHeader(dbc.ModalTitle("Confirmer la purge")),
+                            dbc.ModalBody([
+                                html.P("Êtes-vous sûr de vouloir supprimer toutes les données chargées ?"),
+                                html.P("Cette action est irréversible.", className="text-muted small")
+                            ]),
+                            dbc.ModalFooter([
+                                dbc.Button(
+                                    "Annuler", 
+                                    id="cancel-purge", 
+                                    className="ms-auto", 
+                                    n_clicks=0,
+                                    color="secondary"
+                                ),
+                                dbc.Button(
+                                    "Confirmer", 
+                                    id="confirm-purge", 
+                                    className="ms-2", 
+                                    n_clicks=0,
+                                    color="danger"
+                                ),
+                            ]),
+                        ],
+                        id="purge-confirmation-modal",
+                        is_open=False,
+                        ),
+                    ], className="mb-3"),
+                    
                     html.Div([
                         html.H6("Nouveau fichier :", className="mb-2"),
                         layouts.create_upload_component(),
@@ -292,6 +381,7 @@ def update_sidebar(current_page, data, metadata):
                 ])
             
             return layouts.create_sidebar_layout('Données', content)
+
     
     elif current_page == 'Patients' and data is not None:
         # Sidebar avec filtres pour la page Patients
@@ -326,7 +416,6 @@ def update_sidebar(current_page, data, metadata):
         return layouts.create_sidebar_layout('Paramètres', content)
     
     elif current_page == 'Procedures' and data is not None:
-        # Sidebar spécifique pour la page Procedures
         content = layouts.create_procedures_sidebar_content(data)
         return layouts.create_sidebar_layout('Paramètres', content)
 
@@ -518,6 +607,51 @@ def create_fallback_home():
             html.P('Utilisez la sidebar pour charger des données.')
         ])
     ])
+
+# Callback pour ouvrir/fermer la modal de confirmation
+@app.callback(
+    Output("purge-confirmation-modal", "is_open"),
+    [Input("purge-data-button", "n_clicks"), 
+     Input("cancel-purge", "n_clicks"),
+     Input("confirm-purge", "n_clicks")],
+    [State("purge-confirmation-modal", "is_open")],
+)
+def toggle_purge_modal(purge_clicks, cancel_clicks, confirm_clicks, is_open):
+    """Gère l'ouverture/fermeture de la modal de confirmation de purge"""
+    ctx = dash.callback_context
+    
+    if not ctx.triggered:
+        return is_open
+    
+    button_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if button_id == "purge-data-button":
+        return True
+    elif button_id in ["cancel-purge", "confirm-purge"]:
+        return False
+    
+    return is_open
+
+# Callback pour effectuer la purge des données
+@app.callback(
+    [Output('data-store', 'data', allow_duplicate=True),
+     Output('metadata-store', 'data', allow_duplicate=True),
+     Output('upload-status', 'children', allow_duplicate=True)],
+    Input('confirm-purge', 'n_clicks'),
+    prevent_initial_call=True
+)
+def purge_data(confirm_clicks):
+    """Purge les données du cache quand la purge est confirmée"""
+    if confirm_clicks and confirm_clicks > 0:
+        # Vider les stores de données
+        success_message = dbc.Alert([
+            html.H6("🗑️ Données purgées!", className="mb-2"),
+            html.P("Toutes les données ont été supprimées du cache.", className="mb-0", style={'fontSize': '12px'})
+        ], color='info', dismissable=True)
+        
+        return None, None, success_message
+    
+    return dash.no_update, dash.no_update, dash.no_update
 
 if __name__ == '__main__':
     app.run(debug=True)

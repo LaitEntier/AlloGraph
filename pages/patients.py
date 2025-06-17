@@ -58,7 +58,7 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
         
-        # Graphique 4: DataTable avec bouton d'export
+            # Graphique 4: DataTable avec bouton d'export
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -86,6 +86,21 @@ def get_layout():
                         ),
                         # Composant pour télécharger le CSV (invisible)
                         dcc.Download(id="download-csv")
+                    ], className='p-2')
+                ])
+            ], width=12)
+        ], className='mb-4'),
+
+        # Graphique 5: Performance Scores par Age Groups
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5('Performance Scores par tranche d\'âge')),
+                    dbc.CardBody([
+                        html.Div(
+                            id='patients-performance-scores-boxplot',
+                            style={'height': '500px', 'overflow': 'hidden'}
+                        )
                     ], className='p-2')
                 ])
             ], width=12)
@@ -362,22 +377,24 @@ def register_callbacks(app):
             return html.Div(f'Erreur: {str(e)}', className='text-danger')
 
     @app.callback(
-        [Output('patients-datatable', 'children'),
-         Output('export-csv-button', 'disabled')],
+        Output('patients-datatable', 'children'),
         [Input('data-store', 'data'),
-         Input('current-page', 'data'),
-         Input('year-filter-checklist', 'value')]
+        Input('current-page', 'data'),
+        Input('year-filter-checklist', 'value')]
     )
     def update_datatable(data, current_page, selected_years):
-        """Graphique 4: DataTable avec statistiques par année et gestion du bouton d'export"""
+        """Graphique 4: DataTable avec statistiques par année incluant la répartition par sexe"""
         if current_page != 'Patients' or data is None:
-            return html.Div(), True  # Désactiver le bouton si pas de données
+            return html.Div()
         
         df = pd.DataFrame(data)
         
         # Créer la table de statistiques par année
-        if 'Year' not in df.columns or 'Age At Diagnosis' not in df.columns:
-            return dbc.Alert('Colonnes "Year" ou "Age At Diagnosis" non trouvées dans les données', color='warning'), True
+        required_cols = ['Year', 'Age At Diagnosis', 'Sex']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        
+        if missing_cols:
+            return dbc.Alert(f'Colonnes manquantes: {", ".join(missing_cols)}', color='warning')
         
         # Calculer les statistiques par année
         stats_by_year = []
@@ -390,68 +407,146 @@ def register_callbacks(app):
         
         # Calculer les stats pour chaque année
         for year in years_to_process:
-            year_data = df[df['Year'] == year]['Age At Diagnosis']
+            year_data = df[df['Year'] == year]
+            age_data = year_data['Age At Diagnosis']
+            sex_data = year_data['Sex']
             
             if len(year_data) > 0:
-                stats_by_year.append({
+                # Statistiques d'âge
+                age_stats = {
+                    'Age moyen': round(age_data.mean(), 1) if len(age_data) > 0 else 0,
+                    'Age médian': round(age_data.median(), 1) if len(age_data) > 0 else 0,
+                    'Age Q1': round(age_data.quantile(0.25), 1) if len(age_data) > 0 else 0,
+                    'Age Q3': round(age_data.quantile(0.75), 1) if len(age_data) > 0 else 0,
+                    'Age minimum': int(age_data.min()) if len(age_data) > 0 else 0,
+                    'Age maximum': int(age_data.max()) if len(age_data) > 0 else 0,
+                }
+                
+                # Statistiques de sexe
+                sex_counts = sex_data.value_counts()
+                total_patients = len(year_data)
+                
+                male_count = sex_counts.get('male', 0)
+                female_count = sex_counts.get('female', 0)
+                unknown_count = total_patients - male_count - female_count
+                
+                male_percent = (male_count / total_patients * 100) if total_patients > 0 else 0
+                female_percent = (female_count / total_patients * 100) if total_patients > 0 else 0
+                unknown_percent = (unknown_count / total_patients * 100) if total_patients > 0 else 0
+                
+                # Combiner toutes les statistiques
+                year_stats = {
                     'Année': year,
-                    'Age moyen': round(year_data.mean(), 1),
-                    'Age médian': round(year_data.median(), 1),
-                    'Age Q1': round(year_data.quantile(0.25), 1),
-                    'Age Q3': round(year_data.quantile(0.75), 1),
-                    'Age minimum': int(year_data.min()),
-                    'Age maximum': int(year_data.max()),
-                    'Effectif total': len(year_data)
-                })
+                    **age_stats,
+                    'Effectif total': total_patients,
+                    'Hommes (n)': male_count,
+                    'Hommes (%)': round(male_percent, 1),
+                    'Femmes (n)': female_count,
+                    'Femmes (%)': round(female_percent, 1)
+                }
+                
+                # Ajouter les données inconnues seulement si il y en a
+                if unknown_count > 0:
+                    year_stats['Sexe inconnu (n)'] = unknown_count
+                    year_stats['Sexe inconnu (%)'] = round(unknown_percent, 1)
+                
+                stats_by_year.append(year_stats)
         
         # Calculer la ligne 'Total' pour toutes les années sélectionnées
         if stats_by_year:
-            all_ages = df[df['Year'].isin(years_to_process)]['Age At Diagnosis']
+            all_data = df[df['Year'].isin(years_to_process)]
+            all_ages = all_data['Age At Diagnosis']
+            all_sex = all_data['Sex']
             
-            if len(all_ages) > 0:
-                total_row = {
-                    'Année': 'TOTAL',
+            if len(all_data) > 0:
+                # Statistiques d'âge totales
+                total_age_stats = {
                     'Age moyen': round(all_ages.mean(), 1),
                     'Age médian': round(all_ages.median(), 1),
                     'Age Q1': round(all_ages.quantile(0.25), 1),
                     'Age Q3': round(all_ages.quantile(0.75), 1),
                     'Age minimum': int(all_ages.min()),
                     'Age maximum': int(all_ages.max()),
-                    'Effectif total': len(all_ages)
                 }
+                
+                # Statistiques de sexe totales
+                total_sex_counts = all_sex.value_counts()
+                total_all_patients = len(all_data)
+                
+                total_male_count = total_sex_counts.get('male', 0)
+                total_female_count = total_sex_counts.get('female', 0)
+                total_unknown_count = total_all_patients - total_male_count - total_female_count
+                
+                total_male_percent = (total_male_count / total_all_patients * 100)
+                total_female_percent = (total_female_count / total_all_patients * 100)
+                total_unknown_percent = (total_unknown_count / total_all_patients * 100)
+                
+                # Ligne total
+                total_row = {
+                    'Année': 'TOTAL',
+                    **total_age_stats,
+                    'Effectif total': total_all_patients,
+                    'Hommes (n)': total_male_count,
+                    'Hommes (%)': round(total_male_percent, 1),
+                    'Femmes (n)': total_female_count,
+                    'Femmes (%)': round(total_female_percent, 1)
+                }
+                
+                # Ajouter les données inconnues seulement si il y en a
+                if total_unknown_count > 0:
+                    total_row['Sexe inconnu (n)'] = total_unknown_count
+                    total_row['Sexe inconnu (%)'] = round(total_unknown_percent, 1)
+                
                 stats_by_year.append(total_row)
         
         if not stats_by_year:
-            return dbc.Alert('Aucune donnée disponible pour les années sélectionnées', color='info'), True
+            return dbc.Alert('Aucune donnée disponible pour les années sélectionnées', color='info')
         
-        # Stocker les données pour l'export (dans un Store invisible)
-        app.server.stats_data = stats_by_year  # Stockage temporaire côté serveur
+        # Déterminer les colonnes selon la présence de données inconnues
+        has_unknown = any('Sexe inconnu (n)' in row for row in stats_by_year)
+        
+        # Définir les colonnes
+        base_columns = [
+            {"name": "Année", "id": "Année", "type": "text"},
+            {"name": "Age moyen", "id": "Age moyen", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Age médian", "id": "Age médian", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Age Q1", "id": "Age Q1", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Age Q3", "id": "Age Q3", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Age minimum", "id": "Age minimum", "type": "numeric"},
+            {"name": "Age maximum", "id": "Age maximum", "type": "numeric"},
+            {"name": "Effectif total", "id": "Effectif total", "type": "numeric"},
+            {"name": "Hommes (n)", "id": "Hommes (n)", "type": "numeric"},
+            {"name": "Hommes (%)", "id": "Hommes (%)", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Femmes (n)", "id": "Femmes (n)", "type": "numeric"},
+            {"name": "Femmes (%)", "id": "Femmes (%)", "type": "numeric", "format": {"specifier": ".1f"}}
+        ]
+        
+        # Ajouter les colonnes pour les données inconnues si nécessaire
+        if has_unknown:
+            base_columns.extend([
+                {"name": "Sexe inconnu (n)", "id": "Sexe inconnu (n)", "type": "numeric"},
+                {"name": "Sexe inconnu (%)", "id": "Sexe inconnu (%)", "type": "numeric", "format": {"specifier": ".1f"}}
+            ])
         
         # Créer la DataTable
-        table_content = html.Div([
+        return html.Div([
             dash_table.DataTable(
                 data=stats_by_year,
-                columns=[
-                    {"name": "Année", "id": "Année", "type": "text"},
-                    {"name": "Age moyen", "id": "Age moyen", "type": "numeric", "format": {"specifier": ".1f"}},
-                    {"name": "Age médian", "id": "Age médian", "type": "numeric", "format": {"specifier": ".1f"}},
-                    {"name": "Age Q1", "id": "Age Q1", "type": "numeric", "format": {"specifier": ".1f"}},
-                    {"name": "Age Q3", "id": "Age Q3", "type": "numeric", "format": {"specifier": ".1f"}},
-                    {"name": "Age minimum", "id": "Age minimum", "type": "numeric"},
-                    {"name": "Age maximum", "id": "Age maximum", "type": "numeric"},
-                    {"name": "Effectif total", "id": "Effectif total", "type": "numeric"}
-                ],
-                style_table={'height': '400px', 'overflowY': 'auto'},
+                columns=base_columns,
+                style_table={'height': '400px', 'overflowY': 'auto', 'overflowX': 'auto'},
                 style_cell={
                     'textAlign': 'center',
-                    'padding': '10px',
-                    'fontFamily': 'Arial, sans-serif'
+                    'padding': '8px',
+                    'fontFamily': 'Arial, sans-serif',
+                    'fontSize': '11px',
+                    'minWidth': '60px'
                 },
                 style_header={
                     'backgroundColor': '#0D3182', 
                     'color': 'white',
                     'fontWeight': 'bold',
-                    'textAlign': 'center'
+                    'textAlign': 'center',
+                    'fontSize': '10px'
                 },
                 style_data_conditional=[
                     {
@@ -460,21 +555,38 @@ def register_callbacks(app):
                         'backgroundColor': '#e6f3ff',
                         'fontWeight': 'bold',
                         'border': '2px solid #0D3182'
+                    },
+                    {
+                        # Style pour les colonnes de pourcentage hommes
+                        'if': {'column_id': ['Hommes (%)', 'Hommes (n)']},
+                        'backgroundColor': '#e8f4fd',
+                    },
+                    {
+                        # Style pour les colonnes de pourcentage femmes
+                        'if': {'column_id': ['Femmes (%)', 'Femmes (n)']},
+                        'backgroundColor': '#fce8f3',
                     }
                 ],
                 style_cell_conditional=[
                     {
                         'if': {'column_id': 'Année'},
                         'fontWeight': 'bold',
-                        'textAlign': 'left'
+                        'textAlign': 'left',
+                        'width': '80px'
+                    },
+                    {
+                        'if': {'column_id': ['Hommes (n)', 'Femmes (n)', 'Sexe inconnu (n)']},
+                        'width': '70px'
+                    },
+                    {
+                        'if': {'column_id': ['Hommes (%)', 'Femmes (%)', 'Sexe inconnu (%)']},
+                        'width': '70px'
                     }
                 ]
             ),
             html.P(f'{len(stats_by_year)-1} années affichées (+ ligne total)', 
-                   className='text-info mt-2')
+                className='text-info mt-2', style={'fontSize': '12px'})
         ])
-        
-        return table_content, False  # Activer le bouton d'export
     
     @app.callback(
         Output("download-csv", "data"),
@@ -513,3 +625,182 @@ def register_callbacks(app):
         except Exception as e:
             print(f"Erreur lors de l'export CSV: {e}")
             return dash.no_update
+        
+    @app.callback(
+        Output('patients-performance-scores-boxplot', 'children'),
+        [Input('data-store', 'data'),
+        Input('current-page', 'data'),
+        Input('year-filter-checklist', 'value')]
+    )
+    def update_patients_performance_scores_boxplot(data, current_page, selected_years):
+        """Boxplot des Performance Scores par Age Groups avec boutons pour switcher entre les échelles"""
+        if current_page != 'Patients' or data is None:
+            return html.Div()
+        
+        df = pd.DataFrame(data)
+        
+        # Filtrer les données par année
+        if selected_years and 'Year' in df.columns:
+            filtered_df = df[df['Year'].isin(selected_years)]
+        else:
+            filtered_df = df
+        
+        # Vérifier que la colonne Age Groups existe
+        if 'Age Groups' not in filtered_df.columns:
+            return html.Div('Colonne Age Groups non disponible', className='text-warning text-center')
+        
+        # Vérifier que les colonnes Performance Status existent
+        scale_col = 'Performance Status At Treatment Scale'
+        score_col = 'Performance Status At Treatment Score'
+        
+        if scale_col not in filtered_df.columns or score_col not in filtered_df.columns:
+            return html.Div('Colonnes Performance Status manquantes', className='text-warning text-center')
+        
+        try:
+            # Nettoyer les données
+            clean_df = filtered_df.dropna(subset=['Age Groups', scale_col, score_col])
+            
+            # Obtenir les échelles uniques disponibles
+            available_scales = clean_df[scale_col].dropna().unique()
+            
+            if len(available_scales) == 0:
+                return html.Div('Aucune échelle de performance disponible', className='text-warning text-center')
+            
+            # Créer la figure
+            fig = go.Figure()
+            
+            # Fonction pour convertir le score en numérique
+            def convert_score_to_numeric(score):
+                if pd.isna(score) or str(score).strip().lower() in ['unknown', 'nan', '']:
+                    return None
+                try:
+                    return float(score)
+                except (ValueError, TypeError):
+                    return None
+            
+            # Ordre des groupes d'âge
+            age_order = ['18-', '18-39', '40-64', '65-74', '75+']
+            
+            # Créer les traces pour chaque échelle
+            for i, scale in enumerate(available_scales):
+                # Filtrer les données pour cette échelle
+                scale_df = clean_df[clean_df[scale_col] == scale].copy()
+                scale_df['numeric_score'] = scale_df[score_col].apply(convert_score_to_numeric)
+                scale_df = scale_df.dropna(subset=['numeric_score'])
+                
+                # S'assurer que les groupes d'âge sont dans le bon ordre
+                scale_df['Age Groups'] = pd.Categorical(scale_df['Age Groups'], categories=age_order, ordered=True)
+                scale_df = scale_df.sort_values('Age Groups')
+                
+                # Créer un boxplot pour chaque groupe d'âge
+                for age_group in age_order:
+                    if age_group in scale_df['Age Groups'].values:
+                        group_data = scale_df[scale_df['Age Groups'] == age_group]['numeric_score']
+                        
+                        fig.add_trace(go.Box(
+                            y=group_data,
+                            x=[age_group] * len(group_data),
+                            name=age_group,
+                            showlegend=False,
+                            marker_color='#2E86AB',
+                            boxpoints='all',
+                            jitter=0.3,
+                            pointpos=0,
+                            marker=dict(size=4, opacity=0.6),
+                            visible=(i == 0)  # Seule la première échelle est visible au début
+                        ))
+            
+            # Fonction pour déterminer la plage Y selon l'échelle
+            def get_y_axis_config(scale_name):
+                if 'ECOG' in scale_name:
+                    return {'range': [0, 5], 'dtick': 1}
+                elif 'Karnofsky' in scale_name or 'Lansky' in scale_name:
+                    return {'range': [0, 100], 'dtick': 10}
+                else:
+                    return {'range': [0, None], 'dtick': 1}
+            
+            # Créer les boutons pour switcher entre les échelles
+            buttons = []
+            for i, scale in enumerate(available_scales):
+                # Créer la visibilité pour ce bouton
+                visibility = []
+                for j in range(len(available_scales)):
+                    # Compter combien de groupes d'âge ont des données pour cette échelle
+                    scale_df_check = clean_df[clean_df[scale_col] == available_scales[j]]
+                    n_age_groups = len([ag for ag in age_order if ag in scale_df_check['Age Groups'].values])
+                    if j == i:
+                        visibility.extend([True] * n_age_groups)
+                    else:
+                        visibility.extend([False] * n_age_groups)
+                
+                # Obtenir la configuration de l'axe Y pour cette échelle
+                y_config = get_y_axis_config(scale)
+                
+                buttons.append(
+                    dict(
+                        label=scale,
+                        method='update',
+                        args=[
+                            {
+                                'visible': visibility
+                            },
+                            {
+                                'title': f'Performance Score ({scale}) par tranche d\'âge',
+                                'yaxis': dict(
+                                    title='Performance Score',
+                                    range=y_config['range'],
+                                    dtick=y_config['dtick'],
+                                    tick0=0
+                                )
+                            }
+                        ]
+                    )
+                )
+            
+            # Configuration initiale de l'axe Y
+            initial_y_config = get_y_axis_config(available_scales[0])
+            
+            # Mise en forme du graphique
+            fig.update_layout(
+                title=f'Performance Score ({available_scales[0]}) par tranche d\'âge',
+                xaxis_title='Tranche d\'âge',
+                yaxis_title='Performance Score',
+                height=480,
+                width=None,
+                template='plotly_white',
+                showlegend=False,
+                margin=dict(t=80, r=200, b=80, l=80),  # Marge droite pour le menu
+                updatemenus=[
+                    dict(
+                        buttons=buttons,
+                        direction='down',
+                        pad={'r': 10, 't': 10},
+                        showactive=True,
+                        x=1.02,  # Position à droite du graphique
+                        xanchor='left',
+                        y=1,     # Aligné en haut
+                        yanchor='top',
+                        bgcolor='rgba(255, 255, 255, 0.9)',
+                        bordercolor='#2E86AB',
+                        borderwidth=1
+                    )
+                ],
+                yaxis=dict(
+                    range=initial_y_config['range'],
+                    dtick=initial_y_config['dtick'],
+                    tick0=0
+                ),
+                xaxis=dict(
+                    categoryorder='array',
+                    categoryarray=age_order
+                )
+            )
+            
+            return dcc.Graph(
+                figure=fig,
+                style={'height': '100%'},
+                config={'responsive': True, 'displayModeBar': False}
+            )
+        
+        except Exception as e:
+            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
