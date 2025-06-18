@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
 import visualizations.allogreffes.graphs as gr
+import modules.data_processing as data_processing
 
 def get_layout():
     """
@@ -157,68 +158,64 @@ def register_callbacks(app):
         """Met à jour les filtres de grade/score selon le type de GvH sélectionné"""
         if data is None:
             return html.Div()
-        
+    
         df = pd.DataFrame(data)
         
+        # NOUVEAU : Appliquer la transformation GVHc avant d'analyser les valeurs disponibles
+        if gvh_type == 'chronic':
+            df = data_processing.transform_gvhc_scores(df)
+        
         if gvh_type == 'acute':
-            # Filtres pour GvH Aiguë
+            # Filtres pour GvH Aiguë (inchangé)
             column_name = 'First aGvHD Maximum Score'
             title = 'Filtres par Grade aGvH'
             filter_id = 'gvh-grade-filter'
             
-            # Ordre spécifique demandé
             grade_order = ['Grade 0 (none)', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
             
             if column_name in df.columns:
-                # Obtenir les valeurs disponibles dans les données
                 available_grades = df[column_name].dropna().unique().tolist()
                 
-                # Créer les options dans l'ordre spécifié, seulement pour les valeurs présentes
                 grade_options = []
                 for grade in grade_order:
                     if grade in available_grades:
                         grade_options.append({'label': grade, 'value': grade})
                 
-                # Ajouter les valeurs non prévues qui pourraient exister
                 for grade in available_grades:
                     if grade not in grade_order:
                         grade_options.append({'label': grade, 'value': grade})
                 
-                # Sélectionner toutes les valeurs par défaut
                 default_values = [option['value'] for option in grade_options]
             else:
                 grade_options = []
                 default_values = []
         
         else:  # chronic
-            # Filtres pour GvH Chronique
+            # Filtres pour GvH Chronique (MISE À JOUR : Limited et Extensive retirés)
             column_name = 'First cGvHD Maximum NIH Score'
             title = 'Filtres par Score NIH cGvH'
             filter_id = 'gvh-grade-filter'
             
-            # Ordre spécifique demandé
-            score_order = ['Mild', 'Limited', 'Moderate', 'Extensive', 'Severe', 'Not done', 'Unknown']
+            # Ordre mis à jour sans Limited et Extensive (car transformés)
+            score_order = ['Mild', 'Moderate', 'Severe', 'Not done', 'Unknown']
             
             if column_name in df.columns:
-                # Obtenir les valeurs disponibles dans les données
                 available_scores = df[column_name].dropna().unique().tolist()
                 
-                # Créer les options dans l'ordre spécifié, seulement pour les valeurs présentes
                 grade_options = []
                 for score in score_order:
                     if score in available_scores:
                         grade_options.append({'label': score, 'value': score})
                 
-                # Ajouter les valeurs non prévues qui pourraient exister
                 for score in available_scores:
                     if score not in score_order:
                         grade_options.append({'label': score, 'value': score})
                 
-                # Sélectionner toutes les valeurs par défaut
                 default_values = [option['value'] for option in grade_options]
             else:
                 grade_options = []
                 default_values = []
+
         
         if not grade_options:
             return html.Div([
@@ -258,6 +255,11 @@ def register_callbacks(app):
             return dbc.Alert("Aucune donnée disponible", color="warning")
         
         df = pd.DataFrame(data)
+        
+        # NOUVEAU : Appliquer la transformation GVHc si c'est une analyse chronique
+        if gvh_type == 'chronic':
+            df = data_processing.transform_gvhc_scores(df)
+        
         print(f"Dataset initial: {len(df)} patients")
         
         # Filtrer les données par années sélectionnées
@@ -265,7 +267,7 @@ def register_callbacks(app):
             df = df[df['Year'].isin(selected_years)]
             print(f"Après filtre années: {len(df)} patients")
         
-        # CORRECTION : Filtrer par grade/score SEULEMENT pour les patients avec GvH
+        # Filtrer par grade/score SEULEMENT pour les patients avec GvH
         if gvh_type == 'acute':
             column_name = 'First aGvHD Maximum Score'
             occurrence_col = 'First Agvhd Occurrence'

@@ -477,3 +477,34 @@ def process_upset_plot(df):
     df.reset_index(drop=True, inplace=True)
 
     return df
+
+def transform_gvhc_scores(df):
+    """
+    Transforme les scores GVH chronique selon les nouvelles règles:
+    - 'Limited' → 'Mild'
+    - 'Extensive' → 'Severe'
+    
+    Args:
+        df (pd.DataFrame): DataFrame contenant les données
+        
+    Returns:
+        pd.DataFrame: DataFrame avec les scores transformés
+    """
+    df_transformed = df.copy()
+    
+    if 'First cGvHD Maximum NIH Score' in df_transformed.columns:
+        # Comptage avant transformation pour logging
+        before_limited = (df_transformed['First cGvHD Maximum NIH Score'] == 'Limited').sum()
+        before_extensive = (df_transformed['First cGvHD Maximum NIH Score'] == 'Extensive').sum()
+        
+        # Appliquer les transformations
+        df_transformed['First cGvHD Maximum NIH Score'] = df_transformed['First cGvHD Maximum NIH Score'].replace({
+            'Limited': 'Mild',
+            'Extensive': 'Severe'
+        })
+        
+        # Logging pour suivi
+        if before_limited > 0 or before_extensive > 0:
+            print(f"Transformation GVHc appliquée: {before_limited} 'Limited' → 'Mild', {before_extensive} 'Extensive' → 'Severe'")
+    
+    return df_transformed

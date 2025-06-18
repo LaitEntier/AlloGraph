@@ -9,6 +9,7 @@ from datetime import datetime
 
 # Import des modules communs
 import modules.dashboard_layout as layouts
+import modules.data_processing as data_processing
 import visualizations.allogreffes.graphs as gr
 
 def get_layout():
@@ -2046,7 +2047,7 @@ def create_gvha_visualization(df, reference_year):
         ])
     except Exception as e:
         return dbc.Alert(f"Erreur lors du calcul des indicateurs GVH aiguë: {str(e)}", color="danger")
-
+        
 def process_gvhc_data(df):
     """
     Traite les données pour calculer les indicateurs de GVH chronique
@@ -2064,8 +2065,8 @@ def process_gvhc_data(df):
     if missing_cols:
         raise ValueError(f"Colonnes manquantes pour l'analyse GVH chronique: {missing_cols}")
     
-    # Créer une copie et calculer le délai si nécessaire
-    df = df.copy()
+    # Appliquer la transformation GVHc AVANT tout traitement
+    df = data_processing.transform_gvhc_scores(df)
     
     # Convertir les dates
     df['First Cgvhd Occurrence Date'] = pd.to_datetime(df['First Cgvhd Occurrence Date'], errors='coerce')
@@ -2086,46 +2087,31 @@ def process_gvhc_data(df):
     grade_counts = result_all_grades.groupby(['Year', 'First cGvHD Maximum NIH Score']).size().unstack(fill_value=0)
     grade_counts = grade_counts.reset_index()
     
-    # Calculer les totaux pour tous les grades
-    all_grades_totals = result_all_grades.groupby('Year').size().reset_index(name='nb_gvh_chronique_total')
+    # Calculer les totaux pour GVH chronique
+    gvhc_totals = result_all_grades.groupby('Year').size().reset_index(name='nb_gvh_chronique_total')
     
-    # Fusionner toutes les données
-    result_combined = pd.merge(nb_greffe_year, all_grades_totals, on='Year', how='left')
+    # Fusionner avec nb_greffe_year pour obtenir le pourcentage
+    result_combined = pd.merge(nb_greffe_year, gvhc_totals, on='Year', how='left')
+    result_combined['nb_gvh_chronique_total'] = result_combined['nb_gvh_chronique_total'].fillna(0)
+    result_combined['pourcentage_gvh_chronique_total'] = (result_combined['nb_gvh_chronique_total'] / result_combined['nb_greffe']) * 100
     
-    # Remplir les NaN par 0
-    result_combined['nb_gvh_chronique_total'] = result_combined['nb_gvh_chronique_total'].fillna(0).astype(int)
-    
-    # Calculer le pourcentage total
-    result_combined['pourcentage_gvh_chronique_total'] = round(
-        result_combined['nb_gvh_chronique_total'] / result_combined['nb_greffe'] * 100, 1
-    )
-    
-    # Ajouter les détails par grade au dataframe combined
+    # Ajouter les colonnes de grade_counts à result_combined
     if not grade_counts.empty:
-        # S'assurer que les colonnes de grades existent dans l'ordre voulu
-        for grade in ['Mild', 'Moderate', 'Severe']:
-            if grade not in grade_counts.columns:
-                grade_counts[grade] = 0
-        
-        result_combined = pd.merge(result_combined, grade_counts[['Year', 'Mild', 'Moderate', 'Severe']], on='Year', how='left')
-        
-        # Remplir les NaN par 0
-        for grade in ['Mild', 'Moderate', 'Severe']:
-            result_combined[grade] = result_combined[grade].fillna(0).astype(int)
-        
-        # Calculer les pourcentages par grade
-        result_combined['pourcentage_mild'] = round(result_combined['Mild'] / result_combined['nb_greffe'] * 100, 1)
-        result_combined['pourcentage_moderate'] = round(result_combined['Moderate'] / result_combined['nb_greffe'] * 100, 1)
-        result_combined['pourcentage_severe'] = round(result_combined['Severe'] / result_combined['nb_greffe'] * 100, 1)
+        result_combined = pd.merge(result_combined, grade_counts, on='Year', how='left')
+        # Remplir les NaN par 0 pour les grades manquants
+        grade_columns = ['Mild', 'Moderate', 'Severe']
+        for col in grade_columns:
+            if col in result_combined.columns:
+                result_combined[col] = result_combined[col].fillna(0)
+            else:
+                result_combined[col] = 0
     else:
-        # Si pas de données de grades, initialiser avec des 0
-        for grade in ['Mild', 'Moderate', 'Severe']:
-            result_combined[grade] = 0
-            grade_name = grade.lower()
-            result_combined[f'pourcentage_{grade_name}'] = 0.0
+        # Si grade_counts est vide, ajouter des colonnes vides
+        result_combined['Mild'] = 0
+        result_combined['Moderate'] = 0
+        result_combined['Severe'] = 0
     
     return result_combined, grade_counts
-
 
 def create_gvhc_barplot(result_combined, grade_counts):
     """
