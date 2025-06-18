@@ -142,7 +142,7 @@ def create_survival_sidebar_content(data):
             id='survival-max-duration',
             options=[
                 {'label': 'Max. 10 ans', 'value': 'limited'},
-                {'label': 'Pas de limite', 'value': 'unlimited'}
+                {'label': 'Pas de limite (si suivi > 10 ans existant)', 'value': 'unlimited'}
             ],
             value='limited',
             className='mb-3',
@@ -312,7 +312,7 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Co
         fig.add_annotation(
             x=median_survival_years + display_max*0.05,
             y=0.55,
-            text=f"<b>Médiane: {median_survival_years:.1f}ans</b>",
+            text=f"<b>Médiane: {median_survival_years:.1f} ans</b>",
             showarrow=False,
             font=dict(color="#e74c3c", size=12, family='Arial, sans-serif'),
             bgcolor="rgba(255, 255, 255, 0.8)",
