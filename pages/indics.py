@@ -1049,7 +1049,7 @@ def register_callbacks(app):
         Input('indicator-year-selection', 'value'),
         Input('data-store', 'data'),
         Input('current-page', 'data')],
-        prevent_initial_call=True
+        prevent_initial_call=False
     )
     def update_indicator_display(indicator, selected_year, data, current_page):
         if current_page != 'Indicateurs' or data is None:
@@ -1244,7 +1244,7 @@ def register_callbacks(app):
     @app.callback(
         Output("download-missing-indicators-csv", "data"),
         Input("export-missing-indicators-button", "n_clicks"),
-        prevent_initial_call=True
+        prevent_initial_call=False
     )
     def export_missing_indicators_csv(n_clicks):
         """Gère l'export CSV des patients avec données manquantes pour Indicateurs"""
