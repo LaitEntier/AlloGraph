@@ -54,7 +54,7 @@ def get_layout():
                     ], className='p-2')
                 ])
             ], width=12)
-        ]),
+        ], className='mb-4'),
 
         # Quatrième section - DataTable Main Diagnosis par année
         dbc.Row([
@@ -69,6 +69,45 @@ def get_layout():
                     ], className='p-2')
                 ])
             ], width=12)
+        ], className='mb-4'),
+
+        dbc.Row([
+            # Tableau 1 - Résumé des colonnes
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardBody([
+                        html.Div(id='hemopathies-missing-summary-table', children=[
+                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                        ])
+                    ])
+                ])
+            ], width=6),
+            
+            # Tableau 2 - Patients concernés  
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Patients concernés", className='mb-0'),
+                            dbc.Button(
+                                [html.I(className="fas fa-download me-2"), "Export CSV"],
+                                id="export-missing-hemopathies-button",
+                                color="primary",
+                                size="sm",
+                                disabled=True,  # Désactivé par défaut
+                            )
+                        ], className="d-flex justify-content-between align-items-center")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='hemopathies-missing-detail-table', children=[
+                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                        ]),
+                        # Composant pour télécharger le fichier Excel (invisible)
+                        dcc.Download(id="download-missing-hemopathies-excel")
+                    ])
+                ])
+            ], width=6)
         ])
         
     ], fluid=True)
@@ -676,3 +715,172 @@ def register_callbacks(app):
                 # tooltip_data et tooltip_duration supprimés pour compatibilité
             )
         ], style={'height': '100%'})
+    
+    @callback(
+        Output('hemopathies-missing-summary-table', 'children'),
+        [Input('data-store', 'data'), Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def hemopathies_missing_summary_callback(data, current_page):
+        """Gère le tableau de résumé des données manquantes pour Hemopathies"""
+        
+        if current_page != 'Hemopathies' or not data:
+            return html.Div("En attente...", className='text-muted')
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Variables spécifiques à analyser pour Hemopathies
+            columns_to_analyze = [
+                'Main Diagnosis', 
+                'Subclass Diagnosis', 
+                'Age Groups', 
+                'Blood + Rh', 
+                'Disease Status At Treatment'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+            
+            if not existing_columns:
+                return dbc.Alert("Aucune variable Hemopathies trouvée", color='warning')
+            
+            # Utiliser la fonction existante de graphs.py
+            missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            return dash_table.DataTable(
+                data=missing_summary.to_dict('records'),
+                columns=[
+                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Total", "id": "Total patients", "type": "numeric"},
+                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
+                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                     "format": {"specifier": ".1f"}}
+                ],
+                style_table={'height': '300px', 'overflowY': 'auto'},
+                style_cell={
+                    'textAlign': 'center',
+                    'padding': '8px',
+                    'fontSize': '12px',
+                    'fontFamily': 'Arial, sans-serif'
+                },
+                style_header={
+                    'backgroundColor': '#0D3182',
+                    'color': 'white',
+                    'fontWeight': 'bold'
+                },
+                style_data_conditional=[
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {
+                        'if': {
+                            'filter_query': '{Pourcentage manquant} > 20',
+                            'column_id': 'Pourcentage manquant'
+                        },
+                        'backgroundColor': '#ffebee',
+                        'color': 'red',
+                        'fontWeight': 'bold'
+                    }
+                ]
+            )
+            
+        except Exception as e:
+            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+
+    @callback(
+        [Output('hemopathies-missing-detail-table', 'children'),
+         Output('export-missing-hemopathies-button', 'disabled')],
+        [Input('data-store', 'data'), Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def hemopathies_missing_detail_callback(data, current_page):
+        """Gère le tableau détaillé des patients avec données manquantes pour Hemopathies"""
+        
+        if current_page != 'Hemopathies' or not data:
+            return html.Div("En attente...", className='text-muted'), True
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Variables spécifiques à analyser pour Hemopathies
+            columns_to_analyze = [
+                'Main Diagnosis', 
+                'Subclass Diagnosis', 
+                'Age Groups', 
+                'Blood + Rh', 
+                'Disease Status At Treatment'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+            
+            if not existing_columns:
+                return dbc.Alert("Aucune variable Hemopathies trouvée", color='warning'), True
+            
+            # Utiliser la fonction existante de graphs.py
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            if detailed_missing.empty:
+                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+            
+            # Adapter les noms de colonnes pour correspondre au format attendu
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
+                    'Nb manquant': row['Nombre de colonnes manquantes']
+                })
+            
+            # Sauvegarder les données pour l'export
+            app.server.missing_hemopathies_data = detailed_data
+            
+            table_content = html.Div([
+                dash_table.DataTable(
+                    data=detailed_data,
+                    columns=[
+                        {"name": "Long ID", "id": "Long ID"},
+                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
+                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                    ],
+                    style_table={'height': '300px', 'overflowY': 'auto'},
+                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
+                    style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
+                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}],
+                    filter_action='native',
+                    sort_action='native',
+                    page_size=10
+                )
+            ])
+            
+            return table_content, False  # Activer le bouton d'export
+            
+        except Exception as e:
+            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
+
+    @callback(
+        Output("download-missing-hemopathies-excel", "data"),
+        Input("export-missing-hemopathies-button", "n_clicks"),
+        prevent_initial_call=True
+    )
+    def export_missing_hemopathies_excel(n_clicks):
+        """Gère l'export csv des patients avec données manquantes pour Hemopathies"""
+        if n_clicks is None:
+            return dash.no_update
+        
+        try:
+            # Récupérer les données stockées
+            if hasattr(app.server, 'missing_hemopathies_data') and app.server.missing_hemopathies_data:
+                missing_df = pd.DataFrame(app.server.missing_hemopathies_data)
+                
+                # Générer un nom de fichier avec la date
+                from datetime import datetime
+                current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"hemopathies_donnees_manquantes_{current_date}.csv"
+                
+                return dcc.send_data_frame(
+                    missing_df.to_csv, 
+                    filename=filename,
+                    index=False
+                )
+            else:
+                return dash.no_update
+                
+        except Exception as e:
+            print(f"Erreur lors de l'export Excel Hemopathies: {e}")
+            return dash.no_update

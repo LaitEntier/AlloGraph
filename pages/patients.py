@@ -69,11 +69,11 @@ def get_layout():
                             ], width=8),
                             dbc.Col([
                                 dbc.Button(
-                                    [html.I(className="fas fa-download me-2"), "Exporter CSV"],
+                                    [html.I(className="fas fa-download me-2"), "Export CSV"],
                                     id="export-csv-button",
                                     color="primary",
                                     size="sm",
-                                    disabled=True,  # Désactivé par défaut
+                                    disabled=False,  # Désactivé par défaut
                                     className="float-end"
                                 )
                             ], width=4, className="d-flex justify-content-end align-items-center")
@@ -104,6 +104,45 @@ def get_layout():
                     ], className='p-2')
                 ])
             ], width=12)
+        ], className='mb-4'),
+
+        dbc.Row([
+            # Tableau 1 - Résumé des colonnes
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardBody([
+                        html.Div(id='patients-missing-summary-table', children=[
+                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                        ])
+                    ])
+                ])
+            ], width=6),
+            
+            # Tableau 2 - Patients concernés  
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Patients concernés", className='mb-0'),
+                            dbc.Button(
+                                [html.I(className="fas fa-download me-2"), "Export CSV"],
+                                id="export-missing-patients-button",
+                                color="primary",
+                                size="sm",
+                                disabled=True,  # Désactivé par défaut
+                            )
+                        ], className="d-flex justify-content-between align-items-center")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='patients-missing-detail-table', children=[
+                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                        ]),
+                        # Composant pour télécharger le fichier Excel (invisible)
+                        dcc.Download(id="download-missing-patients-excel")
+                    ])
+                ])
+            ], width=6)
         ])
     ], fluid=True)
 
@@ -121,7 +160,7 @@ def register_callbacks(app):
         categories = sorted([cat for cat in categories if pd.notna(cat)])
         
         # Utiliser la même palette que Plotly
-        colors = px.colors.qualitative.Plotly
+        colors = px.colors.qualitative.Safe
         
         # Créer le mapping
         color_map = {}
@@ -377,7 +416,8 @@ def register_callbacks(app):
             return html.Div(f'Erreur: {str(e)}', className='text-danger')
 
     @app.callback(
-        Output('patients-datatable', 'children'),
+        [Output('patients-datatable', 'children'),
+        Output('export-csv-button', 'disabled')],
         [Input('data-store', 'data'),
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value')]
@@ -385,7 +425,7 @@ def register_callbacks(app):
     def update_datatable(data, current_page, selected_years):
         """Graphique 4: DataTable avec statistiques par année incluant la répartition par sexe"""
         if current_page != 'Patients' or data is None:
-            return html.Div()
+            return html.Div(), True
         
         df = pd.DataFrame(data)
         
@@ -528,6 +568,8 @@ def register_callbacks(app):
                 {"name": "Sexe inconnu (%)", "id": "Sexe inconnu (%)", "type": "numeric", "format": {"specifier": ".1f"}}
             ])
         
+        app.server.stats_data = stats_by_year
+
         # Créer la DataTable
         return html.Div([
             dash_table.DataTable(
@@ -586,7 +628,7 @@ def register_callbacks(app):
             ),
             html.P(f'{len(stats_by_year)-1} années affichées (+ ligne total)', 
                 className='text-info mt-2', style={'fontSize': '12px'})
-        ])
+        ]), False
     
     @app.callback(
         Output("download-csv", "data"),
@@ -804,3 +846,159 @@ def register_callbacks(app):
         
         except Exception as e:
             return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+      
+    @callback(
+        Output('patients-missing-summary-table', 'children'),
+        [Input('data-store', 'data'), Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def final_summary_callback(data, current_page):
+        """Version finale avec analyse réelle"""
+        
+        if current_page != 'Patients' or not data:
+            return html.Div("En attente...", className='text-muted')
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Colonnes à analyser
+            columns_to_analyze = ['Age At Diagnosis', 'Main Diagnosis', 'Sex', 'Blood + Rh', 'Number HCT', 'Number Allo HCT']
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+            
+            print(f"🔍 FINAL - Colonnes existantes: {existing_columns}")
+            
+            if not existing_columns:
+                return dbc.Alert("Aucune colonne trouvée", color='warning')
+            
+            # Analyse simple
+            summary_data = []
+            for col in existing_columns:
+                missing_count = df[col].isna().sum()
+                total = len(df)
+                percentage = round((missing_count / total) * 100, 1)
+                
+                summary_data.append({
+                    'Colonne': col,
+                    'Total': total,
+                    'Manquantes': missing_count,
+                    '% Manquant': percentage
+                })
+            
+            print(f"🔍 FINAL - Données du tableau: {summary_data}")
+            
+            return dash_table.DataTable(
+                data=summary_data,
+                columns=[
+                    {"name": "Colonne", "id": "Colonne"},
+                    {"name": "Total", "id": "Total", "type": "numeric"},
+                    {"name": "Manquantes", "id": "Manquantes", "type": "numeric"},
+                    {"name": "% Manquant", "id": "% Manquant", "type": "numeric"}
+                ],
+                style_table={'height': '350px', 'overflowY': 'auto'},
+                style_cell={'textAlign': 'center', 'padding': '10px'},
+                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
+                style_data_conditional=[
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {'if': {'filter_query': '{% Manquant} = 0', 'column_id': '% Manquant'}, 
+                    'backgroundColor': '#d4edda', 'color': 'green'},
+                    {'if': {'filter_query': '{% Manquant} > 10', 'column_id': '% Manquant'}, 
+                    'backgroundColor': '#f8d7da', 'color': 'red'}
+                ]
+            )
+            
+        except Exception as e:
+            print(f"🔍 FINAL - ERREUR: {e}")
+            return dbc.Alert(f"Erreur: {str(e)}", color='danger')
+
+    @callback(
+        [Output('patients-missing-detail-table', 'children'),
+        Output('export-missing-patients-button', 'disabled')],  # Contrôler l'état du bouton
+        [Input('data-store', 'data'), Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def final_detail_callback(data, current_page):
+        """Version finale détail avec analyse réelle"""
+        
+        if current_page != 'Patients' or not data:
+            return html.Div("En attente...", className='text-muted'), True
+        
+        try:
+            df = pd.DataFrame(data)
+            columns_to_analyze = ['Age At Diagnosis', 'Main Diagnosis', 'Sex', 'Blood + Rh', 'Number HCT', 'Number Allo HCT']
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+            
+            # Trouver les patients avec données manquantes
+            detailed_data = []
+            for _, row in df.iterrows():
+                patient_id = row.get('Long ID', f'Patient_{row.name}')
+                missing_cols = [col for col in existing_columns if pd.isna(row[col])]
+                
+                if missing_cols:
+                    detailed_data.append({
+                        'Long ID': patient_id,
+                        'Colonnes manquantes': ', '.join(missing_cols),
+                        'Nb manquant': len(missing_cols)
+                    })
+            
+            print(f"🔍 FINAL - Patients avec données manquantes: {len(detailed_data)}")
+            
+            if not detailed_data:
+                return dbc.Alert("🎉 Aucune donnée manquante !", color='success'), True
+            
+            # Sauvegarder les données pour l'export
+            app.server.missing_patients_data = detailed_data
+            
+            table_content = html.Div([
+                dash_table.DataTable(
+                    data=detailed_data,
+                    columns=[
+                        {"name": "Long ID", "id": "Long ID"},
+                        {"name": "Colonnes manquantes", "id": "Colonnes manquantes"},
+                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                    ],
+                    style_table={'height': '300px', 'overflowY': 'auto'},
+                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
+                    style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
+                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}],
+                    filter_action='native',
+                    sort_action='native',
+                    page_size=10
+                )
+            ])
+            
+            return table_content, False  # Activer le bouton
+            
+        except Exception as e:
+            print(f"🔍 FINAL DETAIL - ERREUR: {e}")
+
+    @app.callback(
+        Output("download-missing-patients-excel", "data"),
+        Input("export-missing-patients-button", "n_clicks"),
+        prevent_initial_call=True
+    )
+    def export_missing_patients_excel(n_clicks):
+        """Gère l'export Excel des patients avec données manquantes"""
+        if n_clicks is None:
+            return dash.no_update
+        
+        try:
+            # Récupérer les données stockées
+            if hasattr(app.server, 'missing_patients_data') and app.server.missing_patients_data:
+                missing_df = pd.DataFrame(app.server.missing_patients_data)
+                
+                # Générer un nom de fichier avec la date
+                from datetime import datetime
+                current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"patients_donnees_manquantes_{current_date}.csv"
+                
+                return dcc.send_data_frame(
+                    missing_df.to_csv, 
+                    filename=filename,
+                    index=False
+                )
+            else:
+                return dash.no_update
+                
+        except Exception as e:
+            print(f"Erreur lors de l'export Excel: {e}")
+            return dash.no_update

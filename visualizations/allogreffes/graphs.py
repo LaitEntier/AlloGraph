@@ -2,6 +2,8 @@ import plotly.graph_objects as go
 import pandas as pd
 import plotly.express as px
 import plotly.colors
+from dash import html, dash_table, dcc
+import dash_bootstrap_components as dbc
 from scipy.stats import gaussian_kde
 from typing import Optional, List, Tuple
 import numpy as np
@@ -27,7 +29,7 @@ def create_consistent_color_map(data, color_column):
     categories = sorted([cat for cat in categories if pd.notna(cat)])
     
     # Utiliser la palette Plotly standard
-    colors = px.colors.qualitative.Plotly
+    colors = px.colors.qualitative.Safe
     
     # Créer le mapping
     color_map = {}
@@ -472,7 +474,7 @@ def create_boxplot(
         # Assignation automatique de couleurs
         if color_palette is None:
             # Utiliser une palette par défaut de Plotly
-            color_palette = px.colors.qualitative.Plotly
+            color_palette = px.colors.qualitative.Safe
         # Limiter la palette à 24 couleurs
         if len(color_palette) > 24:
             color_palette = color_palette[:24]
@@ -1033,8 +1035,8 @@ def create_grouped_barplot_with_cumulative(
     fig = go.Figure()
     
     # Palette de couleurs
-    colors = px.colors.qualitative.Plotly
-    
+    colors = px.colors.qualitative.Safe
+
     # Ajouter les barres groupées
     for i, category in enumerate(group_categories):
         fig.add_trace(go.Bar(
@@ -1186,7 +1188,7 @@ def create_stacked_barplot(
             name=category,
             x=grouped_data[x_column],
             y=grouped_data[category],
-            marker_color=color_map.get(category, px.colors.qualitative.Plotly[0]),
+            marker_color=color_map.get(category, px.colors.qualitative.Safe[0]),
             text=grouped_data[category] if show_values else None,
             textposition='inside'
         ))
@@ -1302,7 +1304,7 @@ def create_normalized_barplot(
             name=category,
             x=normalized_data[x_column],
             y=normalized_data[category],
-            marker_color=color_map.get(category, px.colors.qualitative.Plotly[0]),
+            marker_color=color_map.get(category, px.colors.qualitative.Safe[0]),
             text=text_values,
             textposition='inside',
             textfont=dict(size=10)
@@ -2385,7 +2387,7 @@ def create_grouped_barplot_with_cumulative_by_category(
     fig = go.Figure()
     
     # Palette de couleurs
-    colors = px.colors.qualitative.Plotly
+    colors = px.colors.qualitative.Safe
     
     # Ajouter les barres groupées si demandé
     if show_bars:
@@ -2398,7 +2400,7 @@ def create_grouped_barplot_with_cumulative_by_category(
                 text=grouped_data[category],
                 textposition='inside',
                 yaxis='y',
-                opacity=0.8,
+                opacity=1.0,
                 showlegend=True
             ))
     
@@ -2426,7 +2428,6 @@ def create_grouped_barplot_with_cumulative_by_category(
             text=cumulative_data,
             textposition='top center',
             textfont=dict(size=12),
-            yaxis='y2',
             hovertemplate=f'<b>{category} (cumulé)</b><br>' +
                          'Année: %{x}<br>' +
                          'Effectif cumulé: %{y}<br>' +
@@ -2463,12 +2464,6 @@ def create_grouped_barplot_with_cumulative_by_category(
         'yaxis': dict(
             title=bar_y_axis_title,
             side='left'
-        ),
-        'yaxis2': dict(
-            title=line_y_axis_title,
-            overlaying='y',
-            side='right',
-            showgrid=False
         ),
         'hovermode': 'x unified'
     }
@@ -2667,3 +2662,316 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     fig.update_annotations(font_size=12, font_color="#2c3e50")
     
     return fig
+
+def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
+    """
+    Analyse les données manquantes pour les colonnes spécifiées
+    
+    Args:
+        df (pd.DataFrame): Dataset des patients
+        columns_to_check (list): Liste des colonnes à analyser (sans limitation de nombre)
+        patient_id_col (str): Nom de la colonne contenant l'ID patient (défaut: 'Long ID')
+    
+    Returns:
+        tuple: (missing_data_summary, detailed_missing_data)
+    """
+    if not isinstance(columns_to_check, list):
+        columns_to_check = [columns_to_check]
+    
+    # Vérifier que les colonnes existent
+    missing_cols = [col for col in columns_to_check if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Colonnes introuvables dans le dataset: {missing_cols}")
+    
+    if patient_id_col not in df.columns:
+        raise ValueError(f"Colonne ID patient '{patient_id_col}' introuvable")
+    
+    # Créer un DataFrame pour l'analyse
+    analysis_df = df[[patient_id_col] + columns_to_check].copy()
+    
+    # Résumé des données manquantes par colonne
+    missing_summary = []
+    for col in columns_to_check:
+        total_patients = len(analysis_df)
+        missing_count = analysis_df[col].isna().sum()
+        missing_percentage = (missing_count / total_patients) * 100
+        
+        missing_summary.append({
+            'Colonne': col,
+            'Total patients': total_patients,
+            'Données manquantes': missing_count,
+            'Pourcentage manquant': round(missing_percentage, 2)
+        })
+    
+    # Détail des patients avec données manquantes
+    detailed_missing = []
+    
+    for _, row in analysis_df.iterrows():
+        patient_id = row[patient_id_col]
+        missing_columns = []
+        
+        for col in columns_to_check:
+            if pd.isna(row[col]):
+                missing_columns.append(col)
+        
+        if missing_columns:
+            detailed_missing.append({
+                patient_id_col: patient_id,
+                'Colonnes avec données manquantes': ', '.join(missing_columns),
+                'Nombre de colonnes manquantes': len(missing_columns)
+            })
+    
+    return pd.DataFrame(missing_summary), pd.DataFrame(detailed_missing)
+
+
+def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long ID'):
+    """
+    Crée une visualisation complète des données manquantes
+    
+    Args:
+        df (pd.DataFrame): Dataset des patients
+        columns_to_check (list): Liste des colonnes à analyser
+        patient_id_col (str): Nom de la colonne ID patient
+    
+    Returns:
+        html.Div: Composant Dash avec visualisation complète
+    """
+    try:
+        # Analyser les données manquantes
+        missing_summary, detailed_missing = analyze_missing_data(df, columns_to_check, patient_id_col)
+        
+        # Créer le graphique en barres des données manquantes
+        fig_bar = px.bar(
+            missing_summary,
+            x='Colonne',
+            y='Pourcentage manquant',
+            title='Pourcentage de données manquantes par colonne',
+            labels={'Pourcentage manquant': 'Pourcentage manquant (%)'},
+            color='Pourcentage manquant',
+            color_continuous_scale='Reds'
+        )
+        
+        fig_bar.update_layout(
+            title={'x': 0.5, 'xanchor': 'center'},
+            xaxis_tickangle=-45,
+            height=400
+        )
+        
+        # Créer la heatmap des données manquantes
+        analysis_df = df[[patient_id_col] + columns_to_check].copy()
+        missing_matrix = analysis_df[columns_to_check].isna().astype(int)
+        
+        fig_heatmap = go.Figure(data=go.Heatmap(
+            z=missing_matrix.T.values,
+            y=columns_to_check,
+            x=analysis_df.index,
+            colorscale=[[0, 'lightblue'], [1, 'red']],
+            showscale=True,
+            colorbar=dict(
+                title="Données manquantes",
+                tickvals=[0, 1],
+                ticktext=["Présent", "Manquant"]
+            )
+        ))
+        
+        fig_heatmap.update_layout(
+            title='Carte des données manquantes par patient',
+            title_x=0.5,
+            xaxis_title='Index des patients',
+            yaxis_title='Colonnes analysées',
+            height=300
+        )
+        
+        # Composant final
+        return dbc.Container([
+            # En-tête avec résumé
+            dbc.Row([
+                dbc.Col([
+                    dbc.Alert([
+                        html.H4("📊 Analyse des données manquantes", className='mb-2'),
+                        html.P(f"Analyse de {len(columns_to_check)} colonne(s) sur {len(df)} patients", 
+                               className='mb-0')
+                    ], color='info', className='mb-3')
+                ])
+            ]),
+            
+            # Graphiques
+            dbc.Row([
+                # Graphique en barres
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader(html.H6('Vue d\'ensemble des données manquantes')),
+                        dbc.CardBody([
+                            dcc.Graph(figure=fig_bar)
+                        ])
+                    ])
+                ], width=6),
+                
+                # Carte thermique
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader(html.H6('Répartition des données manquantes')),
+                        dbc.CardBody([
+                            dcc.Graph(figure=fig_heatmap)
+                        ])
+                    ])
+                ], width=6)
+            ], className='mb-4'),
+            
+            # Tableaux
+            dbc.Row([
+                # Résumé par colonne
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader(html.H6('Résumé par colonne')),
+                        dbc.CardBody([
+                            create_summary_table(missing_summary)
+                        ])
+                    ])
+                ], width=6),
+                
+                # Détail des patients avec données manquantes
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(f'Patients avec données manquantes ({len(detailed_missing)} patients)')
+                        ]),
+                        dbc.CardBody([
+                            create_detailed_table(detailed_missing) if not detailed_missing.empty else 
+                            dbc.Alert("Aucune donnée manquante trouvée ! 🎉", color='success')
+                        ])
+                    ])
+                ], width=6)
+            ])
+        ], fluid=True)
+        
+    except Exception as e:
+        return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+
+def create_summary_table(missing_summary):
+    """Crée le tableau de résumé des données manquantes"""
+    return dash_table.DataTable(
+        data=missing_summary.to_dict('records'),
+        columns=[
+            {"name": "Colonne", "id": "Colonne"},
+            {"name": "Total patients", "id": "Total patients", "type": "numeric"},
+            {"name": "Données manquantes", "id": "Données manquantes", "type": "numeric"},
+            {"name": "% manquant", "id": "Pourcentage manquant", "type": "numeric", 
+             "format": {"specifier": ".1f"}}
+        ],
+        style_table={'height': '300px', 'overflowY': 'auto'},
+        style_cell={
+            'textAlign': 'center',
+            'padding': '10px',
+            'fontSize': '12px',
+            'fontFamily': 'Arial, sans-serif'
+        },
+        style_header={
+            'backgroundColor': '#0D3182',
+            'color': 'white',
+            'fontWeight': 'bold'
+        },
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': '#f8f9fa'
+            },
+            {
+                'if': {
+                    'filter_query': '{Pourcentage manquant} > 20',
+                    'column_id': 'Pourcentage manquant'
+                },
+                'backgroundColor': '#ffebee',
+                'color': 'red',
+                'fontWeight': 'bold'
+            },
+            {
+                'if': {
+                    'filter_query': '{Pourcentage manquant} > 50',
+                    'column_id': 'Pourcentage manquant'
+                },
+                'backgroundColor': '#ffcdd2',
+                'color': 'darkred',
+                'fontWeight': 'bold'
+            }
+        ]
+    )
+
+def create_detailed_table(detailed_missing):
+    """Crée le tableau détaillé des patients avec données manquantes"""
+    return dash_table.DataTable(
+        data=detailed_missing.to_dict('records'),
+        columns=[
+            {"name": "Long ID", "id": "Long ID"},
+            {"name": "Colonnes manquantes", "id": "Colonnes avec données manquantes"},
+            {"name": "Nb manquantes", "id": "Nombre de colonnes manquantes", "type": "numeric"}
+        ],
+        style_table={'height': '300px', 'overflowY': 'auto'},
+        style_cell={
+            'textAlign': 'left',
+            'padding': '8px',
+            'fontSize': '11px',
+            'fontFamily': 'Arial, sans-serif',
+            'whiteSpace': 'normal',
+            'height': 'auto'
+        },
+        style_header={
+            'backgroundColor': '#0D3182',
+            'color': 'white',
+            'fontWeight': 'bold',
+            'textAlign': 'center'
+        },
+        style_data_conditional=[
+            {
+                'if': {'row_index': 'odd'},
+                'backgroundColor': '#f8f9fa'
+            },
+            {
+                'if': {
+                    'filter_query': '{Nombre de colonnes manquantes} > 1',
+                    'column_id': 'Nombre de colonnes manquantes'
+                },
+                'backgroundColor': '#fff3cd',
+                'color': 'orange',
+                'fontWeight': 'bold'
+            }
+        ],
+        filter_action='native',
+        sort_action='native',
+        export_format='xlsx',
+        export_headers='display'
+    )
+
+# Fonction d'usage simple pour intégration rapide
+def quick_missing_analysis(df, columns_to_check):
+    """
+    Fonction simplifiée pour analyse rapide des données manquantes
+    
+    Args:
+        df (pd.DataFrame): Dataset
+        columns_to_check (list ou str): Colonne(s) à analyser
+    
+    Returns:
+        dict: Résumé des données manquantes
+    """
+    if isinstance(columns_to_check, str):
+        columns_to_check = [columns_to_check]
+    
+    results = {}
+    for col in columns_to_check:
+        if col in df.columns:
+            missing_count = df[col].isna().sum()
+            total_count = len(df)
+            missing_percentage = (missing_count / total_count) * 100
+            
+            # Récupérer les Long ID des patients avec données manquantes
+            missing_patients = df[df[col].isna()]['Long ID'].tolist() if 'Long ID' in df.columns else []
+            
+            results[col] = {
+                'missing_count': missing_count,
+                'total_count': total_count,
+                'missing_percentage': round(missing_percentage, 2),
+                'missing_patients': missing_patients
+            }
+    
+    return results

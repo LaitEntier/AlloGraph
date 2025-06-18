@@ -5,6 +5,7 @@ import pandas as pd
 import base64
 import io
 import os
+import sys
 import plotly
 # Import des modules
 import modules.data_processing as data_processing
@@ -67,6 +68,18 @@ except ImportError as e:
     print(f"Attention: Impossible d'importer pages.indic: {e}")
     INDIC_PAGE_AVAILABLE = False
 
+def get_asset_path(filename):
+    """
+    Retourne le chemin correct vers les assets, 
+    que l'app soit compilée ou non
+    """
+    if hasattr(sys, '_MEIPASS'):
+        # Mode exécutable PyInstaller
+        return os.path.join(sys._MEIPASS, 'assets', filename)
+    else:
+        # Mode développement
+        return os.path.join('assets', filename)
+
 # Initialisation de l'app Dash
 app = dash.Dash(
     __name__, 
@@ -74,7 +87,9 @@ app = dash.Dash(
         dbc.themes.BOOTSTRAP,
         dbc.icons.BOOTSTRAP
     ],
-    suppress_callback_exceptions=True
+    suppress_callback_exceptions=True,
+    assets_folder=os.path.join(os.getcwd(), 'assets'),
+    assets_url_path='/assets',
 )
 app.title = "AlloGraph"
 
@@ -633,6 +648,7 @@ def toggle_purge_modal(purge_clicks, cancel_clicks, confirm_clicks, is_open):
     Input('confirm-purge', 'n_clicks'),
     prevent_initial_call=True
 )
+
 def purge_data(confirm_clicks):
     """Purge les données du cache quand la purge est confirmée"""
     if confirm_clicks and confirm_clicks > 0:

@@ -85,3 +85,7 @@ Thumbs.db
 # *.csv
 # *.xlsx
 # *.xls
+visualizations/allogreffes/__pycache__/graphs.cpython-310.pyc
+modules/__pycache__/data_processing.cpython-310.pyc
+modules/__pycache__/dashboard_layout.cpython-310.pyc
+app.spec

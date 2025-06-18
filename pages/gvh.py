@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output, State, dash_table
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
@@ -25,7 +25,47 @@ def get_layout():
                     ], className='p-2')
                 ])
             ], width=12)
+        ], className='mb-4'),
+
+        dbc.Row([
+            # Tableau 1 - Résumé des colonnes
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardBody([
+                        html.Div(id='gvh-missing-summary-table', children=[
+                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                        ])
+                    ])
+                ])
+            ], width=6),
+            
+            # Tableau 2 - Patients concernés  
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Patients concernés", className='mb-0'),
+                            dbc.Button(
+                                [html.I(className="fas fa-download me-2"), "Export CSV"],
+                                id="export-missing-gvh-button",
+                                color="primary",
+                                size="sm",
+                                disabled=True,  # Désactivé par défaut
+                            )
+                        ], className="d-flex justify-content-between align-items-center")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='gvh-missing-detail-table', children=[
+                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                        ]),
+                        # Composant pour télécharger le fichier CSV (invisible)
+                        dcc.Download(id="download-missing-gvh-csv")
+                    ])
+                ])
+            ], width=6)
         ])
+
     ], fluid=True)
 
 def create_gvh_sidebar_content(data):
@@ -269,3 +309,188 @@ def register_callbacks(app):
             )
         except Exception as e:
             return dbc.Alert(f"Erreur lors de la création du graphique: {str(e)}", color="danger")
+    
+    @app.callback(
+        Output('gvh-missing-summary-table', 'children'),
+        [Input('data-store', 'data'), Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def gvh_missing_summary_callback(data, current_page):
+        """Gère le tableau de résumé des données manquantes pour GvH"""
+        
+        if current_page != 'GvH' or not data:
+            return html.Div("En attente...", className='text-muted')
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Variables spécifiques à analyser pour GvH
+            columns_to_analyze = [
+                # Variables GvH Aiguë
+                'First aGvHD Maximum Score',
+                'First Agvhd Occurrence',
+                'First Agvhd Occurrence Date',
+                
+                # Variables GvH Chronique
+                'First cGvHD Maximum NIH Score',
+                'First Cgvhd Occurrence', 
+                'First Cgvhd Occurrence Date',
+                
+                # Variables de suivi
+                'Status Last Follow Up',
+                'Date Of Last Follow Up'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+            
+            if not existing_columns:
+                return dbc.Alert("Aucune variable GvH trouvée", color='warning')
+            
+            # Utiliser la fonction existante de graphs.py
+            missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            return dash_table.DataTable(
+                data=missing_summary.to_dict('records'),
+                columns=[
+                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Total", "id": "Total patients", "type": "numeric"},
+                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
+                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                     "format": {"specifier": ".1f"}}
+                ],
+                style_table={'height': '300px', 'overflowY': 'auto'},
+                style_cell={
+                    'textAlign': 'center',
+                    'padding': '8px',
+                    'fontSize': '12px',
+                    'fontFamily': 'Arial, sans-serif'
+                },
+                style_header={
+                    'backgroundColor': '#0D3182',
+                    'color': 'white',
+                    'fontWeight': 'bold'
+                },
+                style_data_conditional=[
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {
+                        'if': {
+                            'filter_query': '{Pourcentage manquant} > 20',
+                            'column_id': 'Pourcentage manquant'
+                        },
+                        'backgroundColor': '#ffebee',
+                        'color': 'red',
+                        'fontWeight': 'bold'
+                    }
+                ]
+            )
+            
+        except Exception as e:
+            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+
+    @app.callback(
+        [Output('gvh-missing-detail-table', 'children'),
+         Output('export-missing-gvh-button', 'disabled')],
+        [Input('data-store', 'data'), Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def gvh_missing_detail_callback(data, current_page):
+        """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
+        
+        if current_page != 'GvH' or not data:
+            return html.Div("En attente...", className='text-muted'), True
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Variables spécifiques à analyser pour GvH
+            columns_to_analyze = [
+                # Variables GvH Aiguë
+                'First aGvHD Maximum Score',
+                'First Agvhd Occurrence',
+                'First Agvhd Occurrence Date',
+                
+                # Variables GvH Chronique
+                'First cGvHD Maximum NIH Score',
+                'First Cgvhd Occurrence', 
+                'First Cgvhd Occurrence Date',
+                
+                # Variables de suivi
+                'Status Last Follow Up',
+                'Date Of Last Follow Up'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+            
+            if not existing_columns:
+                return dbc.Alert("Aucune variable GvH trouvée", color='warning'), True
+            
+            # Utiliser la fonction existante de graphs.py
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            if detailed_missing.empty:
+                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+            
+            # Adapter les noms de colonnes pour correspondre au format attendu
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
+                    'Nb manquant': row['Nombre de colonnes manquantes']
+                })
+            
+            # Sauvegarder les données pour l'export
+            app.server.missing_gvh_data = detailed_data
+            
+            table_content = html.Div([
+                dash_table.DataTable(
+                    data=detailed_data,
+                    columns=[
+                        {"name": "Long ID", "id": "Long ID"},
+                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
+                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                    ],
+                    style_table={'height': '300px', 'overflowY': 'auto'},
+                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
+                    style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
+                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}],
+                    filter_action='native',
+                    sort_action='native',
+                    page_size=10
+                )
+            ])
+            
+            return table_content, False  # Activer le bouton d'export
+            
+        except Exception as e:
+            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
+
+    @app.callback(
+        Output("download-missing-gvh-csv", "data"),
+        Input("export-missing-gvh-button", "n_clicks"),
+        prevent_initial_call=True
+    )
+    def export_missing_gvh_csv(n_clicks):
+        """Gère l'export CSV des patients avec données manquantes pour GvH"""
+        if n_clicks is None:
+            return dash.no_update
+        
+        try:
+            # Récupérer les données stockées
+            if hasattr(app.server, 'missing_gvh_data') and app.server.missing_gvh_data:
+                missing_df = pd.DataFrame(app.server.missing_gvh_data)
+                
+                # Générer un nom de fichier avec la date
+                from datetime import datetime
+                current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"gvh_donnees_manquantes_{current_date}.csv"
+                
+                return dcc.send_data_frame(
+                    missing_df.to_csv, 
+                    filename=filename,
+                    index=False
+                )
+            else:
+                return dash.no_update
+                
+        except Exception as e:
+            print(f"Erreur lors de l'export CSV GvH: {e}")
+            return dash.no_update
