@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from datetime import datetime
 
 # Import des modules communs
 import modules.dashboard_layout as layouts
@@ -73,9 +74,123 @@ def get_layout():
 
     ], fluid=True)
 
+def get_current_year():
+    """
+    Obtient l'année en cours
+    
+    Returns:
+        int: Année actuelle
+    """
+    return datetime.now().year
+
+def get_indicator_year_offset(indicator):
+    """
+    Retourne le décalage d'année (offset) pour chaque indicateur
+    
+    Args:
+        indicator (str): Code de l'indicateur
+        
+    Returns:
+        int: Nombre d'années à soustraire de l'année de référence (n-1, n-2)
+    """
+    year_offsets = {
+        'TRM': 2,                    # n-2
+        'survie_globale': 2,         # n-2
+        'prise_greffe': 1,           # n-1
+        'sortie_aplasie': 1,         # n-1
+        'gvha': 2,                   # n-2
+        'gvhc': 2,                   # n-2
+        'rechute': 2                 # n-2
+    }
+    
+    return year_offsets.get(indicator, 2)  # Par défaut n-2
+
+def get_available_years_for_indicator(df, indicator):
+    """
+    Calcule les années de référence disponibles pour un indicateur donné
+    
+    Args:
+        df (pd.DataFrame): DataFrame avec les données
+        indicator (str): Code de l'indicateur
+        
+    Returns:
+        list: Liste des années de référence sélectionnables
+    """
+    if df is None or df.empty or 'Year' not in df.columns:
+        return []
+    
+    # Obtenir les années de données disponibles et les convertir en int
+    try:
+        available_data_years = [int(year) for year in df['Year'].unique() if pd.notna(year)]
+        available_data_years = sorted(available_data_years)
+    except (ValueError, TypeError):
+        return []
+    
+    if not available_data_years:
+        return []
+    
+    # Obtenir le décalage pour l'indicateur
+    offset = get_indicator_year_offset(indicator)
+    
+    # Calculer les années de référence possibles
+    # Si on a des données pour 2020-2023 et offset=2, on peut calculer pour 2022-2025
+    current_year = get_current_year()
+    
+    # Années de référence = années de données + offset, limitées à l'année actuelle
+    reference_years = []
+    for data_year in available_data_years:
+        ref_year = data_year + offset
+        if ref_year <= current_year:
+            reference_years.append(ref_year)
+    
+    return sorted(reference_years)
+
+def get_analysis_year_from_reference(reference_year, indicator):
+    """
+    Calcule l'année d'analyse à partir de l'année de référence
+    
+    Args:
+        reference_year (int): Année de référence sélectionnée par l'utilisateur
+        indicator (str): Code de l'indicateur
+        
+    Returns:
+        int: Année des données à analyser, ou None si reference_year est None
+    """
+    if reference_year is None:
+        return None
+    
+    try:
+        reference_year = int(reference_year)
+        offset = get_indicator_year_offset(indicator)
+        return reference_year - offset
+    except (ValueError, TypeError):
+        return None
+
+def get_indicator_description(indicator):
+    """
+    Retourne la description de l'indicateur avec l'information sur l'année
+    
+    Args:
+        indicator (str): Code de l'indicateur
+        
+    Returns:
+        str: Description formatée
+    """
+    descriptions = {
+        'TRM': 'TRM',
+        'survie_globale': 'Survie globale',
+        'prise_greffe': 'Prise de greffe',
+        'sortie_aplasie': 'Sortie d\'aplasie',
+        'gvha': 'GVH aiguë',
+        'gvhc': 'GVH chronique',
+        'rechute': 'Rechute'
+    }
+    
+    return descriptions.get(indicator, 'Indicateur inconnu')
+
 def create_indicators_sidebar_content(data):
     """
-    Crée le contenu de la sidebar spécifique à la page Indicateurs.
+    Version mise à jour de create_sidebar_content avec gestion dynamique des années
     
     Args:
         data (list): Liste de dictionnaires (format store Dash) avec les données
@@ -91,15 +206,8 @@ def create_indicators_sidebar_content(data):
     # Convertir la liste en DataFrame
     df = pd.DataFrame(data)
     
-    # Obtenir les années disponibles
-    years_options = []
-    if 'Year' in df.columns:
-        available_years = sorted(df['Year'].unique().tolist())
-        # Pour TRM, on a besoin de l'année n-2, donc on retire les 2 premières années
-        # de la liste pour l'input (on sélectionne 2025 pour voir les stats de 2023)
-        if len(available_years) > 2:
-            selectable_years = available_years[2:]  # On retire les 2 premières années
-            years_options = [{'label': f'{year}', 'value': year} for year in selectable_years]
+    # Informations générales sur les données
+    current_year = get_current_year()
     
     return html.Div([
         # Sélection de l'indicateur
@@ -107,13 +215,13 @@ def create_indicators_sidebar_content(data):
         dcc.Dropdown(
             id='indicator-selection',
             options=[
-                {'label': 'TRM (Mortalité liée au traitement)', 'value': 'TRM'},
-                {'label': 'Survie globale', 'value': 'survie_globale'},
-                {'label': 'Prise de greffe', 'value': 'prise_greffe'},
-                {'label': 'Sortie d\'aplasie', 'value': 'sortie_aplasie'},
-                {'label': 'GVH aiguë', 'value': 'gvha'},
-                {'label': 'GVH chronique', 'value': 'gvhc'},
-                {'label': 'Rechute', 'value': 'rechute'}
+                {'label': get_indicator_description('TRM'), 'value': 'TRM'},
+                {'label': get_indicator_description('survie_globale'), 'value': 'survie_globale'},
+                {'label': get_indicator_description('prise_greffe'), 'value': 'prise_greffe'},
+                {'label': get_indicator_description('sortie_aplasie'), 'value': 'sortie_aplasie'},
+                {'label': get_indicator_description('gvha'), 'value': 'gvha'},
+                {'label': get_indicator_description('gvhc'), 'value': 'gvhc'},
+                {'label': get_indicator_description('rechute'), 'value': 'rechute'}
             ],
             value='TRM',
             className='mb-3'
@@ -121,19 +229,25 @@ def create_indicators_sidebar_content(data):
         
         html.Hr(),
         
-        # Sélection de l'année
+        # Sélection de l'année de référence
         html.Label('Année de référence:', className='mb-2'),
+        html.Div([
+            html.Small(
+                "Année pour laquelle l'indicateur sera calculé",
+                className='text-muted d-block mb-2',
+                style={'fontSize': '11px'}
+            )
+        ]),
         dcc.Dropdown(
             id='indicator-year-selection',
-            options=years_options,
-            value=years_options[-1]['value'] if years_options else None,
-            className='mb-3'
+            options=[],  # Sera mis à jour dynamiquement
+            value=None,
+            className='mb-3',
+            placeholder="Sélectionnez d'abord un indicateur"
         ),
         
-        html.Div([
-            html.P("Note: Les statistiques affichées correspondent à l'année n-2", 
-                   className='text-info small', style={'fontSize': '11px'})
-        ], id='year-note', style={'display': 'none'}),  # Caché par défaut
+        # Zone d'information dynamique
+        html.Div(id='year-info-display', className='mb-3'),
         
         html.Hr(),
         
@@ -144,10 +258,100 @@ def create_indicators_sidebar_content(data):
                 "Patients: ", html.Strong(f"{len(df):,}")
             ], className="mb-1", style={'fontSize': '12px'}),
             html.P([
-                "Années disponibles: ", html.Strong(f"{len(available_years) if 'Year' in df.columns else 0}")
-            ], className="mb-0", style={'fontSize': '12px'})
+                "Années disponibles: ", html.Strong(f"{min(df['Year'])}-{max(df['Year'])}")
+            ], className="mb-1", style={'fontSize': '12px'}),
+            html.P([
+                "Année actuelle: ", html.Strong(f"{current_year}")
+            ], className="mb-1", style={'fontSize': '12px'})
         ])
     ])
+
+def register_year_callback(app):
+    """
+    Enregistre le callback pour la mise à jour dynamique des années
+    """
+    
+    @app.callback(
+        [Output('indicator-year-selection', 'options'),
+         Output('indicator-year-selection', 'value')],
+        [Input('indicator-selection', 'value'),
+         Input('data-store', 'data')],
+        prevent_initial_call=False
+    )
+    def update_available_years(indicator, data):
+        if not indicator or not data:
+            return [], None
+        
+        # Convertir en DataFrame
+        df = pd.DataFrame(data)
+        
+        # Obtenir les années disponibles pour cet indicateur
+        available_years = get_available_years_for_indicator(df, indicator)
+        
+        if not available_years:
+            return [], None
+        
+        # Créer les options pour le dropdown
+        year_options = [
+            {'label': f'{year}', 'value': year} 
+            for year in available_years
+        ]
+        
+        # Sélectionner l'année la plus récente par défaut
+        default_year = max(available_years)
+        
+        return year_options, default_year
+
+    # Callback séparé pour mettre à jour l'affichage des informations d'année
+    @app.callback(
+        Output('year-info-display', 'children'),
+        [Input('indicator-selection', 'value'),
+         Input('indicator-year-selection', 'value'),  # AJOUT DE CET INPUT
+         Input('data-store', 'data')],
+        prevent_initial_call=False
+    )
+    def update_year_info_display(indicator, selected_year, data):
+        if not indicator or not data:
+            return html.Div()
+        
+        # Convertir en DataFrame
+        df = pd.DataFrame(data)
+        
+        # Obtenir les années disponibles pour cet indicateur
+        available_years = get_available_years_for_indicator(df, indicator)
+        
+        if not available_years:
+            info_display = dbc.Alert(
+                "Aucune année disponible pour cet indicateur avec les données actuelles",
+                color="warning",
+                className="small"
+            )
+            return info_display
+        
+        # Utiliser l'année sélectionnée ou l'année par défaut
+        if selected_year is None:
+            reference_year = max(available_years)
+        else:
+            reference_year = selected_year
+        
+        # Calculer l'année d'analyse
+        analysis_year = get_analysis_year_from_reference(reference_year, indicator)
+        
+        if analysis_year is not None:
+            info_display = html.Div([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.P([
+                            f"Indicateur {reference_year} (sur les chiffres de l'année {analysis_year})"
+                        ], className="mb-0 text-primary", style={'fontSize': '11px'})
+                    ], className="py-2")
+                ], color="light", outline=True)
+            ])
+        else:
+            info_display = dbc.Alert("Erreur dans le calcul des années", color="warning", className="small")
+        
+        return info_display
+
 
 def process_trm_data(df):
     """
@@ -1042,54 +1246,59 @@ def register_callbacks(app):
     """
     Version mise à jour du callback principal avec les badges
     """
+    register_year_callback(app)
+
     @app.callback(
-        [Output('indicator-content', 'children'),
-        Output('year-note', 'style')],
+        Output('indicator-content', 'children'),
         [Input('indicator-selection', 'value'),
         Input('indicator-year-selection', 'value'),
         Input('data-store', 'data'),
         Input('current-page', 'data')],
         prevent_initial_call=False
     )
-    def update_indicator_display(indicator, selected_year, data, current_page):
+    def update_indicator_display(indicator, reference_year, data, current_page):
         if current_page != 'Indicateurs' or data is None:
-            return html.Div(), {'display': 'none'}
+            return html.Div()
+        
+        if not indicator or not reference_year:
+            return dbc.Alert("Veuillez sélectionner un indicateur et une année", color="warning")
+        
+        # Calculer l'année d'analyse
+        analysis_year = get_analysis_year_from_reference(reference_year, indicator)
+        
+        if analysis_year is None:
+            return dbc.Alert("Erreur dans le calcul de l'année d'analyse", color="danger")
         
         df = pd.DataFrame(data)
-        year_note_style = {'display': 'block'} if indicator in ['TRM', 'survie_globale'] else {'display': 'none'}
         
-        if indicator == 'TRM':
-            content = create_trm_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        elif indicator == 'survie_globale':
-            content = create_survie_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        elif indicator == 'prise_greffe':
-            content = create_prise_greffe_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        elif indicator == 'sortie_aplasie':
-            content = create_sortie_aplasie_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        elif indicator == 'gvha':
-            content = create_gvha_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        elif indicator == 'gvhc':
-            content = create_gvhc_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        elif indicator == 'rechute':
-            content = create_rechute_visualization(df, int(selected_year)) if selected_year else dbc.Alert("Veuillez sélectionner une année", color="warning")
-        else:
-            titles = {
-                'TRM': 'TRM',
-                'survie_globale': 'Survie globale',
-                'prise_greffe': 'Prise de greffe',
-                'sortie_aplasie': "Sortie d'aplasie",
-                'gvha': 'GVH aiguë',
-                'gvhc': 'GVH chronique',
-                'rechute': 'Rechute'
-            }
-            title = titles.get(indicator, 'Indicateur')
-            content = dbc.Alert([
-                html.H5("En construction", className="alert-heading"),
-                html.P(f"L'indicateur '{title}' sera bientôt disponible.")
-            ], color="info")
-        
-        return content, year_note_style
-
+        try:
+            if indicator == 'TRM':
+                content = create_trm_visualization(df, reference_year)
+            elif indicator == 'survie_globale':
+                content = create_survie_visualization(df, reference_year)
+            elif indicator == 'prise_greffe':
+                content = create_prise_greffe_visualization(df, reference_year)
+            elif indicator == 'sortie_aplasie':
+                content = create_sortie_aplasie_visualization(df, reference_year)
+            elif indicator == 'gvha':
+                content = create_gvha_visualization(df, reference_year)
+            elif indicator == 'gvhc':
+                content = create_gvhc_visualization(df, reference_year)
+            elif indicator == 'rechute':
+                content = create_rechute_visualization(df, reference_year)
+            else:
+                content = dbc.Alert([
+                    html.H5("En construction", className="alert-heading"),
+                    html.P(f"L'indicateur '{indicator}' sera bientôt disponible.")
+                ], color="info")
+            
+            return html.Div([content])
+            
+        except Exception as e:
+            return dbc.Alert([
+                html.H5("Erreur", className="alert-heading"),
+                html.P(f"Erreur lors du calcul de l'indicateur: {str(e)}")
+            ], color="danger")
 
     @app.callback(
         [Output('indicators-missing-summary-table', 'children'),
@@ -1381,7 +1590,7 @@ def create_gvha_badges(result_combined, analysis_year):
     total_greffes = year_data['nb_greffe'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateurs GVH aiguë - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateurs GVH aiguë", className='text-center mb-3'),
         
         dbc.Row([
             dbc.Col([
@@ -1719,7 +1928,7 @@ def create_gvha_badges(result_combined, analysis_year):
     total_greffes = year_data['nb_greffe'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateurs GVH aiguë - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateurs GVH aiguë", className='text-center mb-3'),
         
         dbc.Row([
             dbc.Col([
@@ -1745,13 +1954,13 @@ def create_gvha_badges(result_combined, analysis_year):
     ], className="mb-3")
 
 
-def create_gvha_visualization(df, selected_year):
+def create_gvha_visualization(df, reference_year):
     """
     Crée la visualisation complète pour l'indicateur GVH aiguë
     
     Args:
         df (pd.DataFrame): DataFrame avec les données
-        selected_year (int): Année sélectionnée (on affichera l'année n-2)
+        reference_year (int): Année sélectionnée (on affichera l'année n-2)
         
     Returns:
         html.Div: Composant contenant la visualisation complète
@@ -1763,9 +1972,7 @@ def create_gvha_visualization(df, selected_year):
         # Traiter les données
         result_combined, grade_counts = process_gvha_data(df)
         
-        # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
         
         # S'assurer que la colonne Year est de type int
         result_combined['Year'] = result_combined['Year'].astype(int)
@@ -1793,13 +2000,13 @@ def create_gvha_visualization(df, selected_year):
         return dbc.Alert(f"Erreur lors du calcul des indicateurs GVH aiguë: {str(e)}", color="danger")
 
 
-def create_gvha_visualization(df, selected_year):
+def create_gvha_visualization(df, reference_year):
     """
     Crée la visualisation complète pour l'indicateur GVH aiguë
     
     Args:
         df (pd.DataFrame): DataFrame avec les données
-        selected_year (int): Année sélectionnée (on affichera l'année n-2)
+        reference_year (int): Année sélectionnée (on affichera l'année n-2)
         
     Returns:
         html.Div: Composant contenant la visualisation complète
@@ -1808,10 +2015,8 @@ def create_gvha_visualization(df, selected_year):
         # Traiter les données
         result_combined, grade_counts = process_gvha_data(df)
         
-        # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
-        
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
+    
         # S'assurer que la colonne Year est de type int
         result_combined['Year'] = result_combined['Year'].astype(int)
         
@@ -2051,7 +2256,7 @@ def create_trm_badges(result_df, analysis_year):
     total_greffes = year_data['nb_greffe'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateurs TRM - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateurs TRM", className='text-center mb-3'),
         
         # Première ligne : J30 et J100
         dbc.Row([
@@ -2124,7 +2329,7 @@ def create_survie_badges(result_df, analysis_year):
     total_greffes = year_data['nb_greffe'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateurs Survie Globale - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateurs Survie Globale", className='text-center mb-3'),
         
         # Première ligne : J30 et J100
         dbc.Row([
@@ -2196,7 +2401,7 @@ def create_rechute_badges(result_df, analysis_year):
     total_greffes = year_data['nb_greffe'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateurs Rechute - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateurs Rechute", className='text-center mb-3'),
         
         dbc.Row([
             dbc.Col([
@@ -2252,7 +2457,7 @@ def create_prise_greffe_badge(result, analysis_year):
     total_greffes = year_data['total'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateur Prise de greffe - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateur Prise de greffe", className='text-center mb-3'),
         
         dbc.Row([
             dbc.Col([
@@ -2298,7 +2503,7 @@ def create_sortie_aplasie_badge(result, analysis_year):
     total_greffes = year_data['total'].iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateur Sortie d'aplasie - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateur Sortie d'aplasie", className='text-center mb-3'),
         
         dbc.Row([
             dbc.Col([
@@ -2316,7 +2521,7 @@ def create_sortie_aplasie_badge(result, analysis_year):
 
 # Modifications à apporter dans les fonctions de visualisation existantes
 
-def create_trm_visualization(df, selected_year):
+def create_trm_visualization(df, reference_year):
     """
     Version mise à jour de create_trm_visualization avec badges au lieu de jauges
     """
@@ -2325,8 +2530,7 @@ def create_trm_visualization(df, selected_year):
         result_long, result_df = process_trm_data(df)
         
         # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
         
         # S'assurer que la colonne Year est de type int
         result_df['Year'] = result_df['Year'].astype(int)
@@ -2354,7 +2558,7 @@ def create_trm_visualization(df, selected_year):
         return dbc.Alert(f"Erreur lors du calcul des indicateurs TRM: {str(e)}", color="danger")
 
 
-def create_rechute_visualization(df, selected_year):
+def create_rechute_visualization(df, reference_year):
     """
     Version mise à jour de create_rechute_visualization avec badges au lieu de jauges
     """
@@ -2362,9 +2566,7 @@ def create_rechute_visualization(df, selected_year):
         # Traiter les données
         result_long, result_df = process_rechute_data(df)
         
-        # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
         
         # S'assurer que la colonne Year est de type int
         result_df['Year'] = result_df['Year'].astype(int)
@@ -2392,13 +2594,13 @@ def create_rechute_visualization(df, selected_year):
         return dbc.Alert(f"Erreur lors du calcul des indicateurs Rechute: {str(e)}", color="danger")
 
 
-def create_prise_greffe_visualization(df, selected_year):
+def create_prise_greffe_visualization(df, reference_year):
     """
     Version mise à jour de create_prise_greffe_visualization avec badge au lieu de jauge
     """
     try:
         result = process_prise_greffe_data(df)
-        analysis_year = int(selected_year) - 1  # On utilise n-1 pour la prise de greffe
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
         result['Year'] = result['Year'].astype(int)
         
         return dbc.Row([
@@ -2421,13 +2623,13 @@ def create_prise_greffe_visualization(df, selected_year):
         return dbc.Alert(f"Erreur lors du calcul des indicateurs de Prise de greffe: {str(e)}", color="danger")
 
 
-def create_sortie_aplasie_visualization(df, selected_year):
+def create_sortie_aplasie_visualization(df, reference_year):
     """
     Version mise à jour de create_sortie_aplasie_visualization avec badge au lieu de jauge
     """
     try:
         result = process_sortie_aplasie_data(df)
-        analysis_year = int(selected_year) - 1  # On utilise n-1 pour la sortie d'aplasie
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
         result['Year'] = result['Year'].astype(int)
         
         return dbc.Row([
@@ -2449,20 +2651,20 @@ def create_sortie_aplasie_visualization(df, selected_year):
     except Exception as e:
         return dbc.Alert(f"Erreur lors du calcul des indicateurs de Sortie d'aplasie: {str(e)}", color="danger")
     
-def create_survie_visualization(df, selected_year):
+def create_survie_visualization(df, reference_year):
     """
     Version mise à jour de create_survie_visualization avec badges au lieu de jauges
     
     Args:
         df (pd.DataFrame): DataFrame avec les données
-        selected_year (int): Année sélectionnée (on affichera l'année n-2)
+        reference_year (int): Année sélectionnée (on affichera l'année n-2)
         
     Returns:
         html.Div: Composant contenant la visualisation complète
     """
     try:
         result_long, result_df = process_survie_data(df)
-        analysis_year = int(selected_year) - 2
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
         result_df['Year'] = result_df['Year'].astype(int)
 
         return dbc.Row([
@@ -2585,7 +2787,7 @@ def create_gvhc_badge(result_combined, analysis_year):
     severe = year_data.get('Severe', pd.Series([0])).iloc[0]
     
     return html.Div([
-        html.H6(f"Indicateur GVH chronique - Année {analysis_year}", className='text-center mb-3'),
+        html.H6(f"Indicateur GVH chronique", className='text-center mb-3'),
         
         dbc.Row([
             dbc.Col([
@@ -2607,13 +2809,13 @@ def create_gvhc_badge(result_combined, analysis_year):
     ], className="mb-3")
 
 
-def create_gvhc_visualization(df, selected_year):
+def create_gvhc_visualization(df, reference_year):
     """
     Crée la visualisation complète pour l'indicateur GVH chronique
     
     Args:
         df (pd.DataFrame): DataFrame avec les données
-        selected_year (int): Année sélectionnée (on affichera l'année n-2)
+        reference_year (int): Année sélectionnée (on affichera l'année n-2)
         
     Returns:
         html.Div: Composant contenant la visualisation complète
@@ -2622,10 +2824,8 @@ def create_gvhc_visualization(df, selected_year):
         # Traiter les données
         result_combined, grade_counts = process_gvhc_data(df)
         
-        # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
-        
+        analysis_year = get_analysis_year_from_reference(reference_year, 'TRM')
+
         # S'assurer que la colonne Year est de type int
         result_combined['Year'] = result_combined['Year'].astype(int)
         
