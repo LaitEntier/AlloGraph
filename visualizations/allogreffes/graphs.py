@@ -2061,23 +2061,63 @@ def create_stacked_yes_no_barplot(data, treatment_columns, title="", x_axis_titl
     
     return fig
 
-def create_competing_risks_analysis(data, gvh_type):
+def calculate_max_followup_days(data):
     """
-    Crée l'analyse de risques compétitifs pour GvH aiguë ou chronique - Version simplifiée
+    Calcule la durée maximale de suivi dans les données pour déterminer 
+    jusqu'où dessiner le graphique GVH chronique
     
     Args:
         data (pd.DataFrame): DataFrame avec les données
-        gvh_type (str): Type de GvH ('acute' ou 'chronic')
         
     Returns:
-        plotly.graph_objects.Figure: Figure de l'analyse des risques compétitifs
+        int: Durée maximale en jours (minimum 365 pour avoir au moins 1 an)
+    """
+    try:
+        df = data.copy()
+        
+        # Convertir les dates nécessaires
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], errors='coerce')
+        df['First Cgvhd Occurrence Date'] = pd.to_datetime(df['First Cgvhd Occurrence Date'], errors='coerce')
+        
+        # Calculer les durées de suivi
+        df['followup_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
+        df['gvhc_days'] = (df['First Cgvhd Occurrence Date'] - df['Treatment Date']).dt.days
+        
+        # Nettoyer les valeurs invalides
+        valid_followup = df['followup_days'].dropna()
+        valid_followup = valid_followup[valid_followup >= 0]
+        
+        valid_gvhc = df['gvhc_days'].dropna()
+        valid_gvhc = valid_gvhc[valid_gvhc >= 0]
+        
+        # Prendre le maximum entre suivi et événements GVH chronique
+        max_followup = valid_followup.max() if len(valid_followup) > 0 else 365
+        max_gvhc = valid_gvhc.max() if len(valid_gvhc) > 0 else 365
+        
+        max_days = max(max_followup, max_gvhc, 365)  # Au minimum 1 an
+        
+        # Limiter à une valeur raisonnable (ex: 10 ans)
+        max_days = min(max_days, 3650)
+        
+        print(f"Durée maximale calculée pour GVH chronique: {max_days} jours ({max_days/365.25:.1f} ans)")
+        return int(max_days)
+        
+    except Exception as e:
+        print(f"Erreur lors du calcul de la durée maximale: {e}")
+        return 365  # Fallback à 1 an
+
+
+def create_competing_risks_analysis(data, gvh_type):
+    """
+    Crée l'analyse de risques compétitifs pour GvH aiguë ou chronique - Version améliorée
+    avec gestion de l'affichage initial limité pour GVH chronique
     """
     try:
         # Import de la classe CompetingRisksAnalyzer
         import modules.competing_risks as cr
         CompetingRisksAnalyzer = cr.CompetingRisksAnalyzer
     except ImportError:
-        # Fallback si le module n'est pas trouvé
         raise ImportError("CompetingRisksAnalyzer non trouvé. Assurez-vous que modules/competing_risks.py existe.")
     
     # Vérifier les colonnes nécessaires
@@ -2085,14 +2125,19 @@ def create_competing_risks_analysis(data, gvh_type):
     
     if gvh_type == 'acute':
         required_gvh_columns = ['First Agvhd Occurrence', 'First Agvhd Occurrence Date']
-        max_days = 100
+        max_days = 100  # Garder 100 jours pour GVH aiguë
+        initial_display_days = 100  # Affichage complet pour GVH aiguë
         title = "Analyse de Risques Compétitifs : GvH Aiguë vs Décès (100 jours)"
         event_label = 'GvH Aiguë'
         event_color = '#e74c3c'
     else:  # chronic
         required_gvh_columns = ['First Cgvhd Occurrence', 'First Cgvhd Occurrence Date']
-        max_days = 365
-        title = "Analyse de Risques Compétitifs : GvH Chronique vs Décès (365 jours)"
+        
+        # NOUVEAUTÉ : Calculer la durée maximale réelle des données pour GVH chronique
+        max_days = calculate_max_followup_days(data)
+        initial_display_days = 365  # Affichage initial limité à 1 an
+        
+        title = f"Analyse de Risques Compétitifs : GvH Chronique vs Décès (jusqu'à {max_days} jours)"
         event_label = 'GvH Chronique'
         event_color = '#f39c12'
     
@@ -2178,14 +2223,16 @@ def create_competing_risks_analysis(data, gvh_type):
             'death_value': 'Dead'
         }
         
-        # Calculer l'incidence cumulative
+        # Calculer l'incidence cumulative avec la nouvelle durée maximale
         results, processed_data = analyzer.calculate_cumulative_incidence(
             events_config, followup_config, max_days=max_days
         )
         
-        # Créer le graphique simplifié
+        # Créer le graphique avec l'affichage initial adapté
         fig = analyzer.create_competing_risks_plot(
-            results, processed_data, events_config, title=title
+            results, processed_data, events_config, 
+            title=title, 
+            initial_display_days=initial_display_days if gvh_type == 'chronic' else None
         )
         
         return fig
@@ -2194,14 +2241,14 @@ def create_competing_risks_analysis(data, gvh_type):
         # Graphique d'erreur si l'analyse échoue
         fig = go.Figure()
         fig.add_annotation(
-            text=f"<b>Erreur lors de l'analyse des risques compétitifs :</b><br>{str(e)}",
+            text=f"<b>Erreur lors de l'analyse :</b><br>{str(e)}",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
             showarrow=False, 
             font=dict(size=14, family='Arial, sans-serif', color='#e74c3c'),
             bgcolor="rgba(255, 255, 255, 0.9)",
             bordercolor="#e74c3c",
-            borderwidth=2
+            borderwidth=1
         )
         fig.update_layout(
             title=title,
@@ -2211,7 +2258,7 @@ def create_competing_risks_analysis(data, gvh_type):
             plot_bgcolor='rgba(248, 249, 250, 0.8)'
         )
         return fig
-    
+   
 def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_title="", 
                                       y_axis_title="", height=400, width=None, show_values=True,
                                       remove_prefix=None):

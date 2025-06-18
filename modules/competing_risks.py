@@ -20,6 +20,184 @@ class CompetingRisksAnalyzer:
         self.reference_date_col = reference_date_col
         self.data[reference_date_col] = pd.to_datetime(self.data[reference_date_col])
         
+    def create_competing_risks_plot_original(self, results_df, patient_data, events_config, 
+                                           title="Analyse de Risques Compétitifs", 
+                                           colors=None):
+        """
+        Version originale de create_competing_risks_plot pour maintenir la compatibilité
+        """
+        if colors is None:
+            default_colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+            colors = {}
+            all_events = list(events_config.keys()) + ['Décès']
+            for i, event in enumerate(all_events):
+                colors[event] = default_colors[i % len(default_colors)]
+        
+        # Créer la figure principale
+        fig = go.Figure()
+        
+        # Préparer les données pour l'empilement
+        event_names = []
+        cumulative_data = []
+        
+        # Collecter tous les événements
+        for event_name in events_config.keys():
+            col_name = f'incidence_cumulative_{event_name.lower()}'
+            if col_name in results_df.columns:
+                event_names.append(event_name)
+                cumulative_data.append(results_df[col_name] * 100)
+        
+        # Ajouter le décès si présent
+        if 'incidence_cumulative_décès' in results_df.columns:
+            event_names.append('Décès')
+            cumulative_data.append(results_df['incidence_cumulative_décès'] * 100)
+        
+        # Créer les courbes empilées (style area plot)
+        y_lower = np.zeros(len(results_df))
+        
+        for i, (event_name, y_data) in enumerate(zip(event_names, cumulative_data)):
+            y_upper = y_lower + y_data
+            
+            # Obtenir la configuration et couleur
+            if event_name in events_config:
+                label = events_config[event_name].get('label', event_name)
+                color = colors.get(event_name, events_config[event_name].get('color', '#3498db'))
+            else:
+                label = event_name
+                color = colors.get(event_name, '#2c3e50')
+            
+            # Ajouter l'aire empilée
+            fig.add_trace(
+                go.Scatter(
+                    x=results_df['jour'],  # Utiliser 'jour' au lieu de 'Day'
+                    y=y_upper,
+                    fill='tonexty' if i > 0 else 'tozeroy',
+                    mode='lines',
+                    name=label,
+                    line=dict(color=color, width=2),
+                    fillcolor=color,
+                    opacity=0.7,
+                    hovertemplate=f'Jour %{{x}}<br>Incidence {label}: %{{customdata:.1f}}%<br>Total cumulé: %{{y:.1f}}%<extra></extra>',
+                    customdata=y_data
+                )
+            )
+            
+            y_lower = y_upper
+        
+        # Ajouter la zone "Sans événement" pour atteindre 100%
+        survival_pct = results_df['survie_sans_evenement'] * 100
+        total_events = y_lower  # somme de tous les événements
+        
+        fig.add_trace(
+            go.Scatter(
+                x=results_df['jour'],  # Utiliser 'jour' au lieu de 'Day'
+                y=survival_pct + total_events,  # pour atteindre 100%
+                fill='tonexty',
+                mode='lines',
+                name='Sans événement',
+                line=dict(color='lightgray', width=1),
+                fillcolor='lightgray',
+                opacity=0.3,
+                hovertemplate='Jour %{x}<br>Sans événement: %{customdata:.1f}%<br>Total: 100%<extra></extra>',
+                customdata=survival_pct
+            )
+        )
+        
+        # Mise en forme du graphique
+        fig.update_layout(
+            title=dict(
+                text=f'<b>{title}</b>',
+                x=0.5,
+                font=dict(size=16, family='Arial, sans-serif', color='#2c3e50')
+            ),
+            xaxis_title='<b>Jours après greffe</b>',
+            yaxis_title='<b>Incidence cumulative (%)</b>',
+            template='plotly_white',
+            height=600,
+            showlegend=True,
+            hovermode='x unified',
+            legend=dict(
+                orientation="v",
+                yanchor="top",
+                y=1,
+                xanchor="left",
+                x=1.02,
+                bgcolor='rgba(255,255,255,0.8)',
+                bordercolor='rgba(0,0,0,0.2)',
+                borderwidth=1
+            ),
+            xaxis=dict(
+                range=[0, results_df['jour'].max()],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                showline=True,
+                linewidth=2,
+                linecolor='#bdc3c7',
+                mirror=True
+            ),
+            yaxis=dict(
+                range=[0, 105],
+                showgrid=True,
+                gridwidth=1,
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                showline=True,
+                linewidth=2,
+                linecolor='#bdc3c7',
+                mirror=True,
+                tickformat='.1f'
+            ),
+            plot_bgcolor='rgba(248, 249, 250, 0.8)',
+            paper_bgcolor='white',
+            margin=dict(l=80, r=120, t=80, b=60)
+        )
+        
+        return fig
+
+    def create_competing_risks_plot(self, results_df, processed_data, events_config, 
+                                  title="Analyse de Risques Compétitifs", 
+                                  initial_display_days=None):
+        """
+        Crée le graphique des risques compétitifs avec support pour affichage initial limité
+        
+        Args:
+            results_df: DataFrame avec les résultats d'incidence cumulative (structure existante)
+            processed_data: DataFrame des données traitées  
+            events_config: Configuration des événements
+            title: Titre du graphique
+            initial_display_days: Si spécifié, limite l'affichage initial à ce nombre de jours
+        """
+        import plotly.graph_objects as go
+        
+        # Utiliser la méthode existante mais avec modification pour l'affichage initial
+        # Appeler la méthode create_competing_risks_plot existante d'abord
+        fig = self.create_competing_risks_plot_original(results_df, processed_data, events_config, title)
+        
+        # Modifier le layout pour l'affichage initial limité si demandé
+        if initial_display_days:
+            max_days = results_df['jour'].max()
+            
+            if max_days > initial_display_days:
+                # Modifier l'axe X pour l'affichage initial limité
+                fig.update_xaxes(range=[0, initial_display_days])
+                
+                # Ajouter une annotation explicative
+                fig.add_annotation(
+                    x=0.02, y=0.98,
+                    xref='paper', yref='paper',
+                    text=f"<b>Affichage initial: {initial_display_days} jours</b><br>" +
+                         f"Données disponibles jusqu'à {max_days} jours<br>" +
+                         "<i>Utilisez les contrôles de zoom pour voir au-delà</i>",
+                    showarrow=False,
+                    font=dict(size=10, color='#34495e'),
+                    bgcolor="rgba(255, 255, 255, 0.9)",
+                    bordercolor="#3498db",
+                    borderwidth=1,
+                    align="left"
+                )
+        
+        return fig
+
     def calculate_cumulative_incidence(self, 
                                      events_config, 
                                      followup_config,
@@ -288,164 +466,3 @@ class CompetingRisksAnalyzer:
         
         return results_df, df
     
-    def create_competing_risks_plot(self, results_df, patient_data, events_config, 
-                                   title="Analyse de Risques Compétitifs", 
-                                   colors=None):
-        """
-        Crée un graphique d'incidences cumulées avec risques compétitifs (graphique unique)
-        
-        Parameters:
-        - results_df: DataFrame des résultats
-        - patient_data: DataFrame des données patients traitées
-        - events_config: configuration des événements
-        - title: titre du graphique
-        - colors: dict des couleurs par événement
-        """
-        
-        if colors is None:
-            default_colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
-            colors = {}
-            all_events = list(events_config.keys()) + ['Décès']
-            for i, event in enumerate(all_events):
-                colors[event] = default_colors[i % len(default_colors)]
-        
-        # Créer la figure principale
-        fig = go.Figure()
-        
-        # Préparer les données pour l'empilement
-        event_names = []
-        cumulative_data = []
-        
-        # Collecter tous les événements
-        for event_name in events_config.keys():
-            col_name = f'incidence_cumulative_{event_name.lower()}'
-            if col_name in results_df.columns:
-                event_names.append(event_name)
-                cumulative_data.append(results_df[col_name] * 100)
-        
-        # Ajouter le décès si présent
-        if 'incidence_cumulative_décès' in results_df.columns:
-            event_names.append('Décès')
-            cumulative_data.append(results_df['incidence_cumulative_décès'] * 100)
-        
-        # Créer les courbes empilées (style area plot)
-        y_lower = np.zeros(len(results_df))
-        
-        for i, (event_name, y_data) in enumerate(zip(event_names, cumulative_data)):
-            y_upper = y_lower + y_data
-            
-            # Obtenir la configuration et couleur
-            if event_name in events_config:
-                label = events_config[event_name].get('label', event_name)
-                color = colors.get(event_name, events_config[event_name].get('color', '#3498db'))
-            else:
-                label = event_name
-                color = colors.get(event_name, '#2c3e50')
-            
-            # Ajouter l'aire empilée
-            fig.add_trace(
-                go.Scatter(
-                    x=results_df['jour'],
-                    y=y_upper,
-                    fill='tonexty' if i > 0 else 'tozeroy',
-                    mode='lines',
-                    name=label,
-                    line=dict(color=color, width=2),
-                    fillcolor=color,
-                    opacity=0.7,
-                    hovertemplate=f'Jour %{{x}}<br>Incidence {label}: %{{customdata:.1f}}%<br>Total cumulé: %{{y:.1f}}%<extra></extra>',
-                    customdata=y_data
-                )
-            )
-            
-            y_lower = y_upper
-        
-        # Ajouter la zone "Sans événement" pour atteindre 100%
-        survival_pct = results_df['survie_sans_evenement'] * 100
-        total_events = y_lower  # somme de tous les événements
-        
-        fig.add_trace(
-            go.Scatter(
-                x=results_df['jour'],
-                y=survival_pct + total_events,  # pour atteindre 100%
-                fill='tonexty',
-                mode='lines',
-                name='Sans événement',
-                line=dict(color='lightgray', width=1),
-                fillcolor='lightgray',
-                opacity=0.3,
-                hovertemplate='Jour %{x}<br>Sans événement: %{customdata:.1f}%<br>Total: 100%<extra></extra>',
-                customdata=survival_pct
-            )
-        )
-        
-        # Mise en forme du graphique
-        fig.update_layout(
-            title=dict(
-                text=title,
-                x=0.5,
-                font=dict(size=18, family='Arial, sans-serif', color='#2c3e50')
-            ),
-            xaxis_title="<b>Jours post-greffe</b>",
-            yaxis_title="<b>Incidence Cumulative (%)</b>",
-            xaxis=dict(
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128, 128, 128, 0.2)',
-                zeroline=True,
-                zerolinewidth=2,
-                zerolinecolor='rgba(128, 128, 128, 0.5)',
-                tickfont=dict(size=12, family='Arial, sans-serif', color='#34495e'),
-                titlefont=dict(size=14, family='Arial, sans-serif', color='#2c3e50'),
-                showline=True,
-                linewidth=2,
-                linecolor='#bdc3c7',
-                mirror=True
-            ),
-            yaxis=dict(
-                range=[0, 100],
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128, 128, 128, 0.2)',
-                zeroline=True,
-                zerolinewidth=2,
-                zerolinecolor='rgba(128, 128, 128, 0.5)',
-                tickfont=dict(size=12, family='Arial, sans-serif', color='#34495e'),
-                titlefont=dict(size=14, family='Arial, sans-serif', color='#2c3e50'),
-                showline=True,
-                linewidth=2,
-                linecolor='#bdc3c7',
-                mirror=True,
-                tickformat='.0f',
-                ticksuffix='%'
-            ),
-            plot_bgcolor='rgba(248, 249, 250, 0.8)',
-            paper_bgcolor='white',
-            height=600,
-            margin=dict(l=80, r=120, t=80, b=60),
-            font=dict(family='Arial, sans-serif', color='#2c3e50'),
-            legend=dict(
-                orientation="v",
-                yanchor="top",
-                y=1,
-                xanchor="left",
-                x=1.02,
-                bgcolor='rgba(255, 255, 255, 0.9)',
-                bordercolor='#bdc3c7',
-                borderwidth=1,
-                font=dict(size=12, family='Arial, sans-serif', color='#2c3e50')
-            ),
-            hovermode='x unified'
-        )
-        
-        # Ajouter une ligne à 100% pour référence
-        fig.add_hline(
-            y=100, 
-            line_dash="dash", 
-            line_color="rgba(0,0,0,0.3)", 
-            opacity=0.5,
-            annotation_text="100%",
-            annotation_position="bottom right"
-        )
-        
-        return fig

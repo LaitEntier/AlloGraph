@@ -17,7 +17,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs - Rechute')),
+                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -123,9 +123,57 @@ def create_relapse_sidebar_content(data):
         ])
     ])
 
+def calculate_max_relapse_followup_days(data):
+    """
+    Calcule la durée maximale de suivi dans les données pour déterminer 
+    jusqu'où dessiner le graphique de rechute
+    
+    Args:
+        data (pd.DataFrame): DataFrame avec les données
+        
+    Returns:
+        int: Durée maximale en jours (minimum 365 pour avoir au moins 1 an)
+    """
+    try:
+        df = data.copy()
+        
+        # Convertir les dates nécessaires
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], errors='coerce')
+        df['First Relapse Date'] = pd.to_datetime(df['First Relapse Date'], errors='coerce')
+        
+        # Calculer les durées de suivi
+        df['followup_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
+        df['relapse_days'] = (df['First Relapse Date'] - df['Treatment Date']).dt.days
+        
+        # Nettoyer les valeurs invalides
+        valid_followup = df['followup_days'].dropna()
+        valid_followup = valid_followup[valid_followup >= 0]
+        
+        valid_relapse = df['relapse_days'].dropna()
+        valid_relapse = valid_relapse[valid_relapse >= 0]
+        
+        # Prendre le maximum entre suivi et événements de rechute
+        max_followup = valid_followup.max() if len(valid_followup) > 0 else 365
+        max_relapse = valid_relapse.max() if len(valid_relapse) > 0 else 365
+        
+        max_days = max(max_followup, max_relapse, 365)  # Au minimum 1 an
+        
+        # Limiter à une valeur raisonnable (ex: 10 ans)
+        max_days = min(max_days, 3650)
+        
+        print(f"Durée maximale calculée pour Rechute: {max_days} jours ({max_days/365.25:.1f} ans)")
+        return int(max_days)
+        
+    except Exception as e:
+        print(f"Erreur lors du calcul de la durée maximale de rechute: {e}")
+        return 365  # Fallback à 1 an
+
+
 def create_relapse_analysis(data):
     """
-    Crée l'analyse de risques compétitifs pour les rechutes
+    Crée l'analyse de risques compétitifs pour les rechutes - Version améliorée
+    avec gestion de l'affichage initial limité
     
     Args:
         data (pd.DataFrame): DataFrame avec les données
@@ -151,7 +199,7 @@ def create_relapse_analysis(data):
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Analyse de Risques Compétitifs : Rechute vs Décès (365 jours)",
+            title="Analyse de Risques Compétitifs : Rechute vs Décès",
             height=500,
             showlegend=False
         )
@@ -170,13 +218,22 @@ def create_relapse_analysis(data):
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Analyse de Risques Compétitifs : Rechute vs Décès (365 jours)",
+            title="Analyse de Risques Compétitifs : Rechute vs Décès",
             height=500,
             showlegend=False
         )
         return fig
     
     try:
+        # Import de la classe CompetingRisksAnalyzer
+        import modules.competing_risks as cr
+        
+        # NOUVEAUTÉ : Calculer la durée maximale réelle des données pour les rechutes
+        max_days = calculate_max_relapse_followup_days(df_filtered)
+        initial_display_days = 365  # Affichage initial limité à 1 an
+        
+        title = f"Analyse de Risques Compétitifs : Rechute vs Décès (jusqu'à {max_days} jours)"
+        
         # Initialiser l'analyseur
         analyzer = cr.CompetingRisksAnalyzer(df_filtered, 'Treatment Date')
         
@@ -186,7 +243,7 @@ def create_relapse_analysis(data):
                 'occurrence_col': 'First Relapse', 
                 'date_col': 'First Relapse Date', 
                 'label': 'Rechute',
-                'color': 'orange'
+                'color': '#f39c12'  # Orange/doré
             }
         }
         
@@ -197,16 +254,35 @@ def create_relapse_analysis(data):
             'death_value': 'Dead'
         }
         
-        # Calculer l'incidence cumulative sur 365 jours (1 an)
+        # Calculer l'incidence cumulative avec la nouvelle durée maximale
         results, processed_data = analyzer.calculate_cumulative_incidence(
-            events_config, followup_config, max_days=365
+            events_config, followup_config, max_days=max_days
         )
         
-        # Créer le graphique
+        # Créer le graphique avec la méthode existante
         fig = analyzer.create_competing_risks_plot(
-            results, processed_data, events_config,
-            title="Analyse de Risques Compétitifs : Rechute vs Décès (365 jours)"
+            results, processed_data, events_config, title=title
         )
+        
+        # NOUVEAUTÉ : Modifier l'affichage initial pour les rechutes
+        if max_days > initial_display_days:
+            # Limiter l'affichage initial à 1 an
+            fig.update_xaxes(range=[0, initial_display_days])
+            
+            # Ajouter une annotation explicative
+            fig.add_annotation(
+                x=0.02, y=0.98,
+                xref='paper', yref='paper',
+                text=f"<b>Affichage initial: {initial_display_days} jours (1 an)</b><br>" +
+                     f"Données disponibles jusqu'à {max_days} jours<br>" +
+                     "<i>Utilisez les contrôles de zoom pour voir au-delà</i>",
+                showarrow=False,
+                font=dict(size=10, color='#34495e'),
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor="#f39c12",
+                borderwidth=1,
+                align="left"
+            )
         
         return fig
         
@@ -220,7 +296,7 @@ def create_relapse_analysis(data):
             showarrow=False, font_size=14
         )
         fig.update_layout(
-            title="Analyse de Risques Compétitifs : Rechute vs Décès (365 jours)",
+            title="Analyse de Risques Compétitifs : Rechute vs Décès",
             height=500,
             showlegend=False
         )

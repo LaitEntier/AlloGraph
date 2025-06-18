@@ -16,7 +16,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs GvH')),
+                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
