@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+from scipy.interpolate import interp1d
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
@@ -423,7 +424,7 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
             timeline_years = timeline_days / 365.25  # Convertir en années
             survival_probs = survival_function.iloc[:, 0].values
             
-            # Calculer les intervalles de confiance
+            # Calculer les intervalles de confiance - MÊME MÉTHODE QUE LES COURBES
             confidence_interval = kmf.confidence_interval_
             ci_lower = confidence_interval.iloc[:, 0].values
             ci_upper = confidence_interval.iloc[:, 1].values
@@ -468,11 +469,73 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
             median_survival_days = kmf.median_survival_time_
             median_survival_years = median_survival_days / 365.25 if not np.isnan(median_survival_days) else np.nan
             
-            # Survie à 1, 2, 5 et 10 ans (si dans la limite)
-            surv_1yr = kmf.survival_function_at_times(365.25).iloc[0] if (not max_years or max_years >= 1) else np.nan
-            surv_2yr = kmf.survival_function_at_times(730.5).iloc[0] if (not max_years or max_years >= 2) else np.nan
-            surv_5yr = kmf.survival_function_at_times(1826.25).iloc[0] if (not max_years or max_years >= 5) else np.nan
-            surv_10yr = kmf.survival_function_at_times(3652.5).iloc[0] if (not max_years or max_years >= 10) else np.nan
+            # Fonction helper pour extraire les IC aux temps spécifiques
+            # UTILISE LA MÊME MÉTHODE QUE LES COURBES POUR LA COHÉRENCE
+            def get_survival_with_ci_exact(target_days):
+                """Extrait la survie et ses IC aux temps spécifiques de manière cohérente avec les courbes"""
+                if (not max_years or target_days/365.25 <= max_years):
+                    try:
+                        # Obtenir la survie à cette durée - MÊME MÉTHODE QUE L'ORIGINAL
+                        surv = kmf.survival_function_at_times(target_days).iloc[0]
+                        
+                        # Pour les IC, trouver l'index le plus proche dans la timeline des IC
+                        timeline_days_ic = confidence_interval.index.values
+                        
+                        # Trouver l'index le plus proche du temps cible
+                        closest_idx = np.argmin(np.abs(timeline_days_ic - target_days))
+                        closest_time = timeline_days_ic[closest_idx]
+                        
+                        # Si le temps le plus proche est dans une tolérance raisonnable (±30 jours)
+                        if abs(closest_time - target_days) <= 30:
+                            # Utiliser les valeurs exactes de l'index le plus proche
+                            ci_lower_val = confidence_interval.iloc[closest_idx, 0]
+                            ci_upper_val = confidence_interval.iloc[closest_idx, 1]
+                        else:
+                            # Si pas de point proche, interpoler entre les deux points les plus proches
+                            if target_days < timeline_days_ic.min():
+                                ci_lower_val = confidence_interval.iloc[0, 0]
+                                ci_upper_val = confidence_interval.iloc[0, 1]
+                            elif target_days > timeline_days_ic.max():
+                                ci_lower_val = confidence_interval.iloc[-1, 0]
+                                ci_upper_val = confidence_interval.iloc[-1, 1]
+                            else:
+                                # Interpolation simple avec numpy
+                                ci_lower_vals = confidence_interval.iloc[:, 0].values
+                                ci_upper_vals = confidence_interval.iloc[:, 1].values
+                                ci_lower_val = np.interp(target_days, timeline_days_ic, ci_lower_vals)
+                                ci_upper_val = np.interp(target_days, timeline_days_ic, ci_upper_vals)
+                        
+                        # Calculer la marge d'erreur de la même façon que dans les courbes
+                        margin_error = (ci_upper_val - ci_lower_val) / 2
+                        
+                        return surv, margin_error, ci_lower_val, ci_upper_val
+                        
+                    except Exception as e:
+                        # En cas d'erreur, retourner au minimum la survie si possible
+                        try:
+                            surv = kmf.survival_function_at_times(target_days).iloc[0]
+                            return surv, np.nan, np.nan, np.nan
+                        except:
+                            return np.nan, np.nan, np.nan, np.nan
+                else:
+                    return np.nan, np.nan, np.nan, np.nan
+            
+            # Calculer survie et IC à 1, 2, 5 et 10 ans avec la méthode cohérente
+            surv_1yr, me_1yr, ci_l_1yr, ci_u_1yr = get_survival_with_ci_exact(365.25)
+            surv_2yr, me_2yr, ci_l_2yr, ci_u_2yr = get_survival_with_ci_exact(730.5)
+            surv_5yr, me_5yr, ci_l_5yr, ci_u_5yr = get_survival_with_ci_exact(1826.25)
+            surv_10yr, me_10yr, ci_l_10yr, ci_u_10yr = get_survival_with_ci_exact(3652.5)
+            
+            # Fonction pour formater avec intervalle de confiance
+            def format_survival_with_ci(survival, margin_error):
+                """Formate la survie avec IC sous forme 72.9±2.5"""
+                if not np.isnan(survival) and not np.isnan(margin_error):
+                    return f"{survival*100:.1f}±{margin_error*100:.1f}"
+                elif not np.isnan(survival):
+                    # Si on a la survie mais pas la marge d'erreur, afficher juste la survie
+                    return f"{survival*100:.1f}"
+                else:
+                    return "N/A"
             
             stats_summary.append({
                 'Année': year,
@@ -480,10 +543,10 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
                 'Événements': year_data['statut_deces'].sum(),
                 'Taux censure (%)': f"{(1 - year_data['statut_deces'].mean())*100:.1f}",
                 'Survie médiane (ans)': f"{median_survival_years:.1f}" if not np.isnan(median_survival_years) else "Non atteinte",
-                'Survie 1 an (%)': f"{surv_1yr*100:.1f}" if not np.isnan(surv_1yr) else "N/A",
-                'Survie 2 ans (%)': f"{surv_2yr*100:.1f}" if not np.isnan(surv_2yr) else "N/A",
-                'Survie 5 ans (%)': f"{surv_5yr*100:.1f}" if not np.isnan(surv_5yr) else "N/A",
-                'Survie 10 ans (%)': f"{surv_10yr*100:.1f}" if not np.isnan(surv_10yr) else "N/A"
+                'Survie 1 an (%)': format_survival_with_ci(surv_1yr, me_1yr),
+                'Survie 2 ans (%)': format_survival_with_ci(surv_2yr, me_2yr),
+                'Survie 5 ans (%)': format_survival_with_ci(surv_5yr, me_5yr),
+                'Survie 10 ans (%)': format_survival_with_ci(surv_10yr, me_10yr)
             })
     
     # Mise en forme du graphique avec style élégant
@@ -547,7 +610,6 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
     )
     
     return fig, pd.DataFrame(stats_summary)
-
 def register_callbacks(app):
     """
     Enregistre tous les callbacks spécifiques à la page Survie
@@ -649,7 +711,7 @@ def register_callbacks(app):
                 return no_data_alert, no_data_alert
             
             # Vérifier qu'on a plusieurs années
-            if 'Year' not in processed_data.columns or len(processed_data['Year'].unique()) < 2:
+            if 'Year' not in processed_data.columns :
                 single_year_alert = dbc.Alert(
                     'Au moins 2 années de données sont nécessaires pour la comparaison par année', 
                     color='info'
