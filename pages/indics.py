@@ -237,49 +237,6 @@ def process_trm_data(df):
     
     return result_long, result_df
 
-def create_trm_visualization(df, selected_year):
-    """
-    Crée la visualisation complète pour l'indicateur TRM
-    Args:
-        df (pd.DataFrame): DataFrame avec les données
-        selected_year (int): Année sélectionnée (on affichera l'année n-2)
-    Returns:
-        html.Div: Composant contenant la visualisation complète
-    """
-    try:
-        # Traiter les données
-        result_long, result_df = process_trm_data(df)
-        
-        # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
-        
-        # S'assurer que la colonne Year est de type int
-        result_df['Year'] = result_df['Year'].astype(int)
-        
-        # Créer le layout avec deux colonnes
-        return dbc.Row([
-            # Colonne gauche : Graphique des courbes (60%)
-            dbc.Col([
-                dcc.Graph(
-                    figure=create_trm_curves_plot(result_long),
-                    style={'height': '600px'},
-                    config={'responsive': True}
-                )
-            ], width=7),
-            # Colonne droite : DataTable et jauges (40%)
-            dbc.Col([
-                # DataTable
-                create_trm_datatable(result_df),
-                html.Hr(className='my-3'),
-                # Jauges pour l'année sélectionnée
-                html.H6(f"Indicateurs {selected_year} pour l'année {analysis_year}", className='text-center mb-3'),
-                create_trm_gauges(result_df, analysis_year)
-            ], width=5)
-        ])
-    except Exception as e:
-        return dbc.Alert(f"Erreur lors du calcul des indicateurs TRM: {str(e)}", color="danger")
-
 def create_trm_curves_plot(result_long):
     """
     Crée le graphique des courbes TRM par année
@@ -412,174 +369,6 @@ def create_trm_datatable(result_df):
         )
     ])
 
-def create_trm_gauges(result_df, analysis_year):
-    """
-    Crée les jauges modernes style flexDashboard pour afficher les taux de mortalité
-    """
-    # S'assurer que analysis_year est de type int
-    analysis_year = int(analysis_year)
-    
-    # Obtenir les données pour l'année spécifiée
-    year_data = result_df[result_df['Year'] == analysis_year]
-    
-    if year_data.empty:
-        available_years = result_df['Year'].unique()
-        return dbc.Alert(
-            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
-            color="warning"
-        )
-    
-    # Extraire les valeurs
-    val_j30 = year_data['30'].iloc[0]
-    val_j100 = year_data['100'].iloc[0]
-    val_j365 = year_data['365'].iloc[0]
-    
-    # Configuration commune
-    common_gauge_config = {
-        'axis': {
-            'range': [None, 100],
-            'tickwidth': 1,
-            'tickcolor': 'rgba(0,0,0,0.3)',
-            'tickfont': {'size': 10},
-            'ticksuffix': '%'
-        },
-        'bar': {
-            'color': '#2c3e50',
-            'thickness': 0.25
-        },
-        'bgcolor': 'white',
-        'borderwidth': 0,
-        'bordercolor': 'rgba(0,0,0,0)',
-        'threshold': {
-            'line': {'color': '#2c3e50', 'width': 2},
-            'thickness': 0.75
-        }
-    }
-    
-    # Créer les 3 jauges avec un subplot
-    fig = make_subplots(
-        rows=1, cols=3,
-        specs=[[{'type': 'indicator'}, {'type': 'indicator'}, {'type': 'indicator'}]],
-        subplot_titles=['<b>J30</b>', '<b>J100</b>', '<b>J365</b>'],
-        horizontal_spacing=0.15
-    )
-    
-    # Jauge J30
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j30,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 24, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            **common_gauge_config,
-            'steps': [
-                {'range': [0, 5], 'color': '#27ae60'},
-                {'range': [5, 10], 'color': '#f39c12'},
-                {'range': [10, 100], 'color': '#e74c3c'}
-            ],
-            'threshold': {'value': val_j30}
-        },
-        title={
-            'text': f"<b>J30</b>",
-            'font': {'size': 14, 'color': '#2c3e50'},
-            'align': 'center'
-        }
-    ), row=1, col=1)
-    
-    # Jauge J100
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j100,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 24, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            **common_gauge_config,
-            'steps': [
-                {'range': [0, 10], 'color': '#27ae60'},
-                {'range': [10, 20], 'color': '#f39c12'},
-                {'range': [20, 100], 'color': '#e74c3c'}
-            ],
-            'threshold': {'value': val_j100}
-        },
-        title={
-            'text': f"<b>J100</b>",
-            'font': {'size': 14, 'color': '#2c3e50'},
-            'align': 'center'
-        }
-    ), row=1, col=2)
-    
-    # Jauge J365
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j365,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 24, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            **common_gauge_config,
-            'steps': [
-                {'range': [0, 20], 'color': '#27ae60'},
-                {'range': [20, 40], 'color': '#f39c12'},
-                {'range': [40, 100], 'color': '#e74c3c'}
-            ],
-            'threshold': {'value': val_j365}
-        },
-        title={
-            'text': f"<b>J365</b>",
-            'font': {'size': 14, 'color': '#2c3e50'},
-            'align': 'center'
-        }
-    ), row=1, col=3)
-    
-    # Mise en forme globale
-    fig.update_layout(
-        height=250,
-        margin=dict(l=20, r=20, t=80, b=20),
-        showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Arial, sans-serif"),
-        annotations=[
-            dict(
-                x=0.5,
-                y=1.15,
-                showarrow=False,
-                text="Taux de mortalité liée au traitement",
-                xref="paper",
-                yref="paper",
-                font=dict(size=14, color='#2c3e50')
-            )
-        ]
-    )
-    
-    # Style des sous-titres
-    fig.update_annotations(
-        font_size=12,
-        font_color="#7f8c8d"
-    )
-    
-    return dcc.Graph(
-        figure=fig,
-        config={'displayModeBar': False},
-        style={
-            'border-radius': '10px',
-            'box-shadow': '0 2px 5px rgba(0,0,0,0.1)',
-            'background': 'white',
-            'padding': '10px'
-        }
-    )
-
 def process_survie_data(df):
     """
     Traite les données pour calculer les indicateurs de Survie Globale
@@ -655,32 +444,6 @@ def process_survie_data(df):
     result_long['j'] = result_long['j'].astype(int)
 
     return result_long, result_df
-
-def create_survie_visualization(df, selected_year):
-    """
-    Crée la visualisation complète pour l'indicateur Survie Globale
-    """
-    try:
-        result_long, result_df = process_survie_data(df)
-        analysis_year = int(selected_year) - 2
-        result_df['Year'] = result_df['Year'].astype(int)
-
-        return dbc.Row([
-            dbc.Col([
-                dcc.Graph(
-                    figure=create_survie_curves_plot(result_long),
-                    style={'height': '600px'}
-                )
-            ], width=7),
-            dbc.Col([
-                create_survie_datatable(result_df),
-                html.Hr(className='my-3'),
-                html.H6(f"Indicateurs pour l'année {analysis_year}", className='text-center mb-3'),
-                create_survie_gauges(result_df, analysis_year)
-            ], width=5)
-        ])
-    except Exception as e:
-        return dbc.Alert(f"Erreur lors du calcul des indicateurs de Survie Globale: {str(e)}", color="danger")
 
 def create_survie_curves_plot(result_long):
     """
@@ -788,135 +551,6 @@ def create_survie_datatable(result_df):
         )
     ])
 
-def create_survie_gauges(result_df, analysis_year):
-    """
-    Crée les jauges de survie (version moderne)
-    """
-    analysis_year = int(analysis_year)
-    year_data = result_df[result_df['Year'] == analysis_year]
-    
-    if year_data.empty:
-        available_years = result_df['Year'].unique()
-        return dbc.Alert(
-            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
-            color="warning"
-        )
-    
-    val_j30 = year_data['30'].iloc[0]
-    val_j100 = year_data['100'].iloc[0]
-    val_j365 = year_data['365'].iloc[0]
-
-    # Configuration commune
-    common_config = {
-        'axis': {
-            'range': [50, 100],  # Plage ajustée pour la survie
-            'tickwidth': 1,
-            'tickcolor': 'rgba(0,0,0,0.3)',
-            'tickfont': {'size': 10},
-            'ticksuffix': '%'
-        },
-        'bar': {'color': '#2c3e50', 'thickness': 0.25},
-        'bgcolor': 'white',
-        'borderwidth': 0,
-        'bordercolor': 'rgba(0,0,0,0)',
-        'threshold': {
-            'line': {'color': '#2c3e50', 'width': 2},
-            'thickness': 0.75
-        }
-    }
-
-    fig = make_subplots(
-        rows=1, cols=3,
-        specs=[[{'type': 'indicator'}, {'type': 'indicator'}, {'type': 'indicator'}]],
-        subplot_titles=['<b>J30</b>', '<b>J100</b>', '<b>J365</b>'],
-        horizontal_spacing=0.15
-    )
-
-    # Jauge J30
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j30,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={'suffix': '%', 'font': {'size': 24, 'color': '#2c3e50'}, 'valueformat': '.1f'},
-        gauge={
-            **common_config,
-            'steps': [
-                {'range': [50, 85], 'color': '#e74c3c'},
-                {'range': [85, 95], 'color': '#f39c12'},
-                {'range': [95, 100], 'color': '#27ae60'}
-            ],
-            'threshold': {'value': val_j30}
-        },
-        title={'text': f"<b>{val_j30:.1f}%</b>", 'font': {'size': 14, 'color': '#2c3e50'}, 'align': 'center'}
-    ), row=1, col=1)
-
-    # Jauge J100
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j100,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={'suffix': '%', 'font': {'size': 24, 'color': '#2c3e50'}, 'valueformat': '.1f'},
-        gauge={
-            **common_config,
-            'steps': [
-                {'range': [50, 75], 'color': '#e74c3c'},
-                {'range': [75, 90], 'color': '#f39c12'},
-                {'range': [90, 100], 'color': '#27ae60'}
-            ],
-            'threshold': {'value': val_j100}
-        },
-        title={'text': f"<b>{val_j100:.1f}%</b>", 'font': {'size': 14, 'color': '#2c3e50'}, 'align': 'center'}
-    ), row=1, col=2)
-
-    # Jauge J365
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j365,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={'suffix': '%', 'font': {'size': 24, 'color': '#2c3e50'}, 'valueformat': '.1f'},
-        gauge={
-            **common_config,
-            'steps': [
-                {'range': [50, 60], 'color': '#e74c3c'},
-                {'range': [60, 80], 'color': '#f39c12'},
-                {'range': [80, 100], 'color': '#27ae60'}
-            ],
-            'threshold': {'value': val_j365}
-        },
-        title={'text': f"<b>{val_j365:.1f}%</b>", 'font': {'size': 14, 'color': '#2c3e50'}, 'align': 'center'}
-    ), row=1, col=3)
-
-    # Mise en forme globale
-    fig.update_layout(
-        height=250,
-        margin=dict(l=20, r=20, t=80, b=20),
-        showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Arial, sans-serif"),
-        annotations=[dict(
-            x=0.5, y=1.15,
-            showarrow=False,
-            text="<b>Taux de Survie Globale</b>",
-            xref="paper",
-            yref="paper",
-            font=dict(size=14, color='#2c3e50')
-        )
-        ]
-    )
-    fig.update_annotations(font_size=12, font_color="#7f8c8d")
-    
-    return dcc.Graph(
-        figure=fig,
-        config={'displayModeBar': False},
-        style={
-            'border-radius': '10px',
-            'box-shadow': '0 2px 5px rgba(0,0,0,0.1)',
-            'background': 'white',
-            'padding': '10px'
-        }
-    )
-
 def process_prise_greffe_data(df):
     """
     Traite les données pour calculer les indicateurs de prise de greffe
@@ -1017,79 +651,6 @@ def create_prise_greffe_barplot(result):
     
     return fig
 
-def create_prise_greffe_gauge(result, analysis_year):
-    """
-    Crée la jauge pour le taux de prise de greffe
-    """
-    analysis_year = int(analysis_year)
-    year_data = result[result['Year'] == analysis_year]
-    
-    if year_data.empty:
-        available_years = result['Year'].unique()
-        return dbc.Alert(
-            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
-            color="warning"
-        )
-    
-    val = year_data['pourcentage_prise_greffe'].iloc[0]
-    
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=val,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 28, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            'axis': {
-                'range': [0, 100],
-                'tickwidth': 1,
-                'tickcolor': 'rgba(0,0,0,0.3)',
-                'tickfont': {'size': 12},
-                'ticksuffix': '%'
-            },
-            'bar': {'color': "#2c3e50", 'thickness': 0.3},
-            'bgcolor': 'white',
-            'borderwidth': 0,
-            'bordercolor': 'rgba(0,0,0,0)',
-            'steps': [
-                {'range': [0, 80], 'color': '#e74c3c'},
-                {'range': [80, 90], 'color': '#f39c12'},
-                {'range': [90, 100], 'color': '#27ae60'}
-            ],
-            'threshold': {
-                'line': {'color': '#2c3e50', 'width': 2},
-                'thickness': 0.8,
-                'value': val
-            }
-        },
-        title={
-            'text': f"<b>Taux de prise de greffe J100<br>{analysis_year}</b>",
-            'font': {'size': 16, 'color': '#2c3e50'}
-        }
-    ))
-    
-    fig.update_layout(
-        height=300,
-        margin=dict(l=20, r=20, t=80, b=20),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Arial, sans-serif")
-    )
-    
-    return dcc.Graph(
-        figure=fig,
-        config={'displayModeBar': False},
-        style={
-            'border-radius': '10px',
-            'box-shadow': '0 2px 5px rgba(0,0,0,0.1)',
-            'background': 'white',
-            'padding': '10px'
-        }
-    )
-
 def create_prise_greffe_datatable(result):
     """
     Crée la table des résultats de prise de greffe
@@ -1130,34 +691,6 @@ def create_prise_greffe_datatable(result):
             }]
         )
     ])
-
-def create_prise_greffe_visualization(df, selected_year):
-    """
-    Crée la visualisation complète pour l'indicateur Prise de greffe
-    """
-    try:
-        result = process_prise_greffe_data(df)
-        analysis_year = int(selected_year) - 1  # On utilise n-1 pour la prise de greffe
-        result['Year'] = result['Year'].astype(int)
-        
-        return dbc.Row([
-            # Colonne gauche : Barplot (60%)
-            dbc.Col([
-                dcc.Graph(
-                    figure=create_prise_greffe_barplot(result),
-                    style={'height': '600px'}
-                )
-            ], width=7),
-            # Colonne droite : DataTable et jauge (40%)
-            dbc.Col([
-                create_prise_greffe_datatable(result),
-                html.Hr(className='my-3'),
-                html.H6(f"Indicateur pour l'année {analysis_year}", className='text-center mb-3'),
-                create_prise_greffe_gauge(result, analysis_year)
-            ], width=5)
-        ])
-    except Exception as e:
-        return dbc.Alert(f"Erreur lors du calcul des indicateurs de Prise de greffe: {str(e)}", color="danger")
 
 def process_sortie_aplasie_data(df):
     """
@@ -1258,79 +791,6 @@ def create_sortie_aplasie_barplot(result):
     
     return fig
 
-def create_sortie_aplasie_gauge(result, analysis_year):
-    """
-    Crée la jauge pour le taux de sortie d'aplasie
-    """
-    analysis_year = int(analysis_year)
-    year_data = result[result['Year'] == analysis_year]
-    
-    if year_data.empty:
-        available_years = result['Year'].unique()
-        return dbc.Alert(
-            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
-            color="warning"
-        )
-    
-    val = year_data['pourcentage_sortie_aplasie'].iloc[0]
-    
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=val,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 28, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            'axis': {
-                'range': [0, 100],
-                'tickwidth': 1,
-                'tickcolor': 'rgba(0,0,0,0.3)',
-                'tickfont': {'size': 12},
-                'ticksuffix': '%'
-            },
-            'bar': {'color': "#2c3e50", 'thickness': 0.3},
-            'bgcolor': 'white',
-            'borderwidth': 0,
-            'bordercolor': 'rgba(0,0,0,0)',
-            'steps': [
-                {'range': [0, 80], 'color': '#e74c3c'},
-                {'range': [80, 90], 'color': '#f39c12'},
-                {'range': [90, 100], 'color': '#27ae60'}
-            ],
-            'threshold': {
-                'line': {'color': '#2c3e50', 'width': 2},
-                'thickness': 0.8,
-                'value': val
-            }
-        },
-        title={
-            'text': f"<b>Taux de sortie d'aplasie J28<br>{analysis_year}</b>",
-            'font': {'size': 16, 'color': '#2c3e50'}
-        }
-    ))
-    
-    fig.update_layout(
-        height=300,
-        margin=dict(l=20, r=20, t=80, b=20),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Arial, sans-serif")
-    )
-    
-    return dcc.Graph(
-        figure=fig,
-        config={'displayModeBar': False},
-        style={
-            'border-radius': '10px',
-            'box-shadow': '0 2px 5px rgba(0,0,0,0.1)',
-            'background': 'white',
-            'padding': '10px'
-        }
-    )
-
 def create_sortie_aplasie_datatable(result):
     """
     Crée la table des résultats de sortie d'aplasie
@@ -1371,34 +831,6 @@ def create_sortie_aplasie_datatable(result):
             }]
         )
     ])
-
-def create_sortie_aplasie_visualization(df, selected_year):
-    """
-    Crée la visualisation complète pour l'indicateur Sortie d'aplasie
-    """
-    try:
-        result = process_sortie_aplasie_data(df)
-        analysis_year = int(selected_year) - 1  # On utilise n-1 pour la sortie d'aplasie
-        result['Year'] = result['Year'].astype(int)
-        
-        return dbc.Row([
-            # Colonne gauche : Barplot (60%)
-            dbc.Col([
-                dcc.Graph(
-                    figure=create_sortie_aplasie_barplot(result),
-                    style={'height': '600px'}
-                )
-            ], width=7),
-            # Colonne droite : DataTable et jauge (40%)
-            dbc.Col([
-                create_sortie_aplasie_datatable(result),
-                html.Hr(className='my-3'),
-                html.H6(f"Indicateur pour l'année {analysis_year}", className='text-center mb-3'),
-                create_sortie_aplasie_gauge(result, analysis_year)
-            ], width=5)
-        ])
-    except Exception as e:
-        return dbc.Alert(f"Erreur lors du calcul des indicateurs de Sortie d'aplasie: {str(e)}", color="danger")
 
 def process_rechute_data(df):
     """
@@ -1475,51 +907,6 @@ def process_rechute_data(df):
     result_long['j'] = result_long['j'].astype(int)
     
     return result_long, result_df
-
-def create_rechute_visualization(df, selected_year):
-    """
-    Crée la visualisation complète pour l'indicateur Rechute
-    
-    Args:
-        df (pd.DataFrame): DataFrame avec les données
-        selected_year (int): Année sélectionnée (on affichera l'année n-2)
-        
-    Returns:
-        html.Div: Composant contenant la visualisation complète
-    """
-    try:
-        # Traiter les données
-        result_long, result_df = process_rechute_data(df)
-        
-        # Convertir l'année en int et calculer n-2
-        selected_year = int(selected_year)
-        analysis_year = selected_year - 2
-        
-        # S'assurer que la colonne Year est de type int
-        result_df['Year'] = result_df['Year'].astype(int)
-        
-        # Créer le layout avec deux colonnes
-        return dbc.Row([
-            # Colonne gauche : Graphique des courbes (60%)
-            dbc.Col([
-                dcc.Graph(
-                    figure=create_rechute_curves_plot(result_long),
-                    style={'height': '600px'},
-                    config={'responsive': True}
-                )
-            ], width=7),
-            # Colonne droite : DataTable et jauges (40%)
-            dbc.Col([
-                # DataTable
-                create_rechute_datatable(result_df),
-                html.Hr(className='my-3'),
-                # Jauges pour l'année sélectionnée
-                html.H6(f"Indicateurs {selected_year} pour l'année {analysis_year}", className='text-center mb-3'),
-                create_rechute_gauges(result_df, analysis_year)
-            ], width=5)
-        ])
-    except Exception as e:
-        return dbc.Alert(f"Erreur lors du calcul des indicateurs Rechute: {str(e)}", color="danger")
 
 def create_rechute_curves_plot(result_long):
     """
@@ -1651,157 +1038,9 @@ def create_rechute_datatable(result_df):
         )
     ])
 
-def create_rechute_gauges(result_df, analysis_year):
-    """
-    Crée les jauges modernes pour afficher les taux de rechute à J100 et J365
-    
-    Args:
-        result_df (pd.DataFrame): DataFrame avec les statistiques Rechute
-        analysis_year (int): Année d'analyse
-        
-    Returns:
-        dcc.Graph: Composant graphique avec les jauges
-    """
-    # S'assurer que analysis_year est de type int
-    analysis_year = int(analysis_year)
-    
-    # Obtenir les données pour l'année spécifiée
-    year_data = result_df[result_df['Year'] == analysis_year]
-    
-    if year_data.empty:
-        available_years = result_df['Year'].unique()
-        return dbc.Alert(
-            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
-            color="warning"
-        )
-    
-    # Extraire les valeurs
-    val_j100 = year_data['100'].iloc[0]
-    val_j365 = year_data['365'].iloc[0]
-    
-    # Configuration commune
-    common_gauge_config = {
-        'axis': {
-            'range': [None, 100],
-            'tickwidth': 1,
-            'tickcolor': 'rgba(0,0,0,0.3)',
-            'tickfont': {'size': 10},
-            'ticksuffix': '%'
-        },
-        'bar': {
-            'color': '#e74c3c',  # Rouge pour les rechutes
-            'thickness': 0.25
-        },
-        'bgcolor': 'white',
-        'borderwidth': 0,
-        'bordercolor': 'rgba(0,0,0,0)',
-        'threshold': {
-            'line': {'color': '#e74c3c', 'width': 2},
-            'thickness': 0.75
-        }
-    }
-    
-    # Créer les 2 jauges avec un subplot
-    fig = make_subplots(
-        rows=1, cols=2,
-        specs=[[{'type': 'indicator'}, {'type': 'indicator'}]],
-        subplot_titles=['<b>J100</b>', '<b>J365</b>'],
-        horizontal_spacing=0.2
-    )
-    
-    # Jauge J100
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j100,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 28, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            **common_gauge_config,
-            'steps': [
-                {'range': [0, 10], 'color': '#27ae60'},   # Vert : bon
-                {'range': [10, 25], 'color': '#f39c12'},  # Orange : moyen
-                {'range': [25, 100], 'color': '#e74c3c'}  # Rouge : élevé
-            ],
-            'threshold': {'value': val_j100}
-        },
-        title={
-            'text': f"<b>J100</b>",
-            'font': {'size': 16, 'color': '#2c3e50'},
-            'align': 'center'
-        }
-    ), row=1, col=1)
-    
-    # Jauge J365
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=val_j365,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={
-            'suffix': '%',
-            'font': {'size': 28, 'color': '#2c3e50'},
-            'valueformat': '.1f'
-        },
-        gauge={
-            **common_gauge_config,
-            'steps': [
-                {'range': [0, 20], 'color': '#27ae60'},   # Vert : bon
-                {'range': [20, 40], 'color': '#f39c12'},  # Orange : moyen
-                {'range': [40, 100], 'color': '#e74c3c'}  # Rouge : élevé
-            ],
-            'threshold': {'value': val_j365}
-        },
-        title={
-            'text': f"<b>J365</b>",
-            'font': {'size': 16, 'color': '#2c3e50'},
-            'align': 'center'
-        }
-    ), row=1, col=2)
-    
-    # Mise en forme globale
-    fig.update_layout(
-        height=300,
-        margin=dict(l=30, r=30, t=100, b=30),
-        showlegend=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Arial, sans-serif"),
-        annotations=[
-            dict(
-                x=0.5,
-                y=1.2,
-                showarrow=False,
-                text="Taux de rechute",
-                xref="paper",
-                yref="paper",
-                font=dict(size=16, color='#2c3e50')
-            )
-        ]
-    )
-    
-    # Style des sous-titres
-    fig.update_annotations(
-        font_size=14,
-        font_color="#7f8c8d"
-    )
-    
-    return dcc.Graph(
-        figure=fig,
-        config={'displayModeBar': False},
-        style={
-            'border-radius': '10px',
-            'box-shadow': '0 2px 5px rgba(0,0,0,0.1)',
-            'background': 'white',
-            'padding': '10px'
-        }
-    )
-
 def register_callbacks(app):
     """
-    Enregistre les callbacks pour la page Indicateurs
+    Version mise à jour du callback principal avec les badges
     """
     @app.callback(
         [Output('indicator-content', 'children'),
@@ -1846,10 +1085,11 @@ def register_callbacks(app):
             title = titles.get(indicator, 'Indicateur')
             content = dbc.Alert([
                 html.H5("En construction", className="alert-heading"),
-                html.P(f"L'indicateur '{title}' sera bientôt disponible.", className="mb-0")
+                html.P(f"L'indicateur '{title}' sera bientôt disponible.")
             ], color="info")
         
         return content, year_note_style
+
 
     @app.callback(
         [Output('indicators-missing-summary-table', 'children'),
@@ -2777,6 +2017,474 @@ def create_gvhc_barplot(result_combined, grade_counts):
     
     return fig
 
+def create_trm_badges(result_df, analysis_year):
+    """
+    Crée les badges (étiquettes) pour afficher les pourcentages TRM pour l'année sélectionnée
+    
+    Args:
+        result_df (pd.DataFrame): DataFrame avec les statistiques TRM
+        analysis_year (int): Année d'analyse
+        
+    Returns:
+        html.Div: Composant avec les badges
+    """
+    # S'assurer que analysis_year est de type int
+    analysis_year = int(analysis_year)
+    
+    # Obtenir les données pour l'année spécifiée
+    year_data = result_df[result_df['Year'] == analysis_year]
+    
+    if year_data.empty:
+        available_years = result_df['Year'].unique()
+        return dbc.Alert(
+            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
+            color="warning"
+        )
+    
+    # Extraire les valeurs
+    pct_j30 = year_data['30'].iloc[0]
+    pct_j100 = year_data['100'].iloc[0]
+    pct_j365 = year_data['365'].iloc[0]
+    nb_j30 = year_data['trm_j30'].iloc[0]
+    nb_j100 = year_data['trm_j100'].iloc[0]
+    nb_j365 = year_data['trm_j365'].iloc[0]
+    total_greffes = year_data['nb_greffe'].iloc[0]
+    
+    return html.Div([
+        html.H6(f"Indicateurs TRM - Année {analysis_year}", className='text-center mb-3'),
+        
+        # Première ligne : J30 et J100
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j30:.1f}%", className="text-center mb-2"),
+                        html.P("TRM J30", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_j30}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=6),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j100:.1f}%", className="text-center mb-2"),
+                        html.P("TRM J100", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_j100}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=6)
+        ], className="mb-3"),
+        
+        # Deuxième ligne : J365 (centré)
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j365:.1f}%", className="text-center mb-2"),
+                        html.P("TRM J365", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_j365}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=8)  # Centré avec offset
+        ], justify='center')
+    ])
+
+def create_survie_badges(result_df, analysis_year):
+    """
+    Crée les badges (étiquettes) pour afficher les pourcentages de survie pour l'année sélectionnée
+    
+    Args:
+        result_df (pd.DataFrame): DataFrame avec les statistiques de survie
+        analysis_year (int): Année d'analyse
+        
+    Returns:
+        html.Div: Composant avec les badges
+    """
+    # S'assurer que analysis_year est de type int
+    analysis_year = int(analysis_year)
+    
+    # Obtenir les données pour l'année spécifiée
+    year_data = result_df[result_df['Year'] == analysis_year]
+    
+    if year_data.empty:
+        available_years = result_df['Year'].unique()
+        return dbc.Alert(
+            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
+            color="warning"
+        )
+    
+    # Extraire les valeurs
+    pct_j30 = year_data['30'].iloc[0]
+    pct_j100 = year_data['100'].iloc[0]
+    pct_j365 = year_data['365'].iloc[0]
+    nb_vivants_j30 = year_data['vivants_j30'].iloc[0]
+    nb_vivants_j100 = year_data['vivants_j100'].iloc[0]
+    nb_vivants_j365 = year_data['vivants_j365'].iloc[0]
+    total_greffes = year_data['nb_greffe'].iloc[0]
+    
+    return html.Div([
+        html.H6(f"Indicateurs Survie Globale - Année {analysis_year}", className='text-center mb-3'),
+        
+        # Première ligne : J30 et J100
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j30:.1f}%", className="text-center mb-2"),
+                        html.P("Survie J30", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_vivants_j30}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=6),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j100:.1f}%", className="text-center mb-2"),
+                        html.P("Survie J100", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_vivants_j100}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=6)
+        ], className="mb-3"),
+        
+        # Deuxième ligne : J365 (centré)
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j365:.1f}%", className="text-center mb-2"),
+                        html.P("Survie J365", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_vivants_j365}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=8)  # Centré avec offset
+        ], justify='center')
+    ])
+
+
+def create_rechute_badges(result_df, analysis_year):
+    """
+    Crée les badges (étiquettes) pour afficher les pourcentages de rechute pour l'année sélectionnée
+    
+    Args:
+        result_df (pd.DataFrame): DataFrame avec les statistiques Rechute
+        analysis_year (int): Année d'analyse
+        
+    Returns:
+        html.Div: Composant avec les badges
+    """
+    # S'assurer que analysis_year est de type int
+    analysis_year = int(analysis_year)
+    
+    # Obtenir les données pour l'année spécifiée
+    year_data = result_df[result_df['Year'] == analysis_year]
+    
+    if year_data.empty:
+        available_years = result_df['Year'].unique()
+        return dbc.Alert(
+            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
+            color="warning"
+        )
+    
+    # Extraire les valeurs
+    pct_j100 = year_data['100'].iloc[0]
+    pct_j365 = year_data['365'].iloc[0]
+    nb_j100 = year_data['rechute_j100'].iloc[0]
+    nb_j365 = year_data['rechute_j365'].iloc[0]
+    total_greffes = year_data['nb_greffe'].iloc[0]
+    
+    return html.Div([
+        html.H6(f"Indicateurs Rechute - Année {analysis_year}", className='text-center mb-3'),
+        
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j100:.1f}%", className="text-center mb-2"),
+                        html.P("Rechute J100", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_j100}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=6),
+            
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_j365:.1f}%", className="text-center mb-2"),
+                        html.P("Rechute J365", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_j365}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=6)
+        ])
+    ])
+
+
+def create_prise_greffe_badge(result, analysis_year):
+    """
+    Crée le badge (étiquette) pour afficher le pourcentage de prise de greffe pour l'année sélectionnée
+    
+    Args:
+        result (pd.DataFrame): DataFrame avec les statistiques de prise de greffe
+        analysis_year (int): Année d'analyse
+        
+    Returns:
+        html.Div: Composant avec le badge
+    """
+    # S'assurer que analysis_year est de type int
+    analysis_year = int(analysis_year)
+    
+    # Obtenir les données pour l'année spécifiée
+    year_data = result[result['Year'] == analysis_year]
+    
+    if year_data.empty:
+        available_years = result['Year'].unique()
+        return dbc.Alert(
+            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
+            color="warning"
+        )
+    
+    # Extraire les valeurs
+    pct_prise = year_data['pourcentage_prise_greffe'].iloc[0]
+    nb_prise = year_data['nb_prise_greffe'].iloc[0]
+    total_greffes = year_data['total'].iloc[0]
+    
+    return html.Div([
+        html.H6(f"Indicateur Prise de greffe - Année {analysis_year}", className='text-center mb-3'),
+        
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_prise:.1f}%", className="text-center mb-2"),
+                        html.P("Prise de greffe J100", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_prise}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=8)  # Centré avec offset
+        ], justify='center')
+    ])
+
+
+def create_sortie_aplasie_badge(result, analysis_year):
+    """
+    Crée le badge (étiquette) pour afficher le pourcentage de sortie d'aplasie pour l'année sélectionnée
+    
+    Args:
+        result (pd.DataFrame): DataFrame avec les statistiques de sortie d'aplasie
+        analysis_year (int): Année d'analyse
+        
+    Returns:
+        html.Div: Composant avec le badge
+    """
+    # S'assurer que analysis_year est de type int
+    analysis_year = int(analysis_year)
+    
+    # Obtenir les données pour l'année spécifiée
+    year_data = result[result['Year'] == analysis_year]
+    
+    if year_data.empty:
+        available_years = result['Year'].unique()
+        return dbc.Alert(
+            f"Aucune donnée disponible pour l'année {analysis_year} (années disponibles: {sorted(available_years)})", 
+            color="warning"
+        )
+    
+    # Extraire les valeurs
+    pct_sortie = year_data['pourcentage_sortie_aplasie'].iloc[0]
+    nb_sortie = year_data['nb_sortie_aplasie'].iloc[0]
+    total_greffes = year_data['total'].iloc[0]
+    
+    return html.Div([
+        html.H6(f"Indicateur Sortie d'aplasie - Année {analysis_year}", className='text-center mb-3'),
+        
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H3(f"{pct_sortie:.1f}%", className="text-center mb-2"),
+                        html.P("Sortie d'aplasie J28", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.P(f"({nb_sortie}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
+                    ], className="py-3")
+                ], outline=True, style={'border-width': '2px'})
+            ], width=8)  # Centré avec offset
+        ], justify='center')
+    ])
+
+
+# Modifications à apporter dans les fonctions de visualisation existantes
+
+def create_trm_visualization(df, selected_year):
+    """
+    Version mise à jour de create_trm_visualization avec badges au lieu de jauges
+    """
+    try:
+        # Traiter les données
+        result_long, result_df = process_trm_data(df)
+        
+        # Convertir l'année en int et calculer n-2
+        selected_year = int(selected_year)
+        analysis_year = selected_year - 2
+        
+        # S'assurer que la colonne Year est de type int
+        result_df['Year'] = result_df['Year'].astype(int)
+        
+        # Créer le layout avec deux colonnes
+        return dbc.Row([
+            # Colonne gauche : Graphique des courbes (60%)
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_trm_curves_plot(result_long),
+                    style={'height': '600px'},
+                    config={'responsive': True}
+                )
+            ], width=7),
+            # Colonne droite : DataTable et badges (40%)
+            dbc.Col([
+                # DataTable
+                create_trm_datatable(result_df),
+                html.Hr(className='my-3'),
+                # Badges pour l'année sélectionnée (REMPLACEMENT DES JAUGES)
+                create_trm_badges(result_df, analysis_year)
+            ], width=5)
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Erreur lors du calcul des indicateurs TRM: {str(e)}", color="danger")
+
+
+def create_rechute_visualization(df, selected_year):
+    """
+    Version mise à jour de create_rechute_visualization avec badges au lieu de jauges
+    """
+    try:
+        # Traiter les données
+        result_long, result_df = process_rechute_data(df)
+        
+        # Convertir l'année en int et calculer n-2
+        selected_year = int(selected_year)
+        analysis_year = selected_year - 2
+        
+        # S'assurer que la colonne Year est de type int
+        result_df['Year'] = result_df['Year'].astype(int)
+        
+        # Créer le layout avec deux colonnes
+        return dbc.Row([
+            # Colonne gauche : Graphique des courbes (60%)
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_rechute_curves_plot(result_long),
+                    style={'height': '600px'},
+                    config={'responsive': True}
+                )
+            ], width=7),
+            # Colonne droite : DataTable et badges (40%)
+            dbc.Col([
+                # DataTable
+                create_rechute_datatable(result_df),
+                html.Hr(className='my-3'),
+                # Badges pour l'année sélectionnée (REMPLACEMENT DES JAUGES)
+                create_rechute_badges(result_df, analysis_year)
+            ], width=5)
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Erreur lors du calcul des indicateurs Rechute: {str(e)}", color="danger")
+
+
+def create_prise_greffe_visualization(df, selected_year):
+    """
+    Version mise à jour de create_prise_greffe_visualization avec badge au lieu de jauge
+    """
+    try:
+        result = process_prise_greffe_data(df)
+        analysis_year = int(selected_year) - 1  # On utilise n-1 pour la prise de greffe
+        result['Year'] = result['Year'].astype(int)
+        
+        return dbc.Row([
+            # Colonne gauche : Barplot (60%)
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_prise_greffe_barplot(result),
+                    style={'height': '600px'}
+                )
+            ], width=7),
+            # Colonne droite : DataTable et badge (40%)
+            dbc.Col([
+                create_prise_greffe_datatable(result),
+                html.Hr(className='my-3'),
+                # Badge pour l'année sélectionnée (REMPLACEMENT DE LA JAUGE)
+                create_prise_greffe_badge(result, analysis_year)
+            ], width=5)
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Erreur lors du calcul des indicateurs de Prise de greffe: {str(e)}", color="danger")
+
+
+def create_sortie_aplasie_visualization(df, selected_year):
+    """
+    Version mise à jour de create_sortie_aplasie_visualization avec badge au lieu de jauge
+    """
+    try:
+        result = process_sortie_aplasie_data(df)
+        analysis_year = int(selected_year) - 1  # On utilise n-1 pour la sortie d'aplasie
+        result['Year'] = result['Year'].astype(int)
+        
+        return dbc.Row([
+            # Colonne gauche : Barplot (60%)
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_sortie_aplasie_barplot(result),
+                    style={'height': '600px'}
+                )
+            ], width=7),
+            # Colonne droite : DataTable et badge (40%)
+            dbc.Col([
+                create_sortie_aplasie_datatable(result),
+                html.Hr(className='my-3'),
+                # Badge pour l'année sélectionnée (REMPLACEMENT DE LA JAUGE)
+                create_sortie_aplasie_badge(result, analysis_year)
+            ], width=5)
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Erreur lors du calcul des indicateurs de Sortie d'aplasie: {str(e)}", color="danger")
+    
+def create_survie_visualization(df, selected_year):
+    """
+    Version mise à jour de create_survie_visualization avec badges au lieu de jauges
+    
+    Args:
+        df (pd.DataFrame): DataFrame avec les données
+        selected_year (int): Année sélectionnée (on affichera l'année n-2)
+        
+    Returns:
+        html.Div: Composant contenant la visualisation complète
+    """
+    try:
+        result_long, result_df = process_survie_data(df)
+        analysis_year = int(selected_year) - 2
+        result_df['Year'] = result_df['Year'].astype(int)
+
+        return dbc.Row([
+            # Colonne gauche : Graphique des courbes (60%)
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_survie_curves_plot(result_long),
+                    style={'height': '600px'},
+                    config={'responsive': True}
+                )
+            ], width=7),
+            # Colonne droite : DataTable et badges (40%)
+            dbc.Col([
+                # DataTable
+                create_survie_datatable(result_df),
+                html.Hr(className='my-3'),
+                # Badges pour l'année sélectionnée (REMPLACEMENT DES JAUGES)
+                create_survie_badges(result_df, analysis_year)
+            ], width=5)
+        ])
+    except Exception as e:
+        return dbc.Alert(f"Erreur lors du calcul des indicateurs de Survie Globale: {str(e)}", color="danger")
 
 def create_gvhc_datatable(result_combined):
     """
