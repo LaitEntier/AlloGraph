@@ -531,7 +531,9 @@ def create_enhanced_boxplot(
     show_points=True,
     point_size=4,
     force_zero_start=False,
-    color_map=None
+    color_map=None,
+    sort_by_median=False,  # ← NOUVEAU PARAMÈTRE
+    sort_ascending=True    # ← NOUVEAU PARAMÈTRE
 ):
     """
     Crée un boxplot amélioré avec des points optionnels et coloration cohérente.
@@ -550,6 +552,8 @@ def create_enhanced_boxplot(
         point_size (int, optional): Taille des points
         force_zero_start (bool, optional): Forcer l'axe Y à commencer à 0
         color_map (dict, optional): Mapping de couleurs cohérent
+        sort_by_median (bool, optional): Trier les groupes par médiane
+        sort_ascending (bool, optional): Ordre croissant (True) ou décroissant (False)
         
     Returns:
         plotly.graph_objects.Figure: Figure Plotly du boxplot amélioré
@@ -558,36 +562,50 @@ def create_enhanced_boxplot(
     x_axis_title = x_axis_title or x_column
     y_axis_title = y_axis_title or y_column
     
+    # Nettoyer les données (supprimer les NaN dans les colonnes importantes)
+    clean_data = data.dropna(subset=[x_column, y_column])
+    
+    # NOUVELLE FONCTIONNALITÉ : Tri par médiane
+    category_orders = None
+    if sort_by_median:
+        # Calculer les médianes pour chaque groupe
+        medians = clean_data.groupby(x_column)[y_column].median().sort_values(ascending=sort_ascending)
+        # Créer l'ordre personnalisé basé sur les médianes
+        ordered_categories = medians.index.tolist()
+        category_orders = {x_column: ordered_categories}
+    
     # Cas sans coloration
-    if color_column is None or color_column not in data.columns:
+    if color_column is None or color_column not in clean_data.columns:
         if show_points:
             fig = px.box(
-                data,
+                clean_data,
                 x=x_column,
                 y=y_column,
                 title=title,
                 height=height,
                 width=width,
-                points="all"  # Afficher tous les points
+                points="all",  # Afficher tous les points
+                category_orders=category_orders  # ← Appliquer l'ordre personnalisé
             )
         else:
             fig = px.box(
-                data,
+                clean_data,
                 x=x_column,
                 y=y_column,
                 title=title,
                 height=height,
-                width=width
+                width=width,
+                category_orders=category_orders  # ← Appliquer l'ordre personnalisé
             )
     else:
         # Cas avec coloration
         # Utiliser le color_map fourni ou en créer un
         if color_map is None:
-            color_map = create_consistent_color_map(data, color_column)
+            color_map = create_consistent_color_map(clean_data, color_column)
         
         if show_points:
             fig = px.box(
-                data,
+                clean_data,
                 x=x_column,
                 y=y_column,
                 color=color_column,
@@ -595,18 +613,20 @@ def create_enhanced_boxplot(
                 title=title,
                 height=height,
                 width=width,
-                points="all"  # Afficher tous les points
+                points="all",  # Afficher tous les points
+                category_orders=category_orders  # ← Appliquer l'ordre personnalisé
             )
         else:
             fig = px.box(
-                data,
+                clean_data,
                 x=x_column,
                 y=y_column,
                 color=color_column,
                 color_discrete_map=color_map,
                 title=title,
                 height=height,
-                width=width
+                width=width,
+                category_orders=category_orders  # ← Appliquer l'ordre personnalisé
             )
         
         # Personnaliser la légende
@@ -635,7 +655,7 @@ def create_enhanced_boxplot(
     
     # Forcer l'axe Y à commencer à 0 avec des steps de 1
     if force_zero_start:
-        y_max = data[y_column].max()
+        y_max = clean_data[y_column].max()
         if pd.notna(y_max):
             y_axis_config.update({
                 'range': [0, y_max + 1],
@@ -647,7 +667,7 @@ def create_enhanced_boxplot(
         xaxis_title=x_axis_title,
         yaxis=y_axis_config,
         template='plotly_white',
-        showlegend=color_column is not None
+        showlegend=False
     )
     
     return fig

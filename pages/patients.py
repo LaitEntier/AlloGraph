@@ -423,9 +423,11 @@ def register_callbacks(app):
                 width=None,
                 show_points=True,
                 point_size=4,
-                color_map=color_map  # Passer le mapping de couleurs à la fonction
+                color_map=color_map,  # Passer le mapping de couleurs à la fonction
+                sort_by_median=True,
+                sort_ascending=False 
             )
-            
+                        
             return dcc.Graph(
                 figure=fig, 
                 style={'height': '100%'},
