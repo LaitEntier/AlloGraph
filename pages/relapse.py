@@ -19,9 +19,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H4('Analyse des Risques Compétitifs - Rechute')),
                     dbc.CardBody([
-                        html.Div(
-                            id='relapse-main-graph',
-                            style={'height': '800px', 'width': '100%'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='relapse-main-graph',
+                                style={'height': '800px', 'width': '100%'}
+                            )
                         )
                     ], className='p-2')
                 ])

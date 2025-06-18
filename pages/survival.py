@@ -49,7 +49,7 @@ def get_layout():
                         html.Div(
                             id='survival-curves-by-year',
                             style={'height': '700px', 'overflow': 'hidden'}
-                        )
+                        )  
                     ], className='p-2')
                 ])
             ], width=12)

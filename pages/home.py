@@ -10,9 +10,14 @@ import visualizations.allogreffes.graphs as gr
 def get_layout():
     """Retourne le layout de la page d'accueil"""
     return html.Div([
-        # Contenu principal de l'accueil
-        html.Div(id='home-main-content')
+        # Contenu principal de l'accueil avec spinner
+        dcc.Loading(
+            id="loading-home-main",
+            type="circle",
+            children=html.Div(id='home-main-content')
+        )
     ])
+
 
 def register_callbacks(app):
     """Enregistre tous les callbacks spécifiques à la page d'accueil"""

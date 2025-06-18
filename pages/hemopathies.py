@@ -17,9 +17,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Distribution des diagnostics')),
                     dbc.CardBody([
-                        html.Div(
-                            id='hemopathies-barplot-simple',
-                            style={'height': '400px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='hemopathies-barplot-simple',
+                                style={'height': '400px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -32,9 +37,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Distribution normalisée des diagnostics')),
                     dbc.CardBody([
-                        html.Div(
-                            id='hemopathies-barplot-normalized',
-                            style={'height': '400px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='hemopathies-barplot-normalized',
+                                style={'height': '400px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -47,9 +57,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Performance Scores par diagnostic')),
                     dbc.CardBody([
-                        html.Div(
-                            id='hemopathies-performance-scores-boxplot',
-                            style={'height': '500px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='hemopathies-performance-scores-boxplot',
+                                style={'height': '500px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -62,9 +77,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Répartition des diagnostics principaux par année')),
                     dbc.CardBody([
-                        html.Div(
-                            id='hemopathies-datatable',
-                            style={'height': '500px', 'overflow': 'auto'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='hemopathies-datatable',
+                                style={'height': '500px', 'overflow': 'auto'}
+                            )
                         )
                     ], className='p-2')
                 ])

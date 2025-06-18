@@ -7,7 +7,7 @@ import modules.dashboard_layout as layouts
 import visualizations.allogreffes.graphs as gr
 
 def get_layout():
-    """Retourne le layout de la page Procedures avec graphiques empilés verticalement"""
+    """Retourne le layout de la page Procedures avec graphiques empilés verticalement et spinners"""
     return dbc.Container([
         # Premier graphique - Évolution par année avec sélecteur intégré
         dbc.Row([
@@ -33,9 +33,13 @@ def get_layout():
                         })
                     ]),
                     dbc.CardBody([
-                        html.Div(
-                            id='procedures-main-chart',
-                            style={'height': '500px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-procedures-main",
+                            type="circle",
+                            children=html.Div(
+                                id='procedures-main-chart',
+                                style={'height': '500px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -48,9 +52,13 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Analyse du statut CMV (Cytomégalovirus)')),
                     dbc.CardBody([
-                        html.Div(
-                            id='procedures-cmv-charts',
-                            style={'height': '450px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-procedures-cmv",
+                            type="circle",
+                            children=html.Div(
+                                id='procedures-cmv-charts',
+                                style={'height': '450px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -63,9 +71,13 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Traitements Prophylactiques')),
                     dbc.CardBody([
-                        html.Div(
-                            id='procedures-prophylaxis-chart',
-                            style={'height': '420px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-procedures-prophylaxis",
+                            type="circle",
+                            children=html.Div(
+                                id='procedures-prophylaxis-chart',
+                                style={'height': '420px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -78,9 +90,13 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Traitements de Préparation')),
                     dbc.CardBody([
-                        html.Div(
-                            id='procedures-treatment-chart',
-                            style={'height': '420px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-procedures-treatment",
+                            type="circle",
+                            children=html.Div(
+                                id='procedures-treatment-chart',
+                                style={'height': '420px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -99,60 +115,31 @@ def get_layout():
                             children=[
                                 dcc.Tab(label='Aplasie - Vue globale', value='tab-global'),
                                 dcc.Tab(label='Aplasie - Par années', value='tab-stratified'),
-                                dcc.Tab(label='Thrombopénie - Vue globale', value='tab-thrombopenie-global'),
-                                dcc.Tab(label='Thrombopénie - Par années', value='tab-thrombopenie-stratified')
+                                dcc.Tab(label='Thrombopénie - Vue globale', value='tab-thrombopenia-global'),
+                                dcc.Tab(label='Thrombopénie - Par années', value='tab-thrombopenia-stratified')
                             ]
                         ),
                         html.Div(
-                            id='procedures-aplasia-tab-content',
-                            style={'marginTop': '20px'}
+                            style={'marginTop': '20px', 'height': '500px'},
+                            children=[
+                                dcc.Loading(
+                                    id="loading-procedures-aplasia",
+                                    type="circle",
+                                    children=html.Div(
+                                        id='procedures-aplasia-tab-content',
+                                        style={'height': '100%', 'overflow': 'hidden'}
+                                    )
+                                )
+                            ]
                         )
-                    ], className='p-2')
+                    ], className='p-3')
                 ])
             ], width=12)
-        ], class_name='mb-4'),
+        ], className='mb-4'),
 
-        dbc.Row([
-            # Tableau 1 - Résumé des colonnes
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
-                    dbc.CardBody([
-                        html.Div(id='procedures-missing-summary-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
-                        ])
-                    ])
-                ])
-            ], width=6),
-            
-            # Tableau 2 - Patients concernés  
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader([
-                        html.Div([
-                            html.H5("Patients concernés", className='mb-0'),
-                            dbc.Button(
-                                [html.I(className="fas fa-download me-2"), "Export CSV"],
-                                id="export-missing-procedures-button",
-                                color="primary",
-                                size="sm",
-                                disabled=True,  # Désactivé par défaut
-                            )
-                        ], className="d-flex justify-content-between align-items-center")
-                    ]),
-                    dbc.CardBody([
-                        html.Div(id='procedures-missing-detail-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
-                        ]),
-                        # Composant pour télécharger le fichier CSV (invisible)
-                        dcc.Download(id="download-missing-procedures-csv")
-                    ])
-                ])
-            ], width=6)
-        ])
-
-    ], fluid=True)
-
+        # Filtre des années (optionnel si vous en avez un)
+        dcc.Store(id='procedures-year-filter')  # Store pour les filtres d'années
+    ])
 
 def get_main_chart_variable_options(data):
     """
@@ -367,6 +354,9 @@ def register_callbacks(app):
         if filtered_df.empty:
             return html.Div('Aucune donnée pour les années sélectionnées', className='text-warning text-center')
         
+        # Initialiser fig à None pour éviter l'erreur
+        fig = None
+        
         try:
             if active_tab == 'tab-global':
                 # Vue globale aplasie
@@ -390,11 +380,10 @@ def register_callbacks(app):
                     y_axis_title="Nombre de patients",
                     bin_size=2,
                     height=400,
-                    color_histogram='#27BDBE',
-                    color_density='#FF6B6B',
+                    opacity=0.6,
                     percentile_limit=0.99
                 )
-                    
+
             elif active_tab == 'tab-stratified':
                 # Vue stratifiée par années aplasie
                 required_cols = ['Anc Recovery', 'Treatment Date', 'Date Anc Recovery']
@@ -442,7 +431,7 @@ def register_callbacks(app):
                             className='text-muted text-center', style={'fontSize': '12px'})
                     ])
 
-            elif active_tab == 'tab-thrombopenie-global':
+            elif active_tab == 'tab-thrombopenia-global':
                 # Vue globale thrombopénie
                 required_cols = ['Platelet Reconstitution', 'Treatment Date', 'Date Platelet Reconstitution']
                 missing_cols = [col for col in required_cols if col not in df.columns]
@@ -469,7 +458,7 @@ def register_callbacks(app):
                     percentile_limit=0.99
                 )
 
-            elif active_tab == 'tab-thrombopenie-stratified':
+            elif active_tab == 'tab-thrombopenia-stratified':
                 # Vue stratifiée par années thrombopénie
                 required_cols = ['Platelet Reconstitution', 'Treatment Date', 'Date Platelet Reconstitution']
                 missing_cols = [col for col in required_cols if col not in df.columns]
@@ -516,17 +505,25 @@ def register_callbacks(app):
                             className='text-muted text-center', style={'fontSize': '12px'})
                     ])
             
-            return dcc.Graph(
-                figure=fig,
-                style={'height': '100%'},
-                config={'responsive': True, 'displayModeBar': False}
-            )
+            # Vérifier si fig a été défini avant de l'utiliser
+            if fig is not None:
+                return dcc.Graph(
+                    figure=fig,
+                    style={'height': '100%'},
+                    config={'responsive': True, 'displayModeBar': False}
+                )
+            else:
+                return html.Div([
+                    html.P("Onglet non reconnu ou erreur de configuration", className='text-warning text-center'),
+                    html.P(f"Onglet actuel reçu: '{active_tab}'", className='text-muted text-center', style={'fontSize': '10px'})
+                ])
         
         except Exception as e:
             return html.Div([
                 html.P(f'Erreur lors du calcul: {str(e)}', className='text-danger text-center'),
                 html.P('Vérifiez que les colonnes de dates contiennent des données valides', className='text-muted text-center', style={'fontSize': '10px'})
             ])
+
     
     @app.callback(
         Output('procedures-treatment-chart', 'children'),

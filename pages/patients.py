@@ -17,11 +17,16 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    #dbc.CardHeader(html.H5('Distribution normalisée à 100%')),
+                    dbc.CardHeader(html.H5('Distribution normalisée à 100%')),
                     dbc.CardBody([
-                        html.Div(
-                            id='patients-normalized-chart',
-                            style={'height': '450px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='patients-normalized-chart',
+                                style={'height': '450px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -32,12 +37,17 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    #dbc.CardHeader(html.H5('Distribution des effectifs')),
+                    dbc.CardHeader(html.H5('Distribution des effectifs')),
                     dbc.CardBody([
-                        html.Div(
-                            id='patients-distribution-chart',
-                            style={'height': '450px', 'overflow': 'hidden'}
-                        )
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='patients-distribution-chart',
+                                style={'height': '450px', 'overflow': 'hidden'}
+                            )
+                    )
                     ], className='p-2')
                 ])
             ], width=12)
@@ -47,11 +57,16 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    #dbc.CardHeader(html.H5('Boxplot - Age At Diagnosis')),
+                    dbc.CardHeader(html.H5('Boxplot - Age At Diagnosis')),
                     dbc.CardBody([
-                        html.Div(
-                            id='patients-boxplot-chart',
-                            style={'height': '450px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='patients-boxplot-chart',
+                                style={'height': '450px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])
@@ -73,7 +88,7 @@ def get_layout():
                                     id="export-csv-button",
                                     color="primary",
                                     size="sm",
-                                    disabled=False,  # Désactivé par défaut
+                                    disabled=False,
                                     className="float-end"
                                 )
                             ], width=4, className="d-flex justify-content-end align-items-center")
@@ -97,9 +112,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H5('Performance Scores par tranche d\'âge')),
                     dbc.CardBody([
-                        html.Div(
-                            id='patients-performance-scores-boxplot',
-                            style={'height': '500px', 'overflow': 'hidden'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='patients-performance-scores-boxplot',
+                                style={'height': '500px', 'overflow': 'hidden'}
+                            )
                         )
                     ], className='p-2')
                 ])

@@ -17,9 +17,14 @@ def get_layout():
         # Zone principale pour l'affichage de l'indicateur sélectionné
         dbc.Row([
             dbc.Col([
-                html.Div(
-                    id='indicator-content',
-                    style={'min-height': '600px'}
+                dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                    html.Div(
+                        id='indicator-content',
+                        style={'min-height': '600px'}
+                    )
                 )
             ], width=12)
         ], className='mb-4'),

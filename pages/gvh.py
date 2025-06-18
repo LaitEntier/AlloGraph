@@ -18,9 +18,14 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(html.H4('Analyse des Risques Compétitifs GvH')),
                     dbc.CardBody([
-                        html.Div(
-                            id='gvh-main-graph',
-                            style={'height': '800px', 'width': '100%'}
+                        dcc.Loading(
+                            id="loading-patients-normalized",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='gvh-main-graph',
+                                style={'height': '800px', 'width': '100%'}
+                            )
                         )
                     ], className='p-2')
                 ])
