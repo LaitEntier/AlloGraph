@@ -80,16 +80,25 @@ def get_asset_path(filename):
         # Mode développement
         return os.path.join('assets', filename)
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
+
 # Initialisation de l'app Dash
 app = dash.Dash(
     __name__, 
+    assets_folder=resource_path('assets'),
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
         dbc.icons.BOOTSTRAP
     ],
     suppress_callback_exceptions=True,
-    assets_folder=os.path.join(os.getcwd(), 'assets'),
-    assets_url_path='/assets',
 )
 app.title = "AlloGraph"
 
@@ -661,15 +670,6 @@ def purge_data(confirm_clicks):
         return None, None, success_message
     
     return dash.no_update, dash.no_update, dash.no_update
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, for PyInstaller """
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
-
-css_path = resource_path("assets/css/custom-styles.css")
-logo_path = resource_path("assets/images/logo.svg")
 
 server = app.server
 
