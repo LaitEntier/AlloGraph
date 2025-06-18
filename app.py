@@ -662,6 +662,15 @@ def purge_data(confirm_clicks):
     
     return dash.no_update, dash.no_update, dash.no_update
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, for PyInstaller """
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
+css_path = resource_path("assets/css/custom-styles.css")
+logo_path = resource_path("assets/images/logo.svg")
+
 server = app.server
 
 if __name__ == '__main__':

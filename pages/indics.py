@@ -8,6 +8,7 @@ from plotly.subplots import make_subplots
 
 # Import des modules communs
 import modules.dashboard_layout as layouts
+import visualizations.allogreffes.graphs as gr
 
 def get_layout():
     """Retourne le layout de la page Indicateurs"""
@@ -20,7 +21,56 @@ def get_layout():
                     style={'min-height': '600px'}
                 )
             ], width=12)
+        ], className='mb-4'),
+
+    dbc.Row([
+            # Tableau 1 - Résumé des colonnes
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Résumé par colonne", className='mb-0'),
+                            html.Small(
+                                id='indicators-missing-subtitle',
+                                className='text-muted',
+                                children="Sélectionnez un indicateur"
+                            )
+                        ])
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='indicators-missing-summary-table', children=[
+                            dbc.Alert("Sélectionnez un indicateur pour voir l'analyse des données manquantes", color='info')
+                        ])
+                    ])
+                ])
+            ], width=6),
+            
+            # Tableau 2 - Patients concernés  
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Patients concernés", className='mb-0'),
+                            dbc.Button(
+                                [html.I(className="fas fa-download me-2"), "Export CSV"],
+                                id="export-missing-indicators-button",
+                                color="primary",
+                                size="sm",
+                                disabled=True,  # Désactivé par défaut
+                            )
+                        ], className="d-flex justify-content-between align-items-center")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='indicators-missing-detail-table', children=[
+                            dbc.Alert("Sélectionnez un indicateur pour voir les patients concernés", color='info')
+                        ]),
+                        # Composant pour télécharger le fichier CSV (invisible)
+                        dcc.Download(id="download-missing-indicators-csv")
+                    ])
+                ])
+            ], width=6)
         ])
+
     ], fluid=True)
 
 def create_indicators_sidebar_content(data):
@@ -1800,6 +1850,198 @@ def register_callbacks(app):
             ], color="info")
         
         return content, year_note_style
+
+    @app.callback(
+        [Output('indicators-missing-summary-table', 'children'),
+         Output('indicators-missing-subtitle', 'children')],
+        [Input('indicator-selection', 'value'),
+         Input('data-store', 'data'), 
+         Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def indicators_missing_summary_callback(indicator, data, current_page):
+        """Gère le tableau de résumé des données manquantes pour Indicateurs"""
+        
+        if current_page != 'Indicateurs' or not data or not indicator:
+            return (html.Div("En attente...", className='text-muted'), 
+                    "Sélectionnez un indicateur")
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Obtenir les variables pour l'indicateur sélectionné
+            variables_to_analyze, indicator_name = get_variables_for_indicator(indicator)
+            
+            if not variables_to_analyze:
+                return (dbc.Alert("Indicateur non reconnu", color='warning'),
+                        f"Erreur - {indicator}")
+            
+            # Vérifier quelles variables existent réellement
+            existing_columns = [col for col in variables_to_analyze if col in df.columns]
+            
+            if not existing_columns:
+                return (dbc.Alert(f"Aucune variable trouvée pour {indicator_name}", color='warning'),
+                        f"{indicator_name}")
+            
+            # Utiliser la fonction existante de graphs.py
+            missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            table = dash_table.DataTable(
+                data=missing_summary.to_dict('records'),
+                columns=[
+                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Total", "id": "Total patients", "type": "numeric"},
+                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
+                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                     "format": {"specifier": ".1f"}}
+                ],
+                style_table={'height': '300px', 'overflowY': 'auto'},
+                style_cell={
+                    'textAlign': 'center',
+                    'padding': '8px',
+                    'fontSize': '12px',
+                    'fontFamily': 'Arial, sans-serif'
+                },
+                style_header={
+                    'backgroundColor': '#0D3182',
+                    'color': 'white',
+                    'fontWeight': 'bold'
+                },
+                style_data_conditional=[
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {
+                        'if': {
+                            'filter_query': '{Pourcentage manquant} > 20',
+                            'column_id': 'Pourcentage manquant'
+                        },
+                        'backgroundColor': '#ffebee',
+                        'color': 'red',
+                        'fontWeight': 'bold'
+                    }
+                ]
+            )
+            
+            return table, f"Variables pour {indicator_name}"
+            
+        except Exception as e:
+            return (dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'),
+                    f"Erreur - {indicator}")
+
+    @app.callback(
+        [Output('indicators-missing-detail-table', 'children'),
+         Output('export-missing-indicators-button', 'disabled')],
+        [Input('indicator-selection', 'value'),
+         Input('data-store', 'data'), 
+         Input('current-page', 'data')],
+        prevent_initial_call=False
+    )
+    def indicators_missing_detail_callback(indicator, data, current_page):
+        """Gère le tableau détaillé des patients avec données manquantes pour Indicateurs"""
+        
+        if current_page != 'Indicateurs' or not data or not indicator:
+            return (html.Div("En attente...", className='text-muted'), True)
+        
+        try:
+            df = pd.DataFrame(data)
+            
+            # Obtenir les variables pour l'indicateur sélectionné
+            variables_to_analyze, indicator_name = get_variables_for_indicator(indicator)
+            
+            if not variables_to_analyze:
+                return (dbc.Alert("Indicateur non reconnu", color='warning'), True)
+            
+            # Vérifier quelles variables existent réellement
+            existing_columns = [col for col in variables_to_analyze if col in df.columns]
+            
+            if not existing_columns:
+                return (dbc.Alert(f"Aucune variable trouvée pour {indicator_name}", color='warning'), True)
+            
+            # Utiliser la fonction existante de graphs.py
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            if detailed_missing.empty:
+                return (dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True)
+            
+            # Adapter les noms de colonnes pour correspondre au format attendu
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
+                    'Nb manquant': row['Nombre de colonnes manquantes']
+                })
+            
+            # Sauvegarder les données pour l'export avec l'indicateur
+            app.server.missing_indicators_data = {
+                'data': detailed_data,
+                'indicator': indicator,
+                'indicator_name': indicator_name
+            }
+            
+            table_content = html.Div([
+                dash_table.DataTable(
+                    data=detailed_data,
+                    columns=[
+                        {"name": "Long ID", "id": "Long ID"},
+                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
+                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                    ],
+                    style_table={'height': '300px', 'overflowY': 'auto'},
+                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
+                    style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
+                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}],
+                    filter_action='native',
+                    sort_action='native',
+                    page_size=10
+                )
+            ])
+            
+            return table_content, False  # Activer le bouton d'export
+            
+        except Exception as e:
+            return (dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True)
+
+    @app.callback(
+        Output("download-missing-indicators-csv", "data"),
+        Input("export-missing-indicators-button", "n_clicks"),
+        prevent_initial_call=True
+    )
+    def export_missing_indicators_csv(n_clicks):
+        """Gère l'export CSV des patients avec données manquantes pour Indicateurs"""
+        if n_clicks is None:
+            return dash.no_update
+        
+        try:
+            # Récupérer les données stockées
+            if (hasattr(app.server, 'missing_indicators_data') and 
+                app.server.missing_indicators_data and 
+                app.server.missing_indicators_data.get('data')):
+                
+                missing_data = app.server.missing_indicators_data['data']
+                indicator = app.server.missing_indicators_data.get('indicator', 'unknown')
+                indicator_name = app.server.missing_indicators_data.get('indicator_name', 'unknown')
+                
+                missing_df = pd.DataFrame(missing_data)
+                
+                # Générer un nom de fichier avec la date et l'indicateur
+                from datetime import datetime
+                current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+                # Nettoyer le nom de l'indicateur pour le nom de fichier
+                clean_indicator = indicator.replace(' ', '_').replace('(', '').replace(')', '').replace('é', 'e').replace('è', 'e').replace('à', 'a')
+                filename = f"indicateurs_{clean_indicator}_donnees_manquantes_{current_date}.csv"
+                
+                return dcc.send_data_frame(
+                    missing_df.to_csv, 
+                    filename=filename,
+                    index=False
+                )
+            else:
+                return dash.no_update
+                
+        except Exception as e:
+            print(f"Erreur lors de l'export CSV Indicateurs: {e}")
+            return dash.no_update
+
     
 def create_gvha_datatable(result_combined):
     """
@@ -2700,3 +2942,81 @@ def create_gvhc_visualization(df, selected_year):
         ])
     except Exception as e:
         return dbc.Alert(f"Erreur lors du calcul des indicateurs GVH chronique: {str(e)}", color="danger")
+    
+def get_variables_for_indicator(indicator):
+    """
+    Retourne les variables à analyser pour chaque indicateur
+    
+    Args:
+        indicator (str): Code de l'indicateur sélectionné
+        
+    Returns:
+        tuple: (variables_list, indicator_name)
+    """
+    variables_config = {
+        'TRM': {
+            'variables': [
+                'Year',
+                'Status Last Follow Up',
+                'Death Cause',
+                'Treatment Date',
+                'Date Of Last Follow Up'
+            ],
+            'name': 'TRM (Mortalité liée au traitement)'
+        },
+        'survie_globale': {
+            'variables': [
+                'Year',
+                'Status Last Follow Up',
+                'Treatment Date',
+                'Date Of Last Follow Up'
+            ],
+            'name': 'Survie globale'
+        },
+        'prise_greffe': {
+            'variables': [
+                'Year',
+                'Date Platelet Reconstitution',
+                'Treatment Date'
+            ],
+            'name': 'Prise de greffe'
+        },
+        'sortie_aplasie': {
+            'variables': [
+                'Year',
+                'Date Anc Recovery',
+                'Treatment Date'
+            ],
+            'name': 'Sortie d\'aplasie'
+        },
+        'gvha': {
+            'variables': [
+                'Year',
+                'First Agvhd Occurrence Date',
+                'Treatment Date',
+                'First aGvHD Maximum Score'
+            ],
+            'name': 'GVH aiguë'
+        },
+        'gvhc': {
+            'variables': [
+                'Year',
+                'First Cgvhd Occurrence Date',
+                'Treatment Date',
+                'First cGvHD Maximum NIH Score'
+            ],
+            'name': 'GVH chronique'
+        },
+        'rechute': {
+            'variables': [
+                'Year',
+                'First Relapse',
+                'First Relapse Date',
+                'Treatment Date'
+            ],
+            'name': 'Rechute'
+        }
+    }
+    
+    config = variables_config.get(indicator, {})
+    return config.get('variables', []), config.get('name', 'Indicateur inconnu')

@@ -6,10 +6,6 @@
     border-radius: 0 0 8px 8px;
 }
 
-.logo-title-container {
-    transition: transform 0.2s ease;
-}
-
 /* Titre principal */
 .main-title {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
