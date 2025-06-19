@@ -37,7 +37,7 @@ Comprehensive dashboard of key performance indicators including treatment-relate
 ## Technical Requirements
 
 ### System Prerequisites
-- Python 3.8 or higher
+- Python 3.10
 - Package manager (pip or conda)
 
 ### Dependencies
