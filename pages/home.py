@@ -6,6 +6,7 @@ import pandas as pd
 
 # Import des modules communs
 import visualizations.allogreffes.graphs as gr
+from modules.translations import t
 
 def get_layout():
     """Retourne le layout de la page d'accueil"""
@@ -24,9 +25,9 @@ def register_callbacks(app):
     
     @app.callback(
         Output('home-main-content', 'children'),
-        Input('data-store', 'data')
+        [Input('data-store', 'data'), Input('lang-store', 'data')]
     )
-    def update_home_content(data):
+    def update_home_content(data, lang):
         """Met à jour le contenu principal de la page d'accueil"""
         
         if data is not None:
@@ -74,9 +75,9 @@ def register_callbacks(app):
         
         else:
             # Pas de données : afficher le message d'accueil
-            return create_welcome_content()
+            return create_welcome_content(lang)
 
-def create_welcome_content():
+def create_welcome_content(lang='fr'):
     """Crée le contenu d'accueil quand aucune donnée n'est chargée"""
     return dbc.Card([
         dbc.CardBody([
@@ -84,108 +85,99 @@ def create_welcome_content():
             html.Div([
                 html.H1([
                     html.I(className="fas fa-chart-line me-3", style={'color': '#0D3182'}),
-                    "Bienvenue dans AlloGraph"
+                    t('home_welcome_title', lang)
                 ], className="text-center mb-4"),
                 html.Hr()
             ]),
-            
             # Description
             html.Div([
                 html.P([
-                    "Cette application vous permet d'analyser des données de patients depuis le ",
-                    html.Strong("modèle de données de l'EBMT Registry"),
-                    ". Explorez les distributions, tendances et corrélations dans vos données de greffe."
+                    t('home_description', lang),
+                    html.Strong(t('home_description_strong', lang)),
+                    t('home_description_end', lang)
                 ], className="lead text-center mb-4"),
             ]),
-            
             # Instructions
             html.Div([
-                html.H4("🔎 Pour commencer :", className="mb-3"),
+                html.H4(t('home_start_title', lang), className="mb-3"),
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-upload me-2", style={'color': '#28a745'}),
-                                    "1. Chargez vos données"
+                                    t('home_step1_title', lang)
                                 ]),
                                 html.P([
-                                    "Utilisez le bouton de téléchargement dans la barre latérale pour charger votre fichier ",
-                                    html.Code("CSV"), " ou ", html.Code("Excel"), "."
+                                    t('home_step1_desc', lang),
+                                    html.Code(t('home_step1_csv', lang)),
+                                    t('home_step1_or', lang),
+                                    html.Code(t('home_step1_excel', lang)),
+                                    t('home_step1_end', lang)
                                 ])
                             ])
                         ], color="light", outline=True)
                     ], width=6),
-                    
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-chart-bar me-2", style={'color': '#007bff'}),
-                                    "2. Explorez les analyses"
+                                    t('home_step2_title', lang)
                                 ]),
                                 html.P([
-                                    "Naviguez entre les différentes pages d'analyse : ",
-                                    html.Strong("Patients"), ", ", 
-                                    html.Strong("Hémopathies"), ", etc."
+                                    t('home_step2_desc', lang),
+                                    html.Strong(t('home_step2_patients', lang)), ", ",
+                                    html.Strong(t('home_step2_hemo', lang)),
+                                    t('home_step2_etc', lang)
                                 ])
                             ])
                         ], color="light", outline=True)
                     ], width=6)
                 ], className="mb-4"),
-                
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-filter me-2", style={'color': '#ffc107'}),
-                                    "3. Filtrez et stratifiez"
+                                    t('home_step3_title', lang)
                                 ]),
-                                html.P([
-                                    "Utilisez les contrôles de la barre latérale pour filtrer par année, ",
-                                    "stratifier par variables, et personnaliser vos analyses."
-                                ])
+                                html.P(t('home_step3_desc', lang))
                             ])
                         ], color="light", outline=True)
                     ], width=6),
-                    
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-download me-2", style={'color': '#6f42c1'}),
-                                    "4. Exportez vos résultats"
+                                    t('home_step4_title', lang)
                                 ]),
-                                html.P([
-                                    "Téléchargez vos graphiques et tableaux pour vos rapports ",
-                                    "et présentations."
-                                ])
+                                html.P(t('home_step4_desc', lang))
                             ])
                         ], color="light", outline=True)
                     ], width=6)
                 ])
             ]),
-            
             # Informations techniques
             html.Hr(),
             html.Div([
-                html.H5("📋 Formats supportés :", className="mb-2"),
+                html.H5(t('home_formats_title', lang), className="mb-2"),
                 dbc.Row([
                     dbc.Col([
                         html.Ul([
-                            html.Li([html.I(className="fas fa-file-csv me-2"), "Fichiers CSV (.csv)"]),
-                            html.Li([html.I(className="fas fa-file-excel me-2"), "Fichiers Excel (.xlsx, .xls)"]),
+                            html.Li([html.I(className="fas fa-file-csv me-2"), t('home_format_csv', lang)]),
+                            html.Li([html.I(className="fas fa-file-excel me-2"), t('home_format_excel', lang)]),
                         ], className="list-unstyled")
                     ], width=6),
                     dbc.Col([
                         html.Ul([
-                            html.Li([html.I(className="fas fa-database me-2"), "Données structurées"]),
-                            html.Li([html.I(className="fas fa-chart-pie me-2"), "sur le modèle EBMT"])
+                            html.Li([html.I(className="fas fa-database me-2"), t('home_format_struct', lang)]),
+                            html.Li([html.I(className="fas fa-chart-pie me-2"), t('home_format_ebmt', lang)])
                         ], className="list-unstyled")
                     ], width=6)
                 ])
             ], className="text-muted")
-            
         ], className="p-4")
     ])

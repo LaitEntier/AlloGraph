@@ -8,7 +8,7 @@ def create_header_with_logo():
     return dbc.Row([
         dbc.Col([
             html.Div([
-                # Section supérieure : Logo et titre
+                # Section supérieure : Logo, titre, et switch langue à droite
                 html.Div([
                     # Logo à gauche
                     html.Img(
@@ -24,29 +24,61 @@ def create_header_with_logo():
                     html.H1([
                         html.Span("Allo", style={'color': '#2c3e50'}),
                         html.Span("Graph", style={'color': '#c0392b'})
-                    ], className="main-title", style={
+                    ], id={'type': 'main-title', 'index': 0}, className="main-title", style={
                         'margin': '0',
                         'fontSize': '32px',
                         'fontWeight': 'bold',
                         'fontFamily': 'Arial, sans-serif'
-                    })
+                    }),
+                    # Switch langue dans le coin supérieur droit
+                    html.Div([
+                        html.Button(
+                            id='lang-switch-btn',
+                            children=[
+                                html.Span(id='lang-switch-label', children='FR 🇫🇷', style={'fontWeight': 'bold'})
+                            ],
+                            n_clicks=0,
+                            style={
+                                'borderRadius': '50%',
+                                'width': '48px',
+                                'height': '48px',
+                                'border': 'none',
+                                'backgroundColor': '#f0f0f0',
+                                'boxShadow': '0 2px 6px rgba(0,0,0,0.08)',
+                                'display': 'flex',
+                                'alignItems': 'center',
+                                'justifyContent': 'center',
+                                'fontSize': '18px',
+                                'marginLeft': 'auto',
+                                'marginRight': '0',
+                                'position': 'absolute',
+                                'top': '0',
+                                'right': '0',
+                                'zIndex': '2000',
+                                'cursor': 'pointer',
+                                'transition': 'background 0.2s'
+                            },
+                            className='lang-switch-btn'
+                        )
+                    ], style={'position': 'relative', 'width': '100%'})
                 ], style={
                     'display': 'flex',
                     'alignItems': 'center',
                     'justifyContent': 'flex-start',
-                    'marginBottom': '15px'
+                    'marginBottom': '15px',
+                    'position': 'relative'
                 }),
                 
                 # Section navigation intégrée
                 html.Div([
-                    html.Button('Accueil', id='nav-accueil', className='btn btn-primary me-2 nav-button'),
-                    html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2 nav-button', disabled=False),
-                    html.Button('Hemopathies', id='nav-page1', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('GvH', id='nav-gvh', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Rechute', id='nav-rechute', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Survie', id='nav-survival', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Indicateurs', id='nav-indics', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    html.Button(id='nav-accueil', className='btn btn-primary me-2 nav-button', children='Accueil'),
+                    html.Button(id='nav-patients', className='btn btn-secondary me-2 nav-button', children='Patients', disabled=False),
+                    html.Button(id='nav-page1', className='btn btn-secondary me-2 nav-button', children='Hémopathies', disabled=True),
+                    html.Button(id='nav-procedures', className='btn btn-secondary me-2 nav-button', children='Procédures', disabled=True),
+                    html.Button(id='nav-gvh', className='btn btn-secondary me-2 nav-button', children='GvH', disabled=True),
+                    html.Button(id='nav-rechute', className='btn btn-secondary me-2 nav-button', children='Rechute', disabled=True),
+                    html.Button(id='nav-survival', className='btn btn-secondary me-2 nav-button', children='Survie', disabled=True),
+                    html.Button(id='nav-indics', className='btn btn-secondary me-2 nav-button', children='Indicateurs', disabled=True),
                 ], className='d-flex', style={'flexWrap': 'wrap', 'gap': '8px'})
                 
             ], className="header-container", style={
@@ -65,6 +97,7 @@ def create_base_layout():
         # Store pour les données
         dcc.Store(id='data-store'),
         dcc.Store(id='current-page', data='Accueil'),
+        dcc.Store(id='lang-store', data='fr'),  # Store pour la langue
         
         # Header unifié avec logo, titre et navigation
         create_header_with_logo(),
@@ -91,7 +124,7 @@ def create_base_layout():
         dbc.Row([
             dbc.Col([
                 html.Hr(),
-                html.P('© 2025 - CHRU de Tours - Tous droits réservés', className='text-center text-muted')
+                html.P(id='footer-text', children='© 2025 - CHRU de Tours - Tous droits réservés', className='text-center text-muted')
             ])
         ])
     ], fluid=True, className='p-4')

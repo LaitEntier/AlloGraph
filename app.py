@@ -10,6 +10,7 @@ import plotly
 # Import des modules
 import modules.data_processing as data_processing
 import modules.dashboard_layout as layouts
+from modules.translations import t
 
 # Import des pages
 try:
@@ -670,6 +671,54 @@ def purge_data(confirm_clicks):
         return None, None, success_message
     
     return dash.no_update, dash.no_update, dash.no_update
+
+# === CALLBACK POUR LE SWITCH DE LANGUE ===
+from dash.dependencies import Input, Output, State
+
+@app.callback(
+    [Output('lang-store', 'data'), Output('lang-switch-label', 'children')],
+    [Input('lang-switch-btn', 'n_clicks')],
+    [State('lang-store', 'data')]
+)
+def switch_language_btn(n_clicks, current_lang):
+    if n_clicks is None:
+        lang = current_lang or 'fr'
+    else:
+        lang = 'en' if current_lang == 'fr' else 'fr'
+    label = 'FR 🇫🇷' if lang == 'fr' else 'EN 🇬🇧'
+    return lang, label
+
+@app.callback(
+    Output({'type': 'main-title', 'index': 0}, 'children'),
+    Input('lang-store', 'data')
+)
+def update_main_title(lang):
+    return t('title', lang)
+
+@app.callback(
+    [Output('nav-accueil', 'children'),
+     Output('nav-patients', 'children'),
+     Output('nav-page1', 'children'),
+     Output('nav-procedures', 'children'),
+     Output('nav-gvh', 'children'),
+     Output('nav-rechute', 'children'),
+     Output('nav-survival', 'children'),
+     Output('nav-indics', 'children'),
+     Output('footer-text', 'children')],
+    [Input('lang-store', 'data')]
+)
+def update_nav_and_footer(lang):
+    return (
+        t('nav_home', lang),
+        t('nav_patients', lang),
+        t('nav_hemopathies', lang),
+        t('nav_procedures', lang),
+        t('nav_gvh', lang),
+        t('nav_relapse', lang),
+        t('nav_survival', lang),
+        t('nav_indics', lang),
+        t('footer', lang)
+    )
 
 server = app.server
 
