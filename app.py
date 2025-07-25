@@ -674,20 +674,12 @@ def purge_data(confirm_clicks):
 server = app.server
 
 if __name__ == '__main__':
-    import webbrowser
-    import threading
-    import time
+    app.run_server(
+        host='0.0.0.0',
+        port=8000,
+        debug=False  # Important pour la production
+    )
     
-    def open_browser():
-        """Ouvre le navigateur après un petit délai"""
-        time.sleep(1.5)  # Attendre que le serveur soit démarré
-        webbrowser.open('http://127.0.0.1:8050')
-    
-    # Lancer l'ouverture du navigateur dans un thread séparé
-    threading.Timer(1.0, open_browser).start()
-    
-    # Démarrer l'application
-    app.run(debug=False, host='127.0.0.1', port=8050)
 else:
     # Pour la production Heroku
     server = app.server
