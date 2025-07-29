@@ -99,7 +99,7 @@ app = dash.Dash(
     ],
     suppress_callback_exceptions=True,
     assets_folder='assets',
-    assets_url_path='/assets',
+    assets_url_path='allograph-app/assets',
 )
 app.title = "AlloGraph"
 
