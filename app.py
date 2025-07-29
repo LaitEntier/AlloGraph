@@ -93,12 +93,13 @@ def resource_path(relative_path):
 # Initialisation de l'app Dash
 app = dash.Dash(
     __name__, 
-    assets_folder=resource_path('assets'),
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
         dbc.icons.BOOTSTRAP
     ],
     suppress_callback_exceptions=True,
+    assets_folder='assets',
+    assets_url_path='/assets',
 )
 app.title = "AlloGraph"
 
