@@ -12,7 +12,7 @@ def create_header_with_logo():
                 html.Div([
                     # Logo à gauche
                     html.Img(
-                        src="/assets/images/logo.svg",
+                        src="allograph-app/assets/images/logo.svg",
                         className="app-logo",
                         style={
                             'height': '50px',
