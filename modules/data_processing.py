@@ -128,6 +128,8 @@ def process_data(df):
     df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
     df['Year'] = df['Treatment Date'].dt.year.astype(str)
 
+    df['Date Diagnosis'] = pd.to_datetime(df['Date Diagnosis'], errors='coerce')
+    df['Date Of Birth'] = pd.to_datetime(df['Date Of Birth'], errors='coerce')
     # Calculer l'age au diagnostic en années
     df['Age At Diagnosis'] = (df['Date Diagnosis'] - df['Date Of Birth']).dt.days // 365.25
 

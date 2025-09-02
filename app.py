@@ -182,12 +182,58 @@ def update_sidebar(current_page, data, metadata):
     if current_page == 'Home':
         # Sidebar pour l'upload sur la page d'accueil
         if data is None:
-            # Pas de données : afficher l'upload
+            # Pas de données : afficher l'upload ET le bouton test sample
             content = html.Div([
-                layouts.create_upload_component(),
-                html.Div(id='upload-status')
+                # Section upload classique
+                html.Div([
+                    html.H6("Upload your data:", className="mb-2"),
+                    layouts.create_upload_component(),
+                    html.Div(id='upload-status')
+                ], className="mb-4"),
+                
+                # Séparateur
+                html.Div([
+                    html.Div(style={
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'textAlign': 'center',
+                        'margin': '20px 0'
+                    }, children=[
+                        html.Div(style={
+                            'flex': '1',
+                            'height': '1px',
+                            'backgroundColor': '#dee2e6'
+                        }),
+                        html.Span("Or", style={
+                            'padding': '0 15px',
+                            'color': '#6c757d',
+                            'fontSize': '12px',
+                            'fontWeight': '500',
+                            'textTransform': 'uppercase'
+                        }),
+                        html.Div(style={
+                            'flex': '1',
+                            'height': '1px',
+                            'backgroundColor': '#dee2e6'
+                        })
+                    ])
+                ]),
+                
+                # Section test sample
+                html.Div([
+                    html.H6("Test with sample data:", className="mb-2"),
+                    html.P("Load a test dataset to explore the application.", 
+                          className="text-muted", style={'fontSize': '11px'}),
+                    dbc.Button([
+                        html.I(className="fas fa-flask me-2"),
+                        "Load test sample"
+                    ], 
+                    id="load-test-sample-btn", 
+                    className="btn btn-secondary nav-button w-100",
+                    size="sm")
+                ])
             ])
-            return layouts.create_sidebar_layout('Upload', content)
+            return layouts.create_sidebar_layout('Data', content)
         else:
             df = pd.DataFrame(data)
             
@@ -457,7 +503,67 @@ def toggle_purge_button_visibility(data):
         return {'display': 'block'}
     else:
         return {'display': 'none'}
+
+@app.callback(
+    [Output('data-store', 'data', allow_duplicate=True),
+     Output('metadata-store', 'data', allow_duplicate=True),
+     Output('upload-status', 'children', allow_duplicate=True)],
+    Input('load-test-sample-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
+def load_test_sample(n_clicks):
+    """Charge le fichier test sample quand le bouton est cliqué"""
+    if n_clicks is None:
+        return dash.no_update, dash.no_update, dash.no_update
     
+    try:
+        # Chemin vers le fichier test sample
+        test_file_path = 'data/test_sample.csv'
+        
+        # Vérifier que le fichier existe
+        if not os.path.exists(test_file_path):
+            return (dash.no_update, dash.no_update, 
+                    dbc.Alert('Test sample file not found: data/test_sample.csv', 
+                             color='danger'))
+        
+        # Charger le fichier CSV
+        df_original = pd.read_csv(test_file_path)
+        
+        # Stocker les dimensions originales
+        original_shape = df_original.shape
+        
+        # Traitement des données (même logique que l'upload)
+        df_processed = data_processing.process_data(df_original)
+        processed_shape = df_processed.shape
+        
+        # Créer les métadonnées
+        metadata = {
+            'original_shape': original_shape,
+            'processed_shape': processed_shape,
+            'filename': 'test_sample.csv (sample data)'
+        }
+        
+        # Message de succès
+        success_message = dbc.Alert([
+            html.H6("✅ Test sample loaded successfully!", className="mb-2"),
+            html.P([
+                "📁 ", html.Strong("test_sample.csv (sample data)")
+            ], className="mb-2", style={'fontSize': '12px'}),
+            html.P([
+                "📊 Original data: ", 
+                html.Strong(f"{original_shape[0]:,} lines × {original_shape[1]} columns")
+            ], className="mb-1", style={'fontSize': '11px'}),
+            html.P([
+                "⚙️ After processing: ", 
+                html.Strong(f"{processed_shape[0]:,} lines × {processed_shape[1]} columns")
+            ], className="mb-0", style={'fontSize': '11px'})
+        ], color='info')
+        
+        return df_processed.to_dict('records'), metadata, success_message
+    
+    except Exception as e:
+        return (dash.no_update, dash.no_update, 
+                dbc.Alert(f'Error loading test sample: {str(e)}', color='danger'))
 server = app.server
 
 home_page.register_callbacks(app)
