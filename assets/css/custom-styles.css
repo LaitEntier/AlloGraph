@@ -122,3 +122,126 @@
         margin-left: 0 !important;
     }
 }
+
+/* Notification Toast Survey - Style AlloGraph */
+.survey-toast {
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    max-width: 380px !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+}
+
+/* Header du toast avec gradient comme votre header */
+.survey-toast .toast-header {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+    color: white !important;
+    border: none !important;
+    padding: 12px 16px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+/* Body du toast */
+.survey-toast .toast-body {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    padding: 16px !important;
+    color: #2c3e50 !important;
+}
+
+/* Boutons dans le toast - style cohérent avec vos boutons */
+.survey-toast .btn-primary {
+    background-color: #c0392b !important;
+    border-color: #c0392b !important;
+    transition: all 0.2s ease !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+}
+
+.survey-toast .btn-primary:hover {
+    background-color: #a93226 !important;
+    border-color: #a93226 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+.survey-toast .btn-secondary {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    transition: all 0.2s ease !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    padding: 6px 12px !important;
+}
+
+.survey-toast .btn-secondary:hover {
+    background-color: #5a6268 !important;
+    border-color: #5a6268 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+/* Bouton de fermeture personnalisé */
+.survey-toast .btn-close {
+    filter: invert(1) !important;
+    opacity: 0.8 !important;
+}
+
+.survey-toast .btn-close:hover {
+    opacity: 1 !important;
+    transform: scale(1.1) !important;
+}
+
+/* Animation d'apparition */
+.survey-toast {
+    animation: slideInRight 0.4s ease-out !important;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Responsive pour le toast */
+@media (max-width: 768px) {
+    .survey-toast {
+        max-width: 320px !important;
+        right: 10px !important;
+        left: 10px !important;
+        margin: 0 auto !important;
+    }
+    
+    .survey-toast .toast-header {
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+    }
+    
+    .survey-toast .toast-body {
+        padding: 12px !important;
+    }
+    
+    .survey-toast .btn {
+        font-size: 12px !important;
+        padding: 5px 10px !important;
+    }
+}
+
+/* Badge pour indiquer la durée */
+.survey-duration-badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    border-radius: 12px !important;
+    margin-left: 8px !important;
+}

@@ -564,6 +564,75 @@ def load_test_sample(n_clicks):
     except Exception as e:
         return (dash.no_update, dash.no_update, 
                 dbc.Alert(f'Error loading test sample: {str(e)}', color='danger'))
+    
+@app.callback(
+    [Output('user-session-start', 'data'),
+     Output('survey-toast', 'is_open'),  # ou 'survey-modal' si vous utilisez la modal
+     Output('survey-shown', 'data')],
+    [Input('survey-timer', 'n_intervals'),
+     Input('data-store', 'data'),
+     Input('survey-later-btn', 'n_clicks'),  # Bouton "Plus tard"
+     Input('survey-toast', 'is_open')],      # Quand le toast se ferme
+    [State('user-session-start', 'data'),
+     State('survey-shown', 'data'),
+     State('survey-dismissed', 'data')]
+)
+def manage_survey_notification(n_intervals, data, later_clicks, toast_is_open, 
+                             session_start, survey_shown, survey_dismissed):
+    """
+    Gère l'affichage de la notification questionnaire
+    """
+    import time
+    from dash import callback_context
+    
+    ctx = callback_context
+    current_time = time.time()
+    
+    # Initialiser le timestamp de début de session
+    if session_start is None:
+        return current_time, False, False
+    
+    # Ne pas montrer si déjà montré ou si l'utilisateur l'a fermé
+    if survey_shown or survey_dismissed:
+        return session_start, False, survey_shown
+    
+    # Ne montrer que si des données sont chargées (utilisateur actif)
+    if data is None:
+        return session_start, False, survey_shown
+    
+    # Calculer le temps écoulé (en secondes)
+    elapsed_time = current_time - session_start
+    
+    # Condition pour déclencher la notification (exemple: 3 minutes = 180 secondes)
+    TRIGGER_TIME = 5  # 3 minutes
+    
+    # Si le bouton "Plus tard" a été cliqué
+    if ctx.triggered and 'survey-later-btn' in ctx.triggered[0]['prop_id']:
+        # Reporter la notification de 5 minutes
+        new_start_time = current_time - (TRIGGER_TIME - 300)  # Reporter de 5 min
+        return new_start_time, False, False
+    
+    # Si le toast se ferme (dismissed), marquer comme montré
+    if ctx.triggered and 'survey-toast.is_open' in ctx.triggered[0]['prop_id'] and not toast_is_open:
+        return session_start, False, True
+    
+    # Déclencher la notification si le temps est écoulé
+    if elapsed_time >= TRIGGER_TIME and not survey_shown:
+        return session_start, True, True
+    
+    return session_start, False, survey_shown
+
+@app.callback(
+    Output('survey-dismissed', 'data'),
+    [Input('survey-later-btn', 'n_clicks')],
+    prevent_initial_call=True
+)
+def handle_survey_later(n_clicks):
+    """Marque temporairement comme fermé quand on clique sur Plus tard"""
+    if n_clicks:
+        return True
+    return False
+
 server = app.server
 
 home_page.register_callbacks(app)

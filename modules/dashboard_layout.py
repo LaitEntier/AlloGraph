@@ -89,10 +89,87 @@ def create_base_layout():
         # Store pour les données
         dcc.Store(id='data-store'),
         dcc.Store(id='current-page', data='Home'),
+
+        dcc.Store(id='user-session-start', data=None),  # Timestamp de début de session
+        dcc.Store(id='survey-shown', data=False),       # Flag pour savoir si déjà montré
+        dcc.Store(id='survey-dismissed', data=False),   # Flag si l'utilisateur a fermé
         
+        dcc.Interval(
+            id='survey-timer',
+            interval=30*1000,  # Vérifier toutes les 30 secondes
+            n_intervals=0,
+            disabled=False
+        ),
+
         # Header unifié avec logo, titre et navigation
         create_header_with_logo(),
         
+        dbc.Toast(
+        [
+            # Corps du message avec style amélioré
+            html.Div([              
+                # Description
+                html.P([
+                    "Your feedback matters ! Take part in a quick survey to help us ",
+                    "better your experience."
+                ], className="mb-3", style={'fontSize': '13px', 'color': '#2c3e50', 'lineHeight': '1.4'}),
+                
+                # Informations pratiques avec icônes
+                html.Div([
+                    html.Div([
+                        html.I(className="fas fa-clock me-1", style={'color': '#28a745', 'fontSize': '11px'}),
+                        html.Span("2-3 minutes", style={'color': '#28a745', 'fontSize': '11px', 'fontWeight': '500'})
+                    ], className="mb-1")
+                ]),
+                
+                # Boutons d'action
+                html.Div([
+                    dbc.Button([
+                        html.I(className="fas fa-external-link-alt me-1"),
+                        "Take survey"
+                    ],
+                    color="primary",
+                    size="sm",
+                    href="https://redcap.univ-tours.fr/surveys/?s=8X9F4EEXKHTNTKHE",
+                    target="_blank",
+                    external_link=True,
+                    className="me-2",
+                    style={'fontSize': '13px'}
+                    ),
+                    dbc.Button([
+                        html.I(className="fas fa-clock me-1"),
+                        "Remind me later"
+                    ],
+                    id="survey-later-btn",
+                    color="secondary",
+                    size="sm",
+                    outline=True,
+                    style={'fontSize': '13px'}
+                    )
+                ], className="d-flex justify-content-end")
+            ])
+        ],
+        id="survey-toast",
+        header=[
+            html.Div([
+                html.Span([
+                    html.I(className="fas fa-poll me-2"),
+                    "Help us improve AlloGraph !"
+                ], style={'fontSize': '14px', 'fontWeight': '600'})
+            ], className="d-flex align-items-center justify-content-between w-100")
+        ],
+        is_open=False,
+        dismissable=True,
+        duration=None,  # Ne disparaît pas automatiquement
+        className="survey-toast",
+        style={
+            "position": "fixed",
+            "top": "20px",
+            "right": "20px",
+            "z-index": "9999"
+        }
+    ),
+
         # Modal de confirmation pour la purge (déplacée ici pour être globale)
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Confirmer la purge")),
