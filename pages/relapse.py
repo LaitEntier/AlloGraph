@@ -17,7 +17,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs')),
+                    dbc.CardHeader(html.H4('Competing Risks Analysis')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -33,14 +33,19 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        html.Hr(style={
+            'border': '2px solid #dee2e6',
+            'margin': '3rem 0 2rem 0'
+        }),
+
         dbc.Row([
                 # Tableau 1 - Résumé des colonnes
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                        dbc.CardHeader(html.H5("Summary by column", className='mb-0')),
                         dbc.CardBody([
                             html.Div(id='relapse-missing-summary-table', children=[
-                                dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                                dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                             ])
                         ])
                     ])
@@ -51,7 +56,7 @@ def get_layout():
                     dbc.Card([
                         dbc.CardHeader([
                             html.Div([
-                                html.H5("Patients concernés", className='mb-0'),
+                                html.H5("Lines affected", className='mb-0'),
                                 dbc.Button(
                                     [html.I(className="fas fa-download me-2"), "Export CSV"],
                                     id="export-missing-relapse-button",
@@ -63,15 +68,15 @@ def get_layout():
                         ]),
                         dbc.CardBody([
                             html.Div(id='relapse-missing-detail-table', children=[
-                                dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                                dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                             ]),
-                            # Composant pour télécharger le fichier CSV (invisible)
-                            dcc.Download(id="download-missing-relapse-csv")
+                            # Composant pour télécharger le fichier Excel (invisible)
+                            dcc.Download(id="download-missing-relapse-excel")
                         ])
                     ])
                 ], width=6)
             ])
-    ])
+    ], fluid=True)
 
 
 def create_relapse_sidebar_content(data):
@@ -86,7 +91,7 @@ def create_relapse_sidebar_content(data):
     """
     if data is None or len(data) == 0:
         return html.Div([
-            html.P('Aucune donnée disponible', className='text-warning')
+            html.P('No data available', className='text-warning')
         ])
     
     # Convertir la liste en DataFrame
@@ -100,7 +105,7 @@ def create_relapse_sidebar_content(data):
     
     return html.Div([
         # Filtres par année
-        html.H5('Filtres par année', className='mb-2'),
+        html.H5('Year filters', className='mb-2'),
         dcc.Checklist(
             id='relapse-year-filter',
             options=years_options,
@@ -113,12 +118,12 @@ def create_relapse_sidebar_content(data):
         
         # Informations sur les données
         html.Div([
-            html.H6("📊 Informations", className="mb-2"),
+            html.H6("📊 Information", className="mb-2"),
             html.P([
                 "Patients: ", html.Strong(f"{len(df):,}")
             ], className="mb-1", style={'fontSize': '12px'}),
             html.P([
-                "Années: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
+                "Years: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
     ])
@@ -162,11 +167,11 @@ def calculate_max_relapse_followup_days(data):
         # Limiter à une valeur raisonnable (ex: 10 ans)
         max_days = min(max_days, 3650)
         
-        print(f"Durée maximale calculée pour Rechute: {max_days} jours ({max_days/365.25:.1f} ans)")
+        print(f"Maximum duration calculated for relapse: {max_days} days ({max_days/365.25:.1f} years)")
         return int(max_days)
         
     except Exception as e:
-        print(f"Erreur lors du calcul de la durée maximale de rechute: {e}")
+        print(f"Error during maximum duration calculation for relapse: {e}")
         return 365  # Fallback à 1 an
 
 
@@ -193,13 +198,13 @@ def create_relapse_analysis(data):
         # Créer un graphique d'erreur informatif
         fig = go.Figure()
         fig.add_annotation(
-            text=f"Colonnes manquantes pour l'analyse Rechute :<br>{', '.join(missing_columns)}",
+            text=f"Missing variables for relapse analysis :<br>{', '.join(missing_columns)}",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Analyse de Risques Compétitifs : Rechute vs Décès",
+            title="Competing risks analysis : relapse vs death",
             height=500,
             showlegend=False
         )
@@ -212,13 +217,13 @@ def create_relapse_analysis(data):
         # Graphique vide si pas de données
         fig = go.Figure()
         fig.add_annotation(
-            text="Aucune donnée disponible pour l'analyse",
+            text="No data available for the analysis",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Analyse de Risques Compétitifs : Rechute vs Décès",
+            title="Competing risks analysis : relapse vs death",
             height=500,
             showlegend=False
         )
@@ -232,7 +237,7 @@ def create_relapse_analysis(data):
         max_days = calculate_max_relapse_followup_days(df_filtered)
         initial_display_days = 365  # Affichage initial limité à 1 an
         
-        title = f"Analyse de Risques Compétitifs : Rechute vs Décès (jusqu'à {max_days} jours)"
+        title = f"Competing risks analysis : relapse vs death (up to {max_days} days)"
         
         # Initialiser l'analyseur
         analyzer = cr.CompetingRisksAnalyzer(df_filtered, 'Treatment Date')
@@ -273,8 +278,8 @@ def create_relapse_analysis(data):
             fig.add_annotation(
                 x=0.02, y=0.98,
                 xref='paper', yref='paper',
-                text=f"<b>Affichage initial: {initial_display_days} jours (1 an)</b><br>" +
-                     f"Données disponibles jusqu'à {max_days} jours<br>" +
+                text=f"<b>Initial display: {initial_display_days} days (1 year)</b><br>" +
+                     f"Data available up to {max_days} days<br>" +
                      "<i>Utilisez les contrôles de zoom pour voir au-delà</i>",
                 showarrow=False,
                 font=dict(size=10, color='#34495e'),
@@ -290,13 +295,13 @@ def create_relapse_analysis(data):
         # Graphique d'erreur si l'analyse échoue
         fig = go.Figure()
         fig.add_annotation(
-            text=f"Erreur lors de l'analyse des risques compétitifs :<br>{str(e)}",
+            text=f"Error during the analysis of competing risks :<br>{str(e)}",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
             showarrow=False, font_size=14
         )
         fig.update_layout(
-            title="Analyse de Risques Compétitifs : Rechute vs Décès",
+            title="Competing risks analysis : relapse vs death",
             height=500,
             showlegend=False
         )
@@ -318,11 +323,11 @@ def register_callbacks(app):
         """Met à jour le graphique principal d'analyse des risques compétitifs pour les rechutes"""
         
         # Ne rien afficher si on n'est pas sur la page Rechute
-        if current_page != 'Rechute':
+        if current_page != 'Relapse':
             return html.Div()
             
         if data is None:
-            return dbc.Alert("Aucune donnée disponible", color="warning")
+            return dbc.Alert("No data available", color="warning")
         
         df = pd.DataFrame(data)
         
@@ -334,7 +339,7 @@ def register_callbacks(app):
             fig = create_relapse_analysis(df)
             return dcc.Graph(figure=fig, style={'height': '100%', 'width': '100%'})
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de la création du graphique: {str(e)}", color="danger")
+            return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
         
     @app.callback(
         Output('relapse-missing-summary-table', 'children'),
@@ -344,8 +349,8 @@ def register_callbacks(app):
     def relapse_missing_summary_callback(data, current_page):
         """Gère le tableau de résumé des données manquantes pour Rechute"""
         
-        if current_page != 'Rechute' or not data:
-            return html.Div("En attente...", className='text-muted')
+        if current_page != 'Relapse' or not data:
+            return html.Div("Waiting...", className='text-muted')
         
         try:
             df = pd.DataFrame(data)
@@ -364,18 +369,17 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Rechute trouvée", color='warning')
+                return dbc.Alert("No relapse variable found", color='warning')
             
-            # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             return dash_table.DataTable(
                 data=missing_summary.to_dict('records'),
                 columns=[
-                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Column", "id": "Column", "type": "text"},
                     {"name": "Total", "id": "Total patients", "type": "numeric"},
-                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
-                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
                      "format": {"specifier": ".1f"}}
                 ],
                 style_table={'height': '300px', 'overflowY': 'auto'},
@@ -394,8 +398,8 @@ def register_callbacks(app):
                     {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
                     {
                         'if': {
-                            'filter_query': '{Pourcentage manquant} > 20',
-                            'column_id': 'Pourcentage manquant'
+                            'filter_query': '{Percentage missing} > 20',
+                            'column_id': 'Percentage missing'
                         },
                         'backgroundColor': '#ffebee',
                         'color': 'red',
@@ -405,7 +409,7 @@ def register_callbacks(app):
             )
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
     @app.callback(
         [Output('relapse-missing-detail-table', 'children'),
@@ -416,8 +420,8 @@ def register_callbacks(app):
     def relapse_missing_detail_callback(data, current_page):
         """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
         
-        if current_page != 'Rechute' or not data:
-            return html.Div("En attente...", className='text-muted'), True
+        if current_page != 'Relapse' or not data:
+            return html.Div("Waiting...", className='text-muted'), True
         
         try:
             df = pd.DataFrame(data)
@@ -436,21 +440,20 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Rechute trouvée", color='warning'), True
+                return dbc.Alert("No relapse variable found", color='warning'), True
             
-            # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+                return dbc.Alert("🎉 No missing data found !", color='success'), True
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
             for _, row in detailed_missing.iterrows():
                 detailed_data.append({
                     'Long ID': row['Long ID'],
-                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
-                    'Nb manquant': row['Nombre de colonnes manquantes']
+                    'Missing columns': row['Missing columns'],  
+                    'Nb missing': row['Nb missing']  
                 })
             
             # Sauvegarder les données pour l'export
@@ -461,8 +464,8 @@ def register_callbacks(app):
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
-                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
-                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                        {"name": "Missing variables", "id": "Missing columns"},
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"} 
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
@@ -474,18 +477,18 @@ def register_callbacks(app):
                 )
             ])
             
-            return table_content, False  # Activer le bouton d'export
+            return table_content, False 
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
 
     @app.callback(
-        Output("download-missing-relapse-csv", "data"),
+        Output("download-missing-relapse-excel", "data"),
         Input("export-missing-relapse-button", "n_clicks"),
         prevent_initial_call=True
     )
-    def export_missing_relapse_csv(n_clicks):
-        """Gère l'export CSV des patients avec données manquantes pour Rechute"""
+    def export_missing_relapse_excel(n_clicks):
+        """Gère l'export Excel des patients avec données manquantes pour Rechute"""
         if n_clicks is None:
             return dash.no_update
         
@@ -497,10 +500,10 @@ def register_callbacks(app):
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"rechute_donnees_manquantes_{current_date}.csv"
+                filename = f"rechute_donnees_manquantes_{current_date}.xlsx"
                 
                 return dcc.send_data_frame(
-                    missing_df.to_csv, 
+                    missing_df.to_excel,
                     filename=filename,
                     index=False
                 )
@@ -508,7 +511,7 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export CSV Rechute: {e}")
+            print(f"Error during Excel export Relapse: {e}")
             return dash.no_update
 
 def create_relapse_data_table(df):
@@ -530,14 +533,14 @@ def create_relapse_data_table(df):
     available_columns = [col for col in relevant_columns if col in df.columns]
     
     if not available_columns:
-        return dbc.Alert("Colonnes de données Rechute non trouvées", color="warning")
+        return dbc.Alert("Relapse data columns not found", color="warning")
     
     # Créer la table
     table_df = df[available_columns].head(100)  # Limiter à 100 lignes pour l'affichage
     
     return html.Div([
-        html.H5("Données Rechute", className="mb-3"),
-        html.P(f"Affichage des {len(table_df)} premières lignes sur {len(df)} total", 
+        html.H5("Relapse data", className="mb-3"),
+        html.P(f"Displaying {len(table_df)} first lines out of {len(df)} total", 
                className="text-muted small"),
         dbc.Table.from_dataframe(
             table_df, 

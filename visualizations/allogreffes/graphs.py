@@ -895,8 +895,8 @@ def create_cumulative_barplot(
     category_column,
     title="Distribution et cumul des effectifs",
     x_axis_title=None,
-    bar_y_axis_title="Nombre de patients",
-    line_y_axis_title="Effectif cumulé",
+    bar_y_axis_title="Patient count",
+    line_y_axis_title="Cumulative count",
     bar_color='#0D3182',
     line_color='#FF6B6B',
     text_color='white',
@@ -962,7 +962,7 @@ def create_cumulative_barplot(
     fig.add_trace(go.Bar(
         x=count_data[category_column],
         y=count_data['Count'],
-        name='Nombre de patients',
+        name=bar_y_axis_title,
         marker_color=bar_color,
         text=bar_text_values,
         textposition='inside',
@@ -973,7 +973,7 @@ def create_cumulative_barplot(
     fig.add_trace(go.Scatter(
         x=count_data[category_column],
         y=count_data['Cumulative'],
-        name='Effectif cumulé',
+        name=line_y_axis_title,
         mode='lines+markers+text',
         line=dict(color=line_color, width=3),
         marker=dict(size=10),
@@ -2279,8 +2279,6 @@ def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_t
     Returns:
         plotly.graph_objects.Figure: Figure Plotly
     """
-    import plotly.graph_objects as go
-    import pandas as pd
 
     # Calculer les proportions pour chaque traitement
     proportions_data = []
@@ -2736,38 +2734,109 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     
     Args:
         df (pd.DataFrame): Dataset des patients
-        columns_to_check (list): Liste des colonnes à analyser (sans limitation de nombre)
-        patient_id_col (str): Nom de la colonne contenant l'ID patient (défaut: 'Long ID')
-    
+        columns_to_check (list): Liste des colonnes à analyser
+        patient_id_col (str): Nom de la colonne ID patient
+        
     Returns:
-        tuple: (missing_data_summary, detailed_missing_data)
+        tuple: (missing_summary_df, detailed_missing_df)
     """
-    if not isinstance(columns_to_check, list):
-        columns_to_check = [columns_to_check]
-    
     # Vérifier que les colonnes existent
-    missing_cols = [col for col in columns_to_check if col not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Colonnes introuvables dans le dataset: {missing_cols}")
+    existing_columns = [col for col in columns_to_check if col in df.columns]
     
-    if patient_id_col not in df.columns:
-        raise ValueError(f"Colonne ID patient '{patient_id_col}' introuvable")
+    if not existing_columns:
+        return pd.DataFrame(), pd.DataFrame()
     
-    # Créer un DataFrame pour l'analyse
-    analysis_df = df[[patient_id_col] + columns_to_check].copy()
+    analysis_df = df[existing_columns + [patient_id_col]].copy()
     
-    # Résumé des données manquantes par colonne
+    # Résumé par colonne
     missing_summary = []
-    for col in columns_to_check:
-        total_patients = len(analysis_df)
-        missing_count = analysis_df[col].isna().sum()
+    total_patients = len(analysis_df)
+    
+    for col in existing_columns:
+        # Cas particuliers
+        if col == 'Date Platelet Reconstitution':
+            # Compter comme manquant seulement si vide ET Platelet Reconstitution != 'Yes'
+            if 'Platelet Reconstitution' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['Platelet Reconstitution'] != 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'Date Anc Recovery':
+            # Compter comme manquant seulement si vide ET Anc Recovery != 'Yes'
+            if 'Anc Recovery' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['Anc Recovery'] != 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'First Agvhd Occurrence Date':
+            # Compter comme manquant seulement si vide ET First Agvhd Occurrence = 'Yes'
+            if 'First Agvhd Occurrence' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['First Agvhd Occurrence'] == 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'First aGvHD Maximum Score':
+            # Compter comme manquant seulement si vide ET First AGvHD Occurence = 'Yes'
+            if 'First Agvhd Occurrence' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['First Agvhd Occurrence'] == 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'First Cgvhd Occurrence Date':
+            # Compter comme manquant seulement si vide ET First CGvHD Occurrence = 'Yes'
+            if 'First Cgvhd Occurrence' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['First Cgvhd Occurrence'] == 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'First cGvHD Maximum NIH Score':
+            # Compter comme manquant seulement si vide ET First CGvHD Occurence = 'Yes'
+            if 'First Cgvhd Occurrence' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['First Cgvhd Occurrence'] == 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'First Relapse Date':
+            # Compter comme manquant seulement si vide ET First Relapse = 'Yes'
+            if 'First Relapse' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['First Relapse'] == 'Yes')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'Death Cause':
+            # Compter comme manquant seulement si vide ET LFU = 'Dead'
+            if 'Status Last Follow Up' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['Status Last Follow Up'] == 'Dead')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        elif col == 'Death Date':
+            # Compter comme manquant seulement si vide ET LFU = 'Dead'
+            if 'Status Last Follow Up' in analysis_df.columns:
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['Status Last Follow Up'] == 'Dead')
+                missing_count = missing_condition.sum()
+            else:
+                missing_count = analysis_df[col].isna().sum()
+
+        else:
+            # Logique standard pour les autres colonnes
+            missing_count = analysis_df[col].isna().sum()
+        
         missing_percentage = (missing_count / total_patients) * 100
         
         missing_summary.append({
-            'Colonne': col,
+            'Column': col,
             'Total patients': total_patients,
-            'Données manquantes': missing_count,
-            'Pourcentage manquant': round(missing_percentage, 2)
+            'Missing data': missing_count,
+            'Percentage missing': round(missing_percentage, 2)
         })
     
     # Détail des patients avec données manquantes
@@ -2777,19 +2846,32 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
         patient_id = row[patient_id_col]
         missing_columns = []
         
-        for col in columns_to_check:
-            if pd.isna(row[col]):
+        for col in existing_columns:
+            is_missing = False
+            
+            if col == 'Date Platelet Reconstitution':
+                # Manquant si vide ET Platelet Reconstitution != 'Yes'
+                is_missing = (pd.isna(row[col]) and 
+                            row.get('Platelet Reconstitution', 'No') != 'Yes')
+            elif col == 'Date Anc Recovery':
+                # Manquant si vide ET Anc Recovery != 'Yes'
+                is_missing = (pd.isna(row[col]) and 
+                            row.get('Anc Recovery', 'No') != 'Yes')
+            else:
+                # Logique standard pour les autres colonnes
+                is_missing = pd.isna(row[col])
+            
+            if is_missing:
                 missing_columns.append(col)
         
         if missing_columns:
             detailed_missing.append({
                 patient_id_col: patient_id,
-                'Colonnes avec données manquantes': ', '.join(missing_columns),
-                'Nombre de colonnes manquantes': len(missing_columns)
+                'Missing columns': ', '.join(missing_columns),
+                'Nb missing': len(missing_columns)
             })
     
     return pd.DataFrame(missing_summary), pd.DataFrame(detailed_missing)
-
 
 def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long ID'):
     """
@@ -2810,11 +2892,11 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
         # Créer le graphique en barres des données manquantes
         fig_bar = px.bar(
             missing_summary,
-            x='Colonne',
-            y='Pourcentage manquant',
-            title='Pourcentage de données manquantes par colonne',
-            labels={'Pourcentage manquant': 'Pourcentage manquant (%)'},
-            color='Pourcentage manquant',
+            x='Column',
+            y='Missing percentage',
+            title='Missing data percentage by column',
+            labels={'Missing percentage': 'Missing percentage (%)'},
+            color='Missing percentage',
             color_continuous_scale='Reds'
         )
         
@@ -2835,17 +2917,17 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
             colorscale=[[0, 'lightblue'], [1, 'red']],
             showscale=True,
             colorbar=dict(
-                title="Données manquantes",
+                title="Missing data",
                 tickvals=[0, 1],
-                ticktext=["Présent", "Manquant"]
+                ticktext=["Present", "Missing"]
             )
         ))
         
         fig_heatmap.update_layout(
-            title='Carte des données manquantes par patient',
+            title='Missing data map by patient',
             title_x=0.5,
-            xaxis_title='Index des patients',
-            yaxis_title='Colonnes analysées',
+            xaxis_title='Patient index',
+            yaxis_title='Analyzed columns',
             height=300
         )
         
@@ -2855,8 +2937,8 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
             dbc.Row([
                 dbc.Col([
                     dbc.Alert([
-                        html.H4("📊 Analyse des données manquantes", className='mb-2'),
-                        html.P(f"Analyse de {len(columns_to_check)} colonne(s) sur {len(df)} patients", 
+                        html.H4("📊 Missing data analysis", className='mb-2'),
+                        html.P(f"Analysis of {len(columns_to_check)} column(s) across {len(df)} patients", 
                                className='mb-0')
                     ], color='info', className='mb-3')
                 ])
@@ -2867,7 +2949,7 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
                 # Graphique en barres
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H6('Vue d\'ensemble des données manquantes')),
+                        dbc.CardHeader(html.H6('Overview of missing data')),
                         dbc.CardBody([
                             dcc.Graph(figure=fig_bar)
                         ])
@@ -2877,7 +2959,7 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
                 # Carte thermique
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H6('Répartition des données manquantes')),
+                        dbc.CardHeader(html.H6('Distribution of missing data')),
                         dbc.CardBody([
                             dcc.Graph(figure=fig_heatmap)
                         ])
@@ -2890,7 +2972,7 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
                 # Résumé par colonne
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader(html.H6('Résumé par colonne')),
+                        dbc.CardHeader(html.H6('Summary by column')),
                         dbc.CardBody([
                             create_summary_table(missing_summary)
                         ])
@@ -2901,11 +2983,11 @@ def create_missing_data_visualization(df, columns_to_check, patient_id_col='Long
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
-                            html.H6(f'Patients avec données manquantes ({len(detailed_missing)} patients)')
+                            html.H6(f'Patients with missing data ({len(detailed_missing)} patients)')
                         ]),
                         dbc.CardBody([
                             create_detailed_table(detailed_missing) if not detailed_missing.empty else 
-                            dbc.Alert("Aucune donnée manquante trouvée ! 🎉", color='success')
+                            dbc.Alert("No missing data found! 🎉", color='success')
                         ])
                     ])
                 ], width=6)
@@ -2920,10 +3002,10 @@ def create_summary_table(missing_summary):
     return dash_table.DataTable(
         data=missing_summary.to_dict('records'),
         columns=[
-            {"name": "Colonne", "id": "Colonne"},
+            {"name": "Column", "id": "Colonne"},
             {"name": "Total patients", "id": "Total patients", "type": "numeric"},
-            {"name": "Données manquantes", "id": "Données manquantes", "type": "numeric"},
-            {"name": "% manquant", "id": "Pourcentage manquant", "type": "numeric", 
+            {"name": "Missing data", "id": "Données manquantes", "type": "numeric"},
+            {"name": "% missing", "id": "Pourcentage manquant", "type": "numeric", 
              "format": {"specifier": ".1f"}}
         ],
         style_table={'height': '300px', 'overflowY': 'auto'},
@@ -2970,8 +3052,8 @@ def create_detailed_table(detailed_missing):
         data=detailed_missing.to_dict('records'),
         columns=[
             {"name": "Long ID", "id": "Long ID"},
-            {"name": "Colonnes manquantes", "id": "Colonnes avec données manquantes"},
-            {"name": "Nb manquantes", "id": "Nombre de colonnes manquantes", "type": "numeric"}
+            {"name": "Missing columns", "id": "Missing columns"},
+            {"name": "Nb missing", "id": "Nb missing", "type": "numeric"}
         ],
         style_table={'height': '300px', 'overflowY': 'auto'},
         style_cell={
@@ -2995,8 +3077,8 @@ def create_detailed_table(detailed_missing):
             },
             {
                 'if': {
-                    'filter_query': '{Nombre de colonnes manquantes} > 1',
-                    'column_id': 'Nombre de colonnes manquantes'
+                    'filter_query': '{Nb missing} > 1',
+                    'column_id': 'Nb missing'
                 },
                 'backgroundColor': '#fff3cd',
                 'color': 'orange',

@@ -17,7 +17,7 @@ try:
     from lifelines import KaplanMeierFitter
     LIFELINES_AVAILABLE = True
 except ImportError:
-    print("Attention: lifelines non disponible. Les analyses de survie ne fonctionneront pas.")
+    print("Warning: lifelines not available. Survival analyses will not work.")
     LIFELINES_AVAILABLE = False
 
 def get_layout():
@@ -29,7 +29,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Courbe de survie Kaplan-Meier globale')),
+                    dbc.CardHeader(html.H5('Kaplan-Meier global survival curve')),
                     dbc.CardBody([
                         html.Div(
                             id='survival-global-curve',
@@ -44,7 +44,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Courbes de survie Kaplan-Meier par année')),
+                    dbc.CardHeader(html.H5('Kaplan-Meier survival curves by year')),
                     dbc.CardBody([
                         html.Div(
                             id='survival-curves-by-year',
@@ -59,7 +59,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Statistiques de survie par année')),
+                    dbc.CardHeader(html.H5('Survival statistics by year')),
                     dbc.CardBody([
                         html.Div(
                             id='survival-stats-table',
@@ -70,14 +70,19 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        html.Hr(style={
+            'border': '2px solid #dee2e6',
+            'margin': '3rem 0 2rem 0'
+        }),
+
         dbc.Row([
             # Tableau 1 - Résumé des colonnes
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardHeader(html.H5("Summary by column", className='mb-0')),
                     dbc.CardBody([
                         html.Div(id='survival-missing-summary-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ])
                     ])
                 ])
@@ -88,7 +93,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader([
                         html.Div([
-                            html.H5("Patients concernés", className='mb-0'),
+                            html.H5("Lines affected", className='mb-0'),
                             dbc.Button(
                                 [html.I(className="fas fa-download me-2"), "Export CSV"],
                                 id="export-missing-survival-button",
@@ -100,10 +105,10 @@ def get_layout():
                     ]),
                     dbc.CardBody([
                         html.Div(id='survival-missing-detail-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ]),
                         # Composant pour télécharger le fichier CSV (invisible)
-                        dcc.Download(id="download-missing-survival-csv")
+                        dcc.Download(id="download-missing-survival-excel")
                     ])
                 ])
             ], width=6)
@@ -123,7 +128,7 @@ def create_survival_sidebar_content(data):
     """
     if data is None or len(data) == 0:
         return html.Div([
-            html.P('Aucune donnée disponible', className='text-warning')
+            html.P('No data available', className='text-warning')
         ])
     
     # Convertir la liste en DataFrame
@@ -137,12 +142,12 @@ def create_survival_sidebar_content(data):
     
     return html.Div([
         # Paramètres d'analyse - RadioItems pour la durée
-        html.Label('Durée maximale d\'analyse:', className='mb-2'),
+        html.Label('Maximum analysis duration:', className='mb-2'),
         dcc.RadioItems(
             id='survival-max-duration',
             options=[
-                {'label': 'Max. 10 ans', 'value': 'limited'},
-                {'label': 'Pas de limite (si suivi > 10 ans existant)', 'value': 'unlimited'}
+                {'label': 'Max. 10 years', 'value': 'limited'},
+                {'label': 'No limit (if follow-up > 10 years existing)', 'value': 'unlimited'}
             ],
             value='limited',
             className='mb-3',
@@ -152,7 +157,7 @@ def create_survival_sidebar_content(data):
         html.Hr(),
         
         # Filtres par année
-        html.H5('Filtres par année', className='mb-2'),
+        html.H5('Year filters', className='mb-2'),
         dcc.Checklist(
             id='survival-year-filter',
             options=years_options,
@@ -165,12 +170,12 @@ def create_survival_sidebar_content(data):
         
         # Informations sur les données
         html.Div([
-            html.H6("📊 Informations", className="mb-2"),
+            html.H6("📊 Information", className="mb-2"),
             html.P([
                 "Patients: ", html.Strong(f"{len(df):,}")
             ], className="mb-1", style={'fontSize': '12px'}),
             html.P([
-                "Années: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
+                "Years: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
     ])
@@ -190,7 +195,7 @@ def prepare_survival_data(df):
     missing_cols = [col for col in required_cols if col not in df.columns]
     
     if missing_cols:
-        raise ValueError(f"Colonnes manquantes pour l'analyse de survie: {missing_cols}")
+        raise ValueError(f"Missing columns for survival analysis: {missing_cols}")
     
     # Copier les données
     processed_data = df.copy()
@@ -220,12 +225,12 @@ def prepare_survival_data(df):
     
     return processed_data
 
-def create_interactive_single_km_curve(processed_data, max_years=None, title="Courbe de survie Kaplan-Meier"):
+def create_interactive_single_km_curve(processed_data, max_years=None, title="Kaplan-Meier survival curve"):
     """
     Crée une courbe Kaplan-Meier interactive simple avec axe X en années
     """
     if not LIFELINES_AVAILABLE:
-        raise ImportError("lifelines n'est pas disponible")
+        raise ImportError("lifelines is not available")
     
     # Filtrer si nécessaire (conversion en jours pour lifelines)
     if max_years:
@@ -257,9 +262,9 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Co
     
     # Texte de survol
     hover_text = [
-        f"Temps: {t:.1f} années ({t*365.25:.0f} jours)<br>" +
-        f"Probabilité de survie: {p:.3f} ({p*100:.1f}%)<br>" +
-        f"IC 95%: [{ci_l:.3f} - {ci_u:.3f}]"
+        f"Time: {t:.1f} years ({t*365.25:.0f} days)<br>" +
+        f"Survival probability: {p:.3f} ({p*100:.1f}%)<br>" +
+        f"95% CI: [{ci_l:.3f} - {ci_u:.3f}]"
         for t, p, ci_l, ci_u in zip(timeline_years, survival_probs, ci_lower, ci_upper)
     ]
     
@@ -271,7 +276,7 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Co
         x=timeline_years,
         y=survival_probs,
         mode='lines',
-        name='Courbe de survie',
+        name='Survival curve',
         line=dict(color='#2E86AB', width=4, dash='solid'),
         hovertemplate='%{hovertext}<extra></extra>',
         hovertext=hover_text,
@@ -312,7 +317,7 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Co
         fig.add_annotation(
             x=median_survival_years + display_max*0.05,
             y=0.55,
-            text=f"<b>Médiane: {median_survival_years:.1f} ans</b>",
+            text=f"<b>Median: {median_survival_years:.1f} years</b>",
             showarrow=False,
             font=dict(color="#e74c3c", size=12, family='Arial, sans-serif'),
             bgcolor="rgba(255, 255, 255, 0.8)",
@@ -328,8 +333,8 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Co
             'y': 0.95,
             'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#2c3e50'}
         },
-        xaxis_title='<b>Temps (années)</b>',
-        yaxis_title='<b>Probabilité de survie</b>',
+        xaxis_title='<b>Time (years)</b>',
+        yaxis_title='<b>Survival probability</b>',
         xaxis=dict(
             range=[0, display_max], 
             showgrid=True,
@@ -380,7 +385,7 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
         max_years: Limite maximale en années (None = pas de limite)
     """
     if not LIFELINES_AVAILABLE:
-        raise ImportError("lifelines n'est pas disponible")
+        raise ImportError("lifelines is not available")
     
     # Filtrer les données si limite spécifiée
     if max_years:
@@ -390,11 +395,11 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
         processed_data_filtered.loc[mask_over_max, 'follow_up_days'] = max_days
         processed_data_filtered.loc[mask_over_max, 'statut_deces'] = 0
         display_max = max_years
-        title_suffix = f"(0-{max_years} ans)"
+        title_suffix = f"(0-{max_years} years)"
     else:
         processed_data_filtered = processed_data
         display_max = processed_data['follow_up_years'].max()
-        title_suffix = "(toute la durée)"
+        title_suffix = "(all duration)"
     
     # Créer la figure
     fig = go.Figure()
@@ -431,10 +436,10 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
             
             # Créer le texte de survol personnalisé
             hover_text = [
-                f"<b>Année {year}</b><br>" +
-                f"Temps: {t:.1f} années ({t*365.25:.0f} jours)<br>" +
-                f"Probabilité de survie: {p:.3f} ({p*100:.1f}%)<br>" +
-                f"IC 95%: [{ci_l:.3f} - {ci_u:.3f}]<br>" +
+                f"<b>Year {year}</b><br>" +
+                f"Time: {t:.1f} years ({t*365.25:.0f} days)<br>" +
+                f"Survival probability: {p:.3f} ({p*100:.1f}%)<br>" +
+                f"95% CI: [{ci_l:.3f} - {ci_u:.3f}]<br>" +
                 f"Patients: {len(year_data)}"
                 for t, p, ci_l, ci_u in zip(timeline_years, survival_probs, ci_lower, ci_upper)
             ]
@@ -444,7 +449,7 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
                 x=timeline_years,
                 y=survival_probs,
                 mode='lines',
-                name=f'Année {year}',
+                name=f'Year {year}',
                 line=dict(color=colors[i], width=3, dash='solid'),
                 hovertemplate='%{hovertext}<extra></extra>',
                 hovertext=hover_text,
@@ -461,7 +466,7 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
                 line=dict(color='rgba(255,255,255,0)'),
                 hoverinfo="skip",
                 showlegend=False,
-                name=f'IC 95% - Année {year}',
+                name=f'95% CI - Year {year}',
                 opacity=0.6
             ))
             
@@ -552,13 +557,13 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
     # Mise en forme du graphique avec style élégant
     fig.update_layout(
         title={
-            'text': f'<b>Courbes de survie Kaplan-Meier par année {title_suffix}</b>',
+            'text': f'<b>Kaplan-Meier survival curves by year {title_suffix}</b>',
             'x': 0.5,
             'y': 0.95,
             'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#2c3e50'}
         },
-        xaxis_title='<b>Temps (années)</b>',
-        yaxis_title='<b>Probabilité de survie</b>',
+        xaxis_title='<b>Time (years)</b>',
+        yaxis_title='<b>Survival probability</b>',
         xaxis=dict(
             range=[0, display_max],
             showgrid=True,
@@ -624,15 +629,15 @@ def register_callbacks(app):
     )
     def update_global_survival_curve(data, current_page, max_duration, selected_years):
         """Met à jour la courbe de survie globale"""
-        if current_page != 'Survie' or data is None:
+        if current_page != 'Survival' or data is None:
             return html.Div()
         
         if not LIFELINES_AVAILABLE:
             return dbc.Alert([
-                html.H6("Module 'lifelines' requis", className="mb-2"),
-                html.P("Pour utiliser les analyses de survie, installez le module lifelines :", className="mb-1"),
+                html.H6("Module 'lifelines' required", className="mb-2"),
+                html.P("To use survival analyses, install the lifelines module:", className="mb-1"),
                 html.Code("pip install lifelines", className="d-block mb-2"),
-                html.P("Redémarrez ensuite l'application.", className="mb-0")
+                html.P("Restart the application.", className="mb-0")
             ], color="warning")
         
         df = pd.DataFrame(data)
@@ -642,14 +647,14 @@ def register_callbacks(app):
             df = df[df['Year'].isin(selected_years)]
         
         if df.empty:
-            return dbc.Alert('Aucune donnée disponible avec les filtres sélectionnés', color='warning')
+            return dbc.Alert('No data available with the selected filters', color='warning')
         
         try:
             # Préparer les données pour l'analyse de survie
             processed_data = prepare_survival_data(df)
             
             if len(processed_data) == 0:
-                return dbc.Alert('Aucune donnée valide pour l\'analyse de survie', color='warning')
+                return dbc.Alert('No valid data for survival analysis', color='warning')
             
             # Déterminer la limite maximale
             max_years = 10 if max_duration == 'limited' else None
@@ -658,7 +663,7 @@ def register_callbacks(app):
             fig = create_interactive_single_km_curve(
                 processed_data,
                 max_years=max_years,
-                title=f"Courbe de survie Kaplan-Meier globale (N={len(processed_data)})"
+                title=f"Kaplan-Meier global survival curve (N={len(processed_data)})"
             )
             
             return dcc.Graph(
@@ -668,7 +673,7 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return dbc.Alert(f'Erreur lors de la création de la courbe de survie: {str(e)}', color='danger')
+            return dbc.Alert(f'Error during survival curve creation: {str(e)}', color='danger')
     
     @app.callback(
         [Output('survival-curves-by-year', 'children'),
@@ -680,15 +685,15 @@ def register_callbacks(app):
     )
     def update_survival_curves_by_year(data, current_page, max_duration, selected_years):
         """Met à jour les courbes de survie par année et le tableau des statistiques"""
-        if current_page != 'Survie' or data is None:
+        if current_page != 'Survival' or data is None:
             return html.Div(), html.Div()
         
         if not LIFELINES_AVAILABLE:
             warning_alert = dbc.Alert([
-                html.H6("Module 'lifelines' requis", className="mb-2"),
-                html.P("Pour utiliser les analyses de survie, installez le module lifelines :", className="mb-1"),
+                html.H6("Module 'lifelines' required", className="mb-2"),
+                html.P("To use survival analyses, install the lifelines module:", className="mb-1"),
                 html.Code("pip install lifelines", className="d-block mb-2"),
-                html.P("Redémarrez ensuite l'application.", className="mb-0")
+                html.P("Restart the application.", className="mb-0")
             ], color="warning")
             return warning_alert, warning_alert
         
@@ -699,7 +704,7 @@ def register_callbacks(app):
             df = df[df['Year'].isin(selected_years)]
         
         if df.empty:
-            empty_alert = dbc.Alert('Aucune donnée disponible avec les filtres sélectionnés', color='warning')
+            empty_alert = dbc.Alert('No data available with the selected filters', color='warning')
             return empty_alert, empty_alert
         
         try:
@@ -707,13 +712,13 @@ def register_callbacks(app):
             processed_data = prepare_survival_data(df)
             
             if len(processed_data) == 0:
-                no_data_alert = dbc.Alert('Aucune donnée valide pour l\'analyse de survie', color='warning')
+                no_data_alert = dbc.Alert('No valid data for survival analysis', color='warning')
                 return no_data_alert, no_data_alert
             
             # Vérifier qu'on a plusieurs années
             if 'Year' not in processed_data.columns :
                 single_year_alert = dbc.Alert(
-                    'Au moins 2 années de données sont nécessaires pour la comparaison par année', 
+                    'At least 2 years of data are necessary for the comparison by year', 
                     color='info'
                 )
                 return single_year_alert, single_year_alert
@@ -738,12 +743,12 @@ def register_callbacks(app):
             if not stats_df.empty:
                 
                 table_component = html.Div([
-                    html.P(f"Statistiques de survie pour {len(stats_df)} années analysées", 
+                    html.P(f"Survival statistics for {len(stats_df)} years analyzed", 
                            className="text-muted mb-3"),
                     dash_table.DataTable(
                         data=stats_df.to_dict('records'),
                         columns=[
-                            {"name": col, "id": col, "type": "text" if col == "Année" else "text"}
+                            {"name": col, "id": col, "type": "text" if col == "Year" else "text"}
                             for col in stats_df.columns
                         ],
                         style_table={'height': '350px', 'overflowY': 'auto'},
@@ -768,12 +773,12 @@ def register_callbacks(app):
                     )
                 ])
             else:
-                table_component = dbc.Alert('Aucune statistique calculée', color='warning')
+                table_component = dbc.Alert('No statistics calculated', color='warning')
             
             return graph_component, table_component
         
         except Exception as e:
-            error_alert = dbc.Alert(f'Erreur lors de l\'analyse de survie: {str(e)}', color='danger')
+            error_alert = dbc.Alert(f'Error during survival analysis: {str(e)}', color='danger')
             return error_alert, error_alert
     
     @app.callback(
@@ -784,8 +789,8 @@ def register_callbacks(app):
     def survival_missing_summary_callback(data, current_page):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
-        if current_page != 'Survie' or not data:
-            return html.Div("En attente...", className='text-muted')
+        if current_page != 'Survival' or not data:
+            return html.Div("Waiting...", className='text-muted')
         
         try:
             df = pd.DataFrame(data)
@@ -803,7 +808,7 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Survie trouvée", color='warning')
+                return dbc.Alert("No survival variable found", color='warning')
             
             # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
@@ -811,10 +816,10 @@ def register_callbacks(app):
             return dash_table.DataTable(
                 data=missing_summary.to_dict('records'),
                 columns=[
-                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Column", "id": "Column"},
                     {"name": "Total", "id": "Total patients", "type": "numeric"},
-                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
-                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
                      "format": {"specifier": ".1f"}}
                 ],
                 style_table={'height': '300px', 'overflowY': 'auto'},
@@ -833,8 +838,8 @@ def register_callbacks(app):
                     {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
                     {
                         'if': {
-                            'filter_query': '{Pourcentage manquant} > 20',
-                            'column_id': 'Pourcentage manquant'
+                            'filter_query': '{Percentage missing} > 20',
+                            'column_id': 'Percentage missing'
                         },
                         'backgroundColor': '#ffebee',
                         'color': 'red',
@@ -844,7 +849,7 @@ def register_callbacks(app):
             )
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
     @app.callback(
         [Output('survival-missing-detail-table', 'children'),
@@ -855,8 +860,8 @@ def register_callbacks(app):
     def survival_missing_detail_callback(data, current_page):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
-        if current_page != 'Survie' or not data:
-            return html.Div("En attente...", className='text-muted'), True
+        if current_page != 'Survival' or not data:
+            return html.Div("Waiting...", className='text-muted'), True
         
         try:
             df = pd.DataFrame(data)
@@ -874,23 +879,23 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Survie trouvée", color='warning'), True
+                return dbc.Alert("No survival variable found", color='warning'), True
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+                return dbc.Alert("No missing data found !", color='success'), True
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
             for _, row in detailed_missing.iterrows():
                 detailed_data.append({
                     'Long ID': row['Long ID'],
-                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
-                    'Nb manquant': row['Nombre de colonnes manquantes']
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
                 })
-            
+
             # Sauvegarder les données pour l'export
             app.server.missing_survival_data = detailed_data
             
@@ -899,8 +904,8 @@ def register_callbacks(app):
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
-                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
-                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                        {"name": "Missing variables", "id": "Missing columns"},
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"}
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
@@ -915,15 +920,15 @@ def register_callbacks(app):
             return table_content, False  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
 
     @app.callback(
-        Output("download-missing-survival-csv", "data"),
+        Output("download-missing-survival-excel", "data"),
         Input("export-missing-survival-button", "n_clicks"),
         prevent_initial_call=True
     )
-    def export_missing_survival_csv(n_clicks):
-        """Gère l'export CSV des patients avec données manquantes pour Survie"""
+    def export_missing_survival_excel(n_clicks):
+        """Gère l'export Excel des patients avec données manquantes pour Survie"""
         if n_clicks is None:
             return dash.no_update
         
@@ -935,10 +940,10 @@ def register_callbacks(app):
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"survie_donnees_manquantes_{current_date}.csv"
+                filename = f"survival_missing_data_{current_date}.xlsx"
                 
                 return dcc.send_data_frame(
-                    missing_df.to_csv, 
+                    missing_df.to_excel, 
                     filename=filename,
                     index=False
                 )
@@ -946,5 +951,5 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export CSV Survie: {e}")
+            print(f"Error during Excel export Survival: {e}")
             return dash.no_update

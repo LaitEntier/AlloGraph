@@ -17,7 +17,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Distribution normalisée à 100%')),
+                    dbc.CardHeader(html.H5('Normalized distribution at 100%')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -37,7 +37,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Distribution des effectifs')),
+                    dbc.CardHeader(html.H5('Distribution')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -57,7 +57,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Boxplot - Age At Diagnosis')),
+                    dbc.CardHeader(html.H5('Boxplot - Age at Diagnosis')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -80,7 +80,7 @@ def get_layout():
                     dbc.CardHeader([
                         dbc.Row([
                             dbc.Col([
-                                html.H5('Statistiques par année', className='mb-0')
+                                html.H5('Statistics by year', className='mb-0')
                             ], width=8),
                             dbc.Col([
                                 dbc.Button(
@@ -110,7 +110,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Performance Scores par tranche d\'âge')),
+                    dbc.CardHeader(html.H5('Performance Scores by age group')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -126,14 +126,19 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        html.Hr(style={
+            'border': '2px solid #dee2e6',
+            'margin': '3rem 0 2rem 0'
+        }),
+
         dbc.Row([
             # Tableau 1 - Résumé des colonnes
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardHeader(html.H5("Column summary", className='mb-0')),
                     dbc.CardBody([
                         html.Div(id='patients-missing-summary-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ])
                     ])
                 ])
@@ -144,7 +149,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader([
                         html.Div([
-                            html.H5("Patients concernés", className='mb-0'),
+                            html.H5("Lines affected", className='mb-0'),
                             dbc.Button(
                                 [html.I(className="fas fa-download me-2"), "Export CSV"],
                                 id="export-missing-patients-button",
@@ -156,13 +161,14 @@ def get_layout():
                     ]),
                     dbc.CardBody([
                         html.Div(id='patients-missing-detail-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ]),
-                        # Composant pour télécharger le fichier Excel (invisible)
+                        # Composant pour télécharger le fichier CSV (invisible)
                         dcc.Download(id="download-missing-patients-excel")
                     ])
                 ])
             ], width=6)
+
         ])
     ], fluid=True)
 
@@ -218,13 +224,13 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return dbc.Alert('Aucune donnée disponible avec les filtres sélectionnés', color='warning')
+            return dbc.Alert('No data available with the selected filters', color='warning')
         
         try:
             if x_axis not in filtered_df.columns:
-                return dbc.Alert(f'Colonne "{x_axis}" non trouvée dans les données', color='warning')
+                return dbc.Alert(f'Column "{x_axis}" not found in the data', color='warning')
             
-            stack_col = None if stack_var == 'Aucune' else stack_var
+            stack_col = None if stack_var == 'None' else stack_var
             
             # Choisir la fonction appropriée selon la variable de stratification
             if stack_col is None or stack_col not in filtered_df.columns:
@@ -237,7 +243,7 @@ def register_callbacks(app):
                 fig = gr.create_simple_normalized_barplot(
                     data=filtered_df,
                     x_column=x_axis,
-                    title=f"Distribution par {x_axis} - Sélectionnez une variable de stratification",
+                    title=f"Distribution by {x_axis} - Select a stratification variable",
                     x_axis_title=x_axis,
                     y_axis_title="Proportion (%)",
                     custom_order=order,
@@ -259,7 +265,7 @@ def register_callbacks(app):
                     x_column=x_axis,
                     y_column='Count',
                     stack_column=stack_col,
-                    title=f"Distribution normalisée par {x_axis} et {stack_col}",
+                    title=f"Normalized distribution by {x_axis} and {stack_col}",
                     x_axis_title=x_axis,
                     y_axis_title="Proportion (%)",
                     custom_order=order,
@@ -274,7 +280,7 @@ def register_callbacks(app):
                 config={'responsive': True}
             )
         except Exception as e:
-            return dbc.Alert(f'Erreur: {str(e)}', color='danger')
+            return dbc.Alert(f'Error: {str(e)}', color='danger')
 
     @app.callback(
         Output('patients-distribution-chart', 'children'),
@@ -305,13 +311,13 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée disponible', className='text-warning text-center')
+            return html.Div('No data available', className='text-warning text-center')
         
         try:
             if x_axis not in filtered_df.columns:
-                return html.Div(f'Colonne "{x_axis}" non trouvée', className='text-warning text-center')
+                return html.Div(f'Column "{x_axis}" not found', className='text-warning text-center')
             
-            stack_col = None if stack_var == 'Aucune' else stack_var
+            stack_col = None if stack_var == 'None' else stack_var
             
             # Choisir la fonction appropriée selon la variable de stratification
             if stack_col is None or stack_col not in filtered_df.columns:
@@ -324,9 +330,9 @@ def register_callbacks(app):
                 fig = gr.create_simple_barplot(
                     data=filtered_df,
                     x_column=x_axis,
-                    title=f"Distribution par {x_axis}",
+                    title=f"Distribution by {x_axis}",
                     x_axis_title=x_axis,
-                    y_axis_title="Nombre de greffes",
+                    y_axis_title="Number of transplants",
                     custom_order=order,
                     height=420,
                     width=None
@@ -346,9 +352,9 @@ def register_callbacks(app):
                     x_column=x_axis,
                     y_column='Count',
                     stack_column=stack_col,
-                    title=f"Distribution par {x_axis} et {stack_col}",
+                    title=f"Distribution by {x_axis} and {stack_col}",
                     x_axis_title=x_axis,
-                    y_axis_title="Nombre de greffes",
+                    y_axis_title="Number of transplants",
                     custom_order=order,
                     height=420,
                     width=None,
@@ -362,7 +368,7 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger')
+            return html.Div(f'Error: {str(e)}', className='text-danger')
 
     @app.callback(
         Output('patients-boxplot-chart', 'children'),
@@ -384,11 +390,11 @@ def register_callbacks(app):
             stack_var = 'Main Diagnosis'  # Valeur par défaut modifiée
         
         # Vérifier si une variable de stratification est sélectionnée
-        if stack_var == 'Aucune':
+        if stack_var == 'None':
             return html.Div([
                 dbc.Alert([
-                    html.H6("📊 Sélection requise", className="mb-2"),
-                    html.P("Veuillez sélectionner une variable de stratification dans la sidebar pour afficher le boxplot.", 
+                    html.H6("📊 Selection required", className="mb-2"),
+                    html.P("Please select a stratification variable in the sidebar to display the boxplot.", 
                            className="mb-0")
                 ], color="info", className="text-center")
             ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'height': '100%'})
@@ -400,12 +406,12 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée disponible', className='text-warning text-center')
+            return html.Div('No data available', className='text-warning text-center')
         
         try:
             # Vérifier que la variable de stratification existe dans les données
             if stack_var not in filtered_df.columns:
-                return html.Div(f'Variable "{stack_var}" non trouvée dans les données', className='text-warning text-center')
+                return html.Div(f'Variable "{stack_var}" not found in the data', className='text-warning text-center')
             
             # Créer un mapping de couleurs cohérent avec les autres graphiques
             color_map = create_color_map(filtered_df, stack_var)
@@ -416,7 +422,7 @@ def register_callbacks(app):
                 x_column=stack_var,
                 y_column='Age At Diagnosis',
                 color_column=stack_var,  # Utiliser la même variable pour colorer chaque box
-                title=f"Boxplot Age At Diagnosis par {stack_var}",
+                title=f"Age At Diagnosis by {stack_var}",
                 x_axis_title=stack_var,
                 y_axis_title='Age At Diagnosis',
                 height=420,
@@ -435,7 +441,7 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger')
+            return html.Div(f'Error: {str(e)}', className='text-danger')
 
     @app.callback(
         [Output('patients-datatable', 'children'),
@@ -456,7 +462,7 @@ def register_callbacks(app):
         missing_cols = [col for col in required_cols if col not in df.columns]
         
         if missing_cols:
-            return dbc.Alert(f'Colonnes manquantes: {", ".join(missing_cols)}', color='warning')
+            return dbc.Alert(f'Missing columns: {", ".join(missing_cols)}', color='warning')
         
         # Calculer les statistiques par année
         stats_by_year = []
@@ -476,12 +482,12 @@ def register_callbacks(app):
             if len(year_data) > 0:
                 # Statistiques d'âge
                 age_stats = {
-                    'Age moyen': round(age_data.mean(), 1) if len(age_data) > 0 else 0,
-                    'Age médian': round(age_data.median(), 1) if len(age_data) > 0 else 0,
-                    'Age Q1': round(age_data.quantile(0.25), 1) if len(age_data) > 0 else 0,
-                    'Age Q3': round(age_data.quantile(0.75), 1) if len(age_data) > 0 else 0,
-                    'Age minimum': int(age_data.min()) if len(age_data) > 0 else 0,
-                    'Age maximum': int(age_data.max()) if len(age_data) > 0 else 0,
+                    'Average age': round(age_data.mean(), 1) if len(age_data) > 0 else 0,
+                    'Median age': round(age_data.median(), 1) if len(age_data) > 0 else 0,
+                    'Q1 age': round(age_data.quantile(0.25), 1) if len(age_data) > 0 else 0,
+                    'Q3 age': round(age_data.quantile(0.75), 1) if len(age_data) > 0 else 0,
+                    'Minimum age': int(age_data.min()) if len(age_data) > 0 else 0,
+                    'Maximum age': int(age_data.max()) if len(age_data) > 0 else 0,
                 }
                 
                 # Statistiques de sexe
@@ -498,19 +504,19 @@ def register_callbacks(app):
                 
                 # Combiner toutes les statistiques
                 year_stats = {
-                    'Année': year,
+                    'Year': year,
                     **age_stats,
-                    'Effectif total': total_patients,
-                    'Hommes (n)': male_count,
-                    'Hommes (%)': round(male_percent, 1),
-                    'Femmes (n)': female_count,
-                    'Femmes (%)': round(female_percent, 1)
+                    'Total patients': total_patients,
+                    'Males (n)': male_count,
+                    'Males (%)': round(male_percent, 1),
+                    'Females (n)': female_count,
+                    'Females (%)': round(female_percent, 1)
                 }
                 
                 # Ajouter les données inconnues seulement si il y en a
                 if unknown_count > 0:
-                    year_stats['Sexe inconnu (n)'] = unknown_count
-                    year_stats['Sexe inconnu (%)'] = round(unknown_percent, 1)
+                    year_stats['Unknown (n)'] = unknown_count
+                    year_stats['Unknown (%)'] = round(unknown_percent, 1)
                 
                 stats_by_year.append(year_stats)
         
@@ -523,12 +529,12 @@ def register_callbacks(app):
             if len(all_data) > 0:
                 # Statistiques d'âge totales
                 total_age_stats = {
-                    'Age moyen': round(all_ages.mean(), 1),
-                    'Age médian': round(all_ages.median(), 1),
-                    'Age Q1': round(all_ages.quantile(0.25), 1),
-                    'Age Q3': round(all_ages.quantile(0.75), 1),
-                    'Age minimum': int(all_ages.min()),
-                    'Age maximum': int(all_ages.max()),
+                    'Average age': round(all_ages.mean(), 1),
+                    'Median age': round(all_ages.median(), 1),
+                    'Q1 age': round(all_ages.quantile(0.25), 1),
+                    'Q3 age': round(all_ages.quantile(0.75), 1),
+                    'Minimum age': int(all_ages.min()),
+                    'Maximum age': int(all_ages.max()),
                 }
                 
                 # Statistiques de sexe totales
@@ -545,49 +551,49 @@ def register_callbacks(app):
                 
                 # Ligne total
                 total_row = {
-                    'Année': 'TOTAL',
+                    'Year': 'TOTAL',
                     **total_age_stats,
-                    'Effectif total': total_all_patients,
-                    'Hommes (n)': total_male_count,
-                    'Hommes (%)': round(total_male_percent, 1),
-                    'Femmes (n)': total_female_count,
-                    'Femmes (%)': round(total_female_percent, 1)
+                    'Total patients': total_all_patients,
+                    'Males (n)': total_male_count,
+                    'Males (%)': round(total_male_percent, 1),
+                    'Females (n)': total_female_count,
+                    'Females (%)': round(total_female_percent, 1)
                 }
                 
                 # Ajouter les données inconnues seulement si il y en a
                 if total_unknown_count > 0:
-                    total_row['Sexe inconnu (n)'] = total_unknown_count
-                    total_row['Sexe inconnu (%)'] = round(total_unknown_percent, 1)
+                    total_row['Unknown (n)'] = total_unknown_count
+                    total_row['Unknown (%)'] = round(total_unknown_percent, 1)
                 
                 stats_by_year.append(total_row)
         
         if not stats_by_year:
-            return dbc.Alert('Aucune donnée disponible pour les années sélectionnées', color='info')
+            return dbc.Alert('No data available for the selected years', color='info')
         
         # Déterminer les colonnes selon la présence de données inconnues
-        has_unknown = any('Sexe inconnu (n)' in row for row in stats_by_year)
+        has_unknown = any('Unknown (n)' in row for row in stats_by_year)
         
         # Définir les colonnes
         base_columns = [
-            {"name": "Année", "id": "Année", "type": "text"},
-            {"name": "Age moyen", "id": "Age moyen", "type": "numeric", "format": {"specifier": ".1f"}},
-            {"name": "Age médian", "id": "Age médian", "type": "numeric", "format": {"specifier": ".1f"}},
-            {"name": "Age Q1", "id": "Age Q1", "type": "numeric", "format": {"specifier": ".1f"}},
-            {"name": "Age Q3", "id": "Age Q3", "type": "numeric", "format": {"specifier": ".1f"}},
-            {"name": "Age minimum", "id": "Age minimum", "type": "numeric"},
-            {"name": "Age maximum", "id": "Age maximum", "type": "numeric"},
-            {"name": "Effectif total", "id": "Effectif total", "type": "numeric"},
-            {"name": "Hommes (n)", "id": "Hommes (n)", "type": "numeric"},
-            {"name": "Hommes (%)", "id": "Hommes (%)", "type": "numeric", "format": {"specifier": ".1f"}},
-            {"name": "Femmes (n)", "id": "Femmes (n)", "type": "numeric"},
-            {"name": "Femmes (%)", "id": "Femmes (%)", "type": "numeric", "format": {"specifier": ".1f"}}
+            {"name": "Year", "id": "Year", "type": "text"},
+            {"name": "Average age", "id": "Average age", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Median age", "id": "Median age", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Q1 age", "id": "Q1 age", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Q3 age", "id": "Q3 age", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Minimum age", "id": "Minimum age", "type": "numeric"},
+            {"name": "Maximum age", "id": "Maximum age", "type": "numeric"},
+            {"name": "Total patients", "id": "Total patients", "type": "numeric"},
+            {"name": "Males (n)", "id": "Males (n)", "type": "numeric"},
+            {"name": "Males (%)", "id": "Males (%)", "type": "numeric", "format": {"specifier": ".1f"}},
+            {"name": "Females (n)", "id": "Females (n)", "type": "numeric"},
+            {"name": "Females (%)", "id": "Females (%)", "type": "numeric", "format": {"specifier": ".1f"}}
         ]
         
         # Ajouter les colonnes pour les données inconnues si nécessaire
         if has_unknown:
             base_columns.extend([
-                {"name": "Sexe inconnu (n)", "id": "Sexe inconnu (n)", "type": "numeric"},
-                {"name": "Sexe inconnu (%)", "id": "Sexe inconnu (%)", "type": "numeric", "format": {"specifier": ".1f"}}
+                {"name": "Unknown (n)", "id": "Unknown (n)", "type": "numeric"},
+                {"name": "Unknown (%)", "id": "Unknown (%)", "type": "numeric", "format": {"specifier": ".1f"}}
             ])
         
         app.server.stats_data = stats_by_year
@@ -615,40 +621,40 @@ def register_callbacks(app):
                 style_data_conditional=[
                     {
                         # Mise en évidence de la ligne TOTAL
-                        'if': {'filter_query': '{Année} = TOTAL'},
+                        'if': {'filter_query': '{Year} = TOTAL'},
                         'backgroundColor': '#e6f3ff',
                         'fontWeight': 'bold',
                         'border': '2px solid #0D3182'
                     },
                     {
                         # Style pour les colonnes de pourcentage hommes
-                        'if': {'column_id': ['Hommes (%)', 'Hommes (n)']},
+                        'if': {'column_id': ['Males (%)', 'Males (n)']},
                         'backgroundColor': '#e8f4fd',
                     },
                     {
                         # Style pour les colonnes de pourcentage femmes
-                        'if': {'column_id': ['Femmes (%)', 'Femmes (n)']},
+                        'if': {'column_id': ['Females (%)', 'Females (n)']},
                         'backgroundColor': '#fce8f3',
                     }
                 ],
                 style_cell_conditional=[
                     {
-                        'if': {'column_id': 'Année'},
+                        'if': {'column_id': 'Year'},
                         'fontWeight': 'bold',
                         'textAlign': 'left',
                         'width': '80px'
                     },
                     {
-                        'if': {'column_id': ['Hommes (n)', 'Femmes (n)', 'Sexe inconnu (n)']},
+                        'if': {'column_id': ['Males (n)', 'Females (n)', 'Unknown (n)']},
                         'width': '70px'
                     },
                     {
-                        'if': {'column_id': ['Hommes (%)', 'Femmes (%)', 'Sexe inconnu (%)']},
+                        'if': {'column_id': ['Males (%)', 'Females (%)', 'Unknown (%)']},
                         'width': '70px'
                     }
                 ]
             ),
-            html.P(f'{len(stats_by_year)-1} années affichées (+ ligne total)', 
+            html.P(f'{len(stats_by_year)-1} years displayed (+ total line)', 
                 className='text-info mt-2', style={'fontSize': '12px'})
         ]), False
     
@@ -674,9 +680,9 @@ def register_callbacks(app):
                 
                 if selected_years:
                     years_str = "_".join(map(str, sorted(selected_years)))
-                    filename = f"statistiques_patients_{years_str}_{current_date}.csv"
+                    filename = f"patients_statistics_{years_str}_{current_date}.csv"
                 else:
-                    filename = f"statistiques_patients_toutes_annees_{current_date}.csv"
+                    filename = f"patients_statistics_all_years_{current_date}.csv"
                 
                 return dcc.send_data_frame(
                     stats_df.to_csv, 
@@ -687,7 +693,7 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export CSV: {e}")
+            print(f"Error during CSV export: {e}")
             return dash.no_update
         
     @app.callback(
@@ -711,14 +717,14 @@ def register_callbacks(app):
         
         # Vérifier que la colonne Age Groups existe
         if 'Age Groups' not in filtered_df.columns:
-            return html.Div('Colonne Age Groups non disponible', className='text-warning text-center')
+            return html.Div('Age Groups column not available', className='text-warning text-center')
         
         # Vérifier que les colonnes Performance Status existent
         scale_col = 'Performance Status At Treatment Scale'
         score_col = 'Performance Status At Treatment Score'
         
         if scale_col not in filtered_df.columns or score_col not in filtered_df.columns:
-            return html.Div('Colonnes Performance Status manquantes', className='text-warning text-center')
+            return html.Div('Performance Status columns missing', className='text-warning text-center')
         
         try:
             # Nettoyer les données
@@ -728,7 +734,7 @@ def register_callbacks(app):
             available_scales = clean_df[scale_col].dropna().unique()
             
             if len(available_scales) == 0:
-                return html.Div('Aucune échelle de performance disponible', className='text-warning text-center')
+                return html.Div('No performance scale available', className='text-warning text-center')
             
             # Créer la figure
             fig = go.Figure()
@@ -809,7 +815,7 @@ def register_callbacks(app):
                                 'visible': visibility
                             },
                             {
-                                'title': f'Performance Score ({scale}) par tranche d\'âge',
+                                'title': f'Performance Score ({scale}) by age group',
                                 'yaxis': dict(
                                     title='Performance Score',
                                     range=y_config['range'],
@@ -826,8 +832,8 @@ def register_callbacks(app):
             
             # Mise en forme du graphique
             fig.update_layout(
-                title=f'Performance Score ({available_scales[0]}) par tranche d\'âge',
-                xaxis_title='Tranche d\'âge',
+                title=f'Performance Score ({available_scales[0]}) by age group',
+                xaxis_title='Age group',
                 yaxis_title='Performance Score',
                 height=480,
                 width=None,
@@ -867,105 +873,122 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+            return html.Div(f'Error: {str(e)}', className='text-danger text-center')
       
     @callback(
         Output('patients-missing-summary-table', 'children'),
         [Input('data-store', 'data'), Input('current-page', 'data')],
         prevent_initial_call=False
     )
-    def final_summary_callback(data, current_page):
-        """Version finale avec analyse réelle"""
+    def patients_missing_summary_callback(data, current_page):
+        """Gère le tableau de résumé des données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
-            return html.Div("En attente...", className='text-muted')
+            return html.Div("Waiting...", className='text-muted')
         
         try:
             df = pd.DataFrame(data)
             
-            # Colonnes à analyser
-            columns_to_analyze = ['Age At Diagnosis', 'Main Diagnosis', 'Sex', 'Blood + Rh', 'Number HCT', 'Number Allo HCT']
+            # Variables spécifiques à analyser pour Patients
+            columns_to_analyze = [
+                'Age At Diagnosis', 
+                'Main Diagnosis', 
+                'Sex', 
+                'Blood + Rh', 
+                'Number HCT', 
+                'Number Allo HCT'
+            ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
-            print(f"🔍 FINAL - Colonnes existantes: {existing_columns}")
-            
             if not existing_columns:
-                return dbc.Alert("Aucune colonne trouvée", color='warning')
+                return dbc.Alert("No Patients variable found", color='warning')
             
-            # Analyse simple
-            summary_data = []
-            for col in existing_columns:
-                missing_count = df[col].isna().sum()
-                total = len(df)
-                percentage = round((missing_count / total) * 100, 1)
-                
-                summary_data.append({
-                    'Colonne': col,
-                    'Total': total,
-                    'Manquantes': missing_count,
-                    '% Manquant': percentage
-                })
-            
-            print(f"🔍 FINAL - Données du tableau: {summary_data}")
+            # Utiliser la fonction existante de graphs.py
+            missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             return dash_table.DataTable(
-                data=summary_data,
+                data=missing_summary.to_dict('records'),
                 columns=[
-                    {"name": "Colonne", "id": "Colonne"},
-                    {"name": "Total", "id": "Total", "type": "numeric"},
-                    {"name": "Manquantes", "id": "Manquantes", "type": "numeric"},
-                    {"name": "% Manquant", "id": "% Manquant", "type": "numeric"}
+                    {"name": "Column", "id": "Column", "type": "text"},
+                    {"name": "Total", "id": "Total patients", "type": "numeric"},
+                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
+                     "format": {"specifier": ".1f"}}
                 ],
-                style_table={'height': '350px', 'overflowY': 'auto'},
-                style_cell={'textAlign': 'center', 'padding': '10px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
+                style_table={'height': '300px', 'overflowY': 'auto'},
+                style_cell={
+                    'textAlign': 'center',
+                    'padding': '8px',
+                    'fontSize': '12px',
+                    'fontFamily': 'Arial, sans-serif'
+                },
+                style_header={
+                    'backgroundColor': '#0D3182',
+                    'color': 'white',
+                    'fontWeight': 'bold'
+                },
                 style_data_conditional=[
                     {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
-                    {'if': {'filter_query': '{% Manquant} = 0', 'column_id': '% Manquant'}, 
-                    'backgroundColor': '#d4edda', 'color': 'green'},
-                    {'if': {'filter_query': '{% Manquant} > 10', 'column_id': '% Manquant'}, 
-                    'backgroundColor': '#f8d7da', 'color': 'red'}
+                    {
+                        'if': {
+                            'filter_query': '{Percentage missing} > 20',
+                            'column_id': 'Percentage missing'
+                        },
+                        'backgroundColor': '#ffebee',
+                        'color': 'red',
+                        'fontWeight': 'bold'
+                    }
                 ]
             )
             
         except Exception as e:
-            print(f"🔍 FINAL - ERREUR: {e}")
-            return dbc.Alert(f"Erreur: {str(e)}", color='danger')
-
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
+        
     @callback(
         [Output('patients-missing-detail-table', 'children'),
-        Output('export-missing-patients-button', 'disabled')],  # Contrôler l'état du bouton
+         Output('export-missing-patients-button', 'disabled')],
         [Input('data-store', 'data'), Input('current-page', 'data')],
         prevent_initial_call=False
     )
-    def final_detail_callback(data, current_page):
-        """Version finale détail avec analyse réelle"""
+    def patients_missing_detail_callback(data, current_page):
+        """Gère le tableau détaillé des patients avec données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
-            return html.Div("En attente...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True
         
         try:
             df = pd.DataFrame(data)
-            columns_to_analyze = ['Age At Diagnosis', 'Main Diagnosis', 'Sex', 'Blood + Rh', 'Number HCT', 'Number Allo HCT']
+            
+            # Variables spécifiques à analyser pour Patients
+            columns_to_analyze = [
+                'Age At Diagnosis', 
+                'Main Diagnosis', 
+                'Sex', 
+                'Blood + Rh', 
+                'Number HCT', 
+                'Number Allo HCT',
+                'Performance Status At Treatment Scale',
+                'Performance Status At Treatment Score'
+            ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
-            # Trouver les patients avec données manquantes
+            if not existing_columns:
+                return dbc.Alert("No Patients variable found", color='warning'), True
+            
+            # Utiliser la fonction existante de graphs.py
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            if detailed_missing.empty:
+                return dbc.Alert("No missing data found !", color='success'), True
+            
+            # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
-            for _, row in df.iterrows():
-                patient_id = row.get('Long ID', f'Patient_{row.name}')
-                missing_cols = [col for col in existing_columns if pd.isna(row[col])]
-                
-                if missing_cols:
-                    detailed_data.append({
-                        'Long ID': patient_id,
-                        'Colonnes manquantes': ', '.join(missing_cols),
-                        'Nb manquant': len(missing_cols)
-                    })
-            
-            print(f"🔍 FINAL - Patients avec données manquantes: {len(detailed_data)}")
-            
-            if not detailed_data:
-                return dbc.Alert("🎉 Aucune donnée manquante !", color='success'), True
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
             
             # Sauvegarder les données pour l'export
             app.server.missing_patients_data = detailed_data
@@ -975,8 +998,8 @@ def register_callbacks(app):
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
-                        {"name": "Colonnes manquantes", "id": "Colonnes manquantes"},
-                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                        {"name": "Missing variables", "id": "Missing columns"},
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"}
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
@@ -988,18 +1011,18 @@ def register_callbacks(app):
                 )
             ])
             
-            return table_content, False  # Activer le bouton
+            return table_content, False  # Activer le bouton d'export
             
         except Exception as e:
-            print(f"🔍 FINAL DETAIL - ERREUR: {e}")
-
-    @app.callback(
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
+        
+    @callback(
         Output("download-missing-patients-excel", "data"),
         Input("export-missing-patients-button", "n_clicks"),
         prevent_initial_call=True
     )
     def export_missing_patients_excel(n_clicks):
-        """Gère l'export Excel des patients avec données manquantes"""
+        """Gère l'export csv des patients avec données manquantes pour Patients"""
         if n_clicks is None:
             return dash.no_update
         
@@ -1011,10 +1034,10 @@ def register_callbacks(app):
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"patients_donnees_manquantes_{current_date}.csv"
+                filename = f"patients_missing_data_{current_date}.xlsx"
                 
                 return dcc.send_data_frame(
-                    missing_df.to_csv, 
+                    missing_df.to_excel,
                     filename=filename,
                     index=False
                 )
@@ -1022,5 +1045,7 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export Excel: {e}")
+            print(f"Error during Excel export Patients: {e}")
             return dash.no_update
+        
+    

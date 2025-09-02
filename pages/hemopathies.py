@@ -15,7 +15,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Distribution des diagnostics')),
+                    dbc.CardHeader(html.H5('Diagnostics distribution')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -35,7 +35,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Distribution normalisée des diagnostics')),
+                    dbc.CardHeader(html.H5('Normalized diagnostics distribution')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -55,7 +55,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Performance Scores par diagnostic')),
+                    dbc.CardHeader(html.H5('Performance Scores by diagnosis')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -75,7 +75,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Répartition des diagnostics principaux par année')),
+                    dbc.CardHeader(html.H5('Main diagnoses distribution by year')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -91,14 +91,19 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        html.Hr(style={
+            'border': '2px solid #dee2e6',
+            'margin': '3rem 0 2rem 0'
+        }),
+
         dbc.Row([
             # Tableau 1 - Résumé des colonnes
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardHeader(html.H5("Column summary", className='mb-0')),
                     dbc.CardBody([
                         html.Div(id='hemopathies-missing-summary-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ])
                     ])
                 ])
@@ -109,7 +114,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader([
                         html.Div([
-                            html.H5("Patients concernés", className='mb-0'),
+                            html.H5("Lines affected", className='mb-0'),
                             dbc.Button(
                                 [html.I(className="fas fa-download me-2"), "Export CSV"],
                                 id="export-missing-hemopathies-button",
@@ -121,7 +126,7 @@ def get_layout():
                     ]),
                     dbc.CardBody([
                         html.Div(id='hemopathies-missing-detail-table', children=[
-                            dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ]),
                         # Composant pour télécharger le fichier Excel (invisible)
                         dcc.Download(id="download-missing-hemopathies-excel")
@@ -176,7 +181,7 @@ def register_callbacks(app):
             x_axis = 'Main Diagnosis' if 'Main Diagnosis' in df.columns else None
         
         if stack_var is None:
-            stack_var = 'Aucune'
+            stack_var = 'None'
         
         # Filtrer les données par année
         if selected_years and 'Year' in df.columns:
@@ -185,7 +190,7 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty or x_axis not in filtered_df.columns:
-            return html.Div('Aucune donnée disponible', className='text-warning text-center')
+            return html.Div('No data available', className='text-warning text-center')
         
         try:
             # Vérifier si on doit tourner les labels (pour les diagnostics)
@@ -219,16 +224,16 @@ def register_callbacks(app):
                 display_column = x_axis
                 freq_order = filtered_df[x_axis].value_counts().index.tolist()
             
-            stack_col = None if stack_var == 'Aucune' else stack_var
+            stack_col = None if stack_var == 'None' else stack_var
             
             if stack_col is None:
                 # Barplot simple
                 fig = gr.create_simple_barplot(
                     data=processed_df,
                     x_column=display_column,
-                    title=f"Distribution des {x_axis.lower()}",
+                    title=f"Distribution of {x_axis.lower()}",
                     x_axis_title=x_axis,
-                    y_axis_title="Nombre de patients",
+                    y_axis_title="Number of patients",
                     custom_order=freq_order,
                     height=380,  # Ajusté pour le nouveau layout
                     width=None,
@@ -239,7 +244,7 @@ def register_callbacks(app):
                 # Ajouter le texte complet au hover si c'est tronqué
                 if should_rotate:
                     fig.update_traces(
-                        hovertemplate=f'<b>%{{x}}</b><br>{x_axis}: %{{customdata}}<br>Nombre: %{{y}}<extra></extra>',
+                        hovertemplate=f'<b>%{{x}}</b><br>{x_axis}: %{{customdata}}<br>Number: %{{y}}<extra></extra>',
                         customdata=processed_df[x_axis]
                     )
             else:
@@ -249,9 +254,9 @@ def register_callbacks(app):
                     x_column=display_column,
                     y_column='Count',
                     stack_column=stack_col,
-                    title=f"Distribution des {x_axis.lower()} par {stack_col.lower()}",
+                    title=f"Distribution of {x_axis.lower()} by {stack_col.lower()}",
                     x_axis_title=x_axis,
-                    y_axis_title="Nombre de patients",
+                    y_axis_title="Number of patients",
                     custom_order=freq_order,
                     height=380,  # Ajusté pour le nouveau layout
                     width=None,
@@ -288,7 +293,7 @@ def register_callbacks(app):
             x_axis = 'Main Diagnosis' if 'Main Diagnosis' in df.columns else None
         
         if stack_var is None:
-            stack_var = 'Aucune'
+            stack_var = 'None'
         
         # Filtrer les données par année
         if selected_years and 'Year' in df.columns:
@@ -297,7 +302,7 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty or x_axis not in filtered_df.columns:
-            return html.Div('Aucune donnée disponible', className='text-warning text-center')
+            return html.Div('No data available', className='text-warning text-center')
         
         try:
             # Vérifier si on doit tourner les labels (pour les diagnostics)
@@ -311,7 +316,6 @@ def register_callbacks(app):
                 )
                 display_column = truncated_col
                 
-                # Ordre sans doublons - méthode sûre
                 freq_order_original = filtered_df[x_axis].value_counts().index.tolist()
                 truncated_mapping = create_safe_truncated_mapping(processed_df, x_axis, truncated_col)
                 
@@ -328,14 +332,13 @@ def register_callbacks(app):
                 display_column = x_axis
                 freq_order = filtered_df[x_axis].value_counts().index.tolist()
             
-            stack_col = None if stack_var == 'Aucune' else stack_var
+            stack_col = None if stack_var == 'None' else stack_var
             
             if stack_col is None:
-                # Barplot normalisé simple
                 fig = gr.create_simple_normalized_barplot(
                     data=processed_df,
                     x_column=display_column,
-                    title=f"Distribution relative des {x_axis.lower()}",
+                    title=f"Relative distribution of {x_axis.lower()}",
                     x_axis_title=x_axis,
                     y_axis_title="Proportion (%)",
                     custom_order=freq_order,
@@ -346,13 +349,12 @@ def register_callbacks(app):
                 )
 
             else:
-                # Barplot stacké normalisé - CONSERVER L'ORDRE du barplot simple
                 fig = gr.create_normalized_barplot(
                     data=processed_df,
                     x_column=display_column,
                     y_column='Count',
                     stack_column=stack_col,
-                    title=f"Distribution normalisée des {x_axis.lower()} par {stack_col.lower()}",
+                    title=f"Normalized distribution of {x_axis.lower()} by {stack_col.lower()}",
                     x_axis_title=x_axis,
                     y_axis_title="Proportion (%)",
                     custom_order=freq_order,
@@ -369,7 +371,7 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+            return html.Div(f'Error: {str(e)}', className='text-danger text-center')
 
     @app.callback(
         Output('hemopathies-performance-scores-boxplot', 'children'),
@@ -396,14 +398,14 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty or x_axis not in filtered_df.columns:
-            return html.Div('Aucune donnée disponible', className='text-warning text-center')
+            return html.Div('No data available', className='text-warning text-center')
         
         # Vérifier que les colonnes nécessaires existent
         scale_col = 'Performance Status At Treatment Scale'
         score_col = 'Performance Status At Treatment Score'
         
         if scale_col not in filtered_df.columns or score_col not in filtered_df.columns:
-            return html.Div('Colonnes Performance Status manquantes', className='text-warning text-center')
+            return html.Div('Performance Status columns missing', className='text-warning text-center')
         
         try:
             # Nettoyer les données pour x_axis
@@ -413,7 +415,7 @@ def register_callbacks(app):
             available_scales = clean_df[scale_col].dropna().unique()
             
             if len(available_scales) == 0:
-                return html.Div('Aucune échelle de performance disponible', className='text-warning text-center')
+                return html.Div('No performance scale available', className='text-warning text-center')
             
             # Préparer les données avec labels tronqués si c'est un diagnostic
             if x_axis in ['Main Diagnosis', 'Subclass Diagnosis']:
@@ -556,7 +558,7 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+            return html.Div(f'Error: {str(e)}', className='text-danger text-center')
         
     @app.callback(
         Output('hemopathies-datatable', 'children'),
@@ -576,7 +578,7 @@ def register_callbacks(app):
         missing_cols = [col for col in required_cols if col not in df.columns]
         
         if missing_cols:
-            return dbc.Alert(f'Colonnes manquantes: {", ".join(missing_cols)}', color='warning')
+            return dbc.Alert(f'Missing columns: {", ".join(missing_cols)}', color='warning')
         
         # Filtrer selon les années sélectionnées
         if selected_years:
@@ -587,7 +589,7 @@ def register_callbacks(app):
             years_to_process = sorted(df['Year'].unique())
         
         if filtered_df.empty:
-            return dbc.Alert('Aucune donnée disponible pour les années sélectionnées', color='info')
+            return dbc.Alert('No data available for the selected years', color='info')
         
         # Calculer la table croisée Year x Main Diagnosis
         crosstab = pd.crosstab(filtered_df['Year'], filtered_df['Main Diagnosis'], margins=True, margins_name='TOTAL')
@@ -609,7 +611,7 @@ def register_callbacks(app):
         
         # Créer les lignes pour chaque année
         for year in crosstab.index:
-            row_data = {'Année': str(year)}
+            row_data = {'Year': str(year)}
             
             # Ajouter l'effectif total
             row_data['Effectif total'] = int(crosstab.loc[year, 'TOTAL'])
@@ -630,8 +632,8 @@ def register_callbacks(app):
         
         # Préparer les colonnes pour la DataTable
         columns = [
-            {"name": "Année", "id": "Année", "type": "text"},
-            {"name": "Effectif total", "id": "Effectif total", "type": "numeric"}
+            {"name": "Year", "id": "Year", "type": "text"},
+            {"name": "Total patients", "id": "Total patients", "type": "numeric"}
         ]
         
         # Ajouter les colonnes pour chaque diagnostic
@@ -653,7 +655,7 @@ def register_callbacks(app):
         
         # Créer la DataTable
         return html.Div([
-            html.P(f"Répartition de {len(diagnoses)} diagnostics principaux sur {len(years_to_process)} années", 
+            html.P(f"Distribution of {len(diagnoses)} main diagnoses over {len(years_to_process)} years", 
                 className='text-info mb-3', style={'fontSize': '12px'}),
             
             dash_table.DataTable(
@@ -687,7 +689,7 @@ def register_callbacks(app):
                 style_data_conditional=[
                     {
                         # Mise en évidence de la ligne TOTAL
-                        'if': {'filter_query': '{Année} = TOTAL'},
+                        'if': {'filter_query': '{Year} = TOTAL'},
                         'backgroundColor': '#e6f3ff',
                         'fontWeight': 'bold',
                         'border': '2px solid #0D3182'
@@ -705,7 +707,7 @@ def register_callbacks(app):
                 ],
                 style_cell_conditional=[
                     {
-                        'if': {'column_id': 'Année'},
+                        'if': {'column_id': 'Year'},
                         'fontWeight': 'bold',
                         'textAlign': 'left',
                         'width': '80px',
@@ -714,7 +716,7 @@ def register_callbacks(app):
                         'left': 0
                     },
                     {
-                        'if': {'column_id': 'Effectif total'},
+                        'if': {'column_id': 'Total patients'},
                         'width': '90px',
                         'fontWeight': 'bold',
                         'backgroundColor': '#fff2cc'
@@ -745,7 +747,7 @@ def register_callbacks(app):
         """Gère le tableau de résumé des données manquantes pour Hemopathies"""
         
         if current_page != 'Hemopathies' or not data:
-            return html.Div("En attente...", className='text-muted')
+            return html.Div("Waiting...", className='text-muted')
         
         try:
             df = pd.DataFrame(data)
@@ -761,7 +763,7 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Hemopathies trouvée", color='warning')
+                return dbc.Alert("No Hemopathies variable found", color='warning')
             
             # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
@@ -769,10 +771,10 @@ def register_callbacks(app):
             return dash_table.DataTable(
                 data=missing_summary.to_dict('records'),
                 columns=[
-                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Column", "id": "Column", "type": "text"},
                     {"name": "Total", "id": "Total patients", "type": "numeric"},
-                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
-                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
                      "format": {"specifier": ".1f"}}
                 ],
                 style_table={'height': '300px', 'overflowY': 'auto'},
@@ -802,7 +804,7 @@ def register_callbacks(app):
             )
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
     @callback(
         [Output('hemopathies-missing-detail-table', 'children'),
@@ -814,7 +816,7 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour Hemopathies"""
         
         if current_page != 'Hemopathies' or not data:
-            return html.Div("En attente...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True
         
         try:
             df = pd.DataFrame(data)
@@ -830,21 +832,21 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Hemopathies trouvée", color='warning'), True
+                return dbc.Alert("No Hemopathies variable found", color='warning'), True
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+                return dbc.Alert("No missing data found !", color='success'), True
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
             for _, row in detailed_missing.iterrows():
                 detailed_data.append({
                     'Long ID': row['Long ID'],
-                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
-                    'Nb manquant': row['Nombre de colonnes manquantes']
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
                 })
             
             # Sauvegarder les données pour l'export
@@ -855,8 +857,8 @@ def register_callbacks(app):
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
-                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
-                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                        {"name": "Missing variables", "id": "Missing columns"},
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"}
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
@@ -871,7 +873,7 @@ def register_callbacks(app):
             return table_content, False  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
 
     @callback(
         Output("download-missing-hemopathies-excel", "data"),
@@ -891,10 +893,10 @@ def register_callbacks(app):
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"hemopathies_donnees_manquantes_{current_date}.csv"
-                
+                filename = f"hemopathies_missing_data_{current_date}.xlsx"
+
                 return dcc.send_data_frame(
-                    missing_df.to_csv, 
+                    missing_df.to_excel,
                     filename=filename,
                     index=False
                 )
@@ -902,5 +904,5 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export Excel Hemopathies: {e}")
+            print(f"Error during Excel export Hemopathies: {e}")
             return dash.no_update

@@ -14,15 +14,15 @@ def get_layout():
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader([
-                        html.H5('Évolution par année'),
+                        html.H5('Yearly evolution'),
                         # Sélecteur de variable intégré dans le header
                         html.Div([
-                            html.Label('Variable à analyser:', 
+                            html.Label('Variable to analyze:', 
                                      style={'fontSize': '12px', 'marginRight': '10px', 'marginBottom': '0'}),
                             dcc.Dropdown(
                                 id='procedures-main-variable-integrated',
                                 style={'width': '250px', 'fontSize': '12px'},
-                                placeholder="Sélectionnez une variable..."
+                                placeholder="Select a variable..."
                             )
                         ], style={
                             'display': 'flex', 
@@ -50,7 +50,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Analyse du statut CMV (Cytomégalovirus)')),
+                    dbc.CardHeader(html.H5('CMV status analysis')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-procedures-cmv",
@@ -69,7 +69,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Traitements Prophylactiques')),
+                    dbc.CardHeader(html.H5('Prophylactic treatments')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-procedures-prophylaxis",
@@ -88,7 +88,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Traitements de Préparation')),
+                    dbc.CardHeader(html.H5('Preparation treatments')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-procedures-treatment",
@@ -107,16 +107,16 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Analyse de la durée d'aplasie")),
+                    dbc.CardHeader(html.H5("Aplasia duration analysis")),
                     dbc.CardBody([
                         dcc.Tabs(
                             id='procedures-aplasia-tabs',
                             value='tab-global',
                             children=[
-                                dcc.Tab(label='Aplasie - Vue globale', value='tab-global'),
-                                dcc.Tab(label='Aplasie - Par années', value='tab-stratified'),
-                                dcc.Tab(label='Thrombopénie - Vue globale', value='tab-thrombopenia-global'),
-                                dcc.Tab(label='Thrombopénie - Par années', value='tab-thrombopenia-stratified')
+                                dcc.Tab(label='Aplasia - Global view', value='tab-global'),
+                                dcc.Tab(label='Aplasia - By year', value='tab-stratified'),
+                                dcc.Tab(label='Thrombocytopenia - Global view', value='tab-thrombopenia-global'),
+                                dcc.Tab(label='Thrombocytopenia - By year', value='tab-thrombopenia-stratified')
                             ]
                         ),
                         html.Div(
@@ -137,9 +137,53 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        html.Hr(style={
+            'border': '2px solid #dee2e6',
+            'margin': '3rem 0 2rem 0'
+        }),
+
+                # Section données manquantes - À ajouter à la fin avant ], fluid=True)
+        dbc.Row([
+            # Tableau 1 - Résumé des colonnes
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5("Column summary", className='mb-0')),
+                    dbc.CardBody([
+                        html.Div(id='procedures-missing-summary-table', children=[
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
+                        ])
+                    ])
+                ])
+            ], width=6),
+            
+            # Tableau 2 - Patients concernés  
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Lines affected", className='mb-0'),
+                            dbc.Button(
+                                [html.I(className="fas fa-download me-2"), "Export CSV"],
+                                id="export-missing-procedures-button",
+                                color="primary",
+                                size="sm",
+                                disabled=True,  # Désactivé par défaut
+                            )
+                        ], className="d-flex justify-content-between align-items-center")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='procedures-missing-detail-table', children=[
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
+                        ]),
+                        # Composant pour télécharger le fichier CSV (invisible)
+                        dcc.Download(id="download-missing-procedures-excel")
+                    ])
+                ])
+            ], width=6),
+        ]),
         # Filtre des années (optionnel si vous en avez un)
         dcc.Store(id='procedures-year-filter')  # Store pour les filtres d'années
-    ])
+    ], fluid=True)
 
 def get_main_chart_variable_options(data):
     """
@@ -152,7 +196,7 @@ def get_main_chart_variable_options(data):
         list: Liste des options pour le dropdown
     """
     if data is None or len(data) == 0:
-        return [{'label': 'Aucune donnée disponible', 'value': 'none'}]
+        return [{'label': 'No data available', 'value': 'none'}]
     
     # Convertir la liste en DataFrame
     df = pd.DataFrame(data)
@@ -162,11 +206,11 @@ def get_main_chart_variable_options(data):
     
     # Vérifier les colonnes disponibles (ordre de priorité)
     possible_columns = {
-        'Donor Type': 'Type de donneur',
-        'Source Stem Cells': 'Source des cellules souches', 
-        'Match Type': 'Type de compatibilité',
-        'Conditioning Regimen Type': 'Type de conditionnement',
-        'Compatibilité HLA': 'Compatibilité HLA'
+        'Donor Type': 'Donor type',
+        'Source Stem Cells': 'Source of stem cells', 
+        'Match Type': 'Match type',
+        'Conditioning Regimen Type': 'Conditioning regimen type',
+        'Compatibilité HLA': 'HLA Compatibility'
     }
     
     # Ajouter les colonnes qui existent réellement
@@ -199,7 +243,7 @@ def register_callbacks(app):
             return [], None
             
         if data is None:
-            return [{'label': 'Chargement...', 'value': 'loading'}], None
+            return [{'label': 'Loading...', 'value': 'loading'}], None
         
         options = get_main_chart_variable_options(data)
 
@@ -208,7 +252,7 @@ def register_callbacks(app):
         if options and len(options) > 0:
             # Prendre la première option qui n'est pas 'none', 'loading' ou 'Aucune variable disponible'
             for option in options:
-                if option['value'] not in ['none', 'loading'] and 'Aucune' not in option['label']:
+                if option['value'] not in ['none', 'loading'] and 'None' not in option['label']:
                     default_value = option['value']
                     break
             
@@ -234,19 +278,19 @@ def register_callbacks(app):
         
         # Vérifier les données nécessaires
         if 'Year' not in df.columns:
-            return html.Div('Colonne "Year" non disponible', className='text-warning text-center')
+            return html.Div('Column "Year" not available', className='text-warning text-center')
         
         if main_variable is None:
             return html.Div([
                 dbc.Alert([
-                    html.H6("Sélection requise", className="mb-2"),
-                    html.P("Veuillez sélectionner une variable à analyser dans le menu déroulant ci-dessus.", 
+                    html.H6("Selection required", className="mb-2"),
+                    html.P("Please select a variable to analyze in the dropdown menu above.", 
                         className="mb-0")
                 ], color="info", className="text-center")
             ], style={'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'height': '400px'})
         
         if main_variable == 'none' or main_variable not in df.columns:
-            return html.Div('Variable sélectionnée non disponible', className='text-warning text-center')
+            return html.Div('Selected variable not available', className='text-warning text-center')
         
         # Filtrer par années
         if selected_years:
@@ -255,7 +299,7 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée pour les années sélectionnées', className='text-warning text-center')
+            return html.Div('No data for the selected years', className='text-warning text-center')
         
         try:
             # Ordre chronologique des années
@@ -273,10 +317,10 @@ def register_callbacks(app):
                 data=filtered_df,
                 x_column='Year',
                 group_column=main_variable,
-                title=f"Évolution et effectifs cumulés par {variable_label}",
-                x_axis_title="Année",
-                bar_y_axis_title="Nombre de patients par année",
-                line_y_axis_title="Effectif cumulé par catégorie",
+                title=f"Evolution and cumulative counts by {variable_label}",
+                x_axis_title="Year",
+                bar_y_axis_title="Number of patients per year",
+                line_y_axis_title="Cumulative count by category",
                 custom_x_order=year_order,
                 height=480,
                 width=None,
@@ -312,13 +356,13 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée pour les années sélectionnées', className='text-warning text-center')
+            return html.Div('No data for the selected years', className='text-warning text-center')
         
         try:
             # Créer la visualisation CMV
             fig = gr.create_cmv_status_pie_charts(
                 data=filtered_df,
-                title="Analyse du statut CMV - Donneurs et Receveurs",
+                title="CMV status analysis - Donors and Recipients",
                 width=None
             )
             
@@ -352,7 +396,7 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée pour les années sélectionnées', className='text-warning text-center')
+            return html.Div('No data for the selected years', className='text-warning text-center')
         
         # Initialiser fig à None pour éviter l'erreur
         fig = None
@@ -365,8 +409,8 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Colonnes manquantes pour calculer la durée d'aplasie:", className='text-warning text-center'),
-                        html.P(f"Colonnes manquantes: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
+                        html.P("Missing columns for calculating aplasia duration:", className='text-warning text-center'),
+                        html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
                 fig = gr.create_histogram_with_density(
@@ -375,9 +419,9 @@ def register_callbacks(app):
                     filter_column='Anc Recovery',
                     filter_value='Yes',
                     date_columns=('Treatment Date', 'Date Anc Recovery'),
-                    title="Distribution globale de la durée d'aplasie",
-                    x_axis_title="Jours",
-                    y_axis_title="Nombre de patients",
+                    title="Global distribution of aplasia duration",
+                    x_axis_title="Days",
+                    y_axis_title="Number of patients",
                     bin_size=2,
                     height=400,
                     opacity=0.6,
@@ -391,13 +435,13 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Colonnes manquantes pour calculer la durée d'aplasie:", className='text-warning text-center'),
-                        html.P(f"Colonnes manquantes: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
+                        html.P("Missing columns for calculating aplasia duration:", className='text-warning text-center'),
+                        html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
                 if 'Year' not in filtered_df.columns:
                     return html.Div([
-                        html.P("Colonne 'Year' manquante pour la stratification", className='text-warning text-center')
+                        html.P("Missing column 'Year' for stratification", className='text-warning text-center')
                     ])
                 
                 available_years = sorted(filtered_df['Year'].unique())
@@ -416,9 +460,9 @@ def register_callbacks(app):
                         date_columns=('Treatment Date', 'Date Anc Recovery'),
                         selected_strata=years_to_display,
                         max_strata=3,
-                        title=f"Durée d'aplasie par année ({', '.join(map(str, years_to_display))})",
-                        x_axis_title="Jours",
-                        y_axis_title="Nombre de patients",
+                        title=f"Aplasia duration by year ({', '.join(map(str, years_to_display))})",
+                        x_axis_title="Days",
+                        y_axis_title="Number of patients",
                         bin_size=2,
                         height=400,
                         opacity=0.6,
@@ -427,7 +471,7 @@ def register_callbacks(app):
                 else:
                     return html.Div([
                         html.P("Stratification impossible", className='text-warning text-center'),
-                        html.P("Au moins 2 années de données sont nécessaires pour la comparaison", 
+                        html.P("At least 2 years of data are necessary for comparison", 
                             className='text-muted text-center', style={'fontSize': '12px'})
                     ])
 
@@ -438,8 +482,8 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Colonnes manquantes pour calculer la durée de thrombopénie:", className='text-warning text-center'),
-                        html.P(f"Colonnes manquantes: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
+                        html.P("Missing columns for calculating thrombocytopenia duration:", className='text-warning text-center'),
+                        html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
                 fig = gr.create_histogram_with_density(
@@ -448,9 +492,9 @@ def register_callbacks(app):
                     filter_column='Platelet Reconstitution',
                     filter_value='Yes',
                     date_columns=('Treatment Date', 'Date Platelet Reconstitution'),
-                    title="Distribution globale de la durée de thrombopénie",
-                    x_axis_title="Jours",
-                    y_axis_title="Nombre de patients",
+                    title="Global distribution of thrombocytopenia duration",
+                    x_axis_title="Days",
+                    y_axis_title="Number of patients",
                     bin_size=2,
                     height=400,
                     color_histogram='#8e44ad',
@@ -465,13 +509,13 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Colonnes manquantes pour calculer la durée de thrombopénie:", className='text-warning text-center'),
-                        html.P(f"Colonnes manquantes: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
+                        html.P("Missing columns for calculating thrombocytopenia duration:", className='text-warning text-center'),
+                        html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
                 if 'Year' not in filtered_df.columns:
                     return html.Div([
-                        html.P("Colonne 'Year' manquante pour la stratification", className='text-warning text-center')
+                        html.P("Missing column 'Year' for stratification", className='text-warning text-center')
                     ])
                 
                 available_years = sorted(filtered_df['Year'].unique())
@@ -490,9 +534,9 @@ def register_callbacks(app):
                         date_columns=('Treatment Date', 'Date Platelet Reconstitution'),
                         selected_strata=years_to_display,
                         max_strata=3,
-                        title=f"Durée de thrombopénie par année ({', '.join(map(str, years_to_display))})",
-                        x_axis_title="Jours",
-                        y_axis_title="Nombre de patients",
+                        title=f"Thrombocytopenia duration by year ({', '.join(map(str, years_to_display))})",
+                        x_axis_title="Days",
+                        y_axis_title="Number of patients",
                         bin_size=2,
                         height=400,
                         opacity=0.6,
@@ -500,8 +544,8 @@ def register_callbacks(app):
                     )
                 else:
                     return html.Div([
-                        html.P("Stratification impossible", className='text-warning text-center'),
-                        html.P("Au moins 2 années de données sont nécessaires pour la comparaison", 
+                        html.P("Impossible to stratify", className='text-warning text-center'),
+                        html.P("At least 2 years of data are necessary for comparison", 
                             className='text-muted text-center', style={'fontSize': '12px'})
                     ])
             
@@ -514,14 +558,14 @@ def register_callbacks(app):
                 )
             else:
                 return html.Div([
-                    html.P("Onglet non reconnu ou erreur de configuration", className='text-warning text-center'),
-                    html.P(f"Onglet actuel reçu: '{active_tab}'", className='text-muted text-center', style={'fontSize': '10px'})
+                    html.P("Unrecognized tab or configuration error", className='text-warning text-center'),
+                    html.P(f"Current tab received: '{active_tab}'", className='text-muted text-center', style={'fontSize': '10px'})
                 ])
         
         except Exception as e:
             return html.Div([
-                html.P(f'Erreur lors du calcul: {str(e)}', className='text-danger text-center'),
-                html.P('Vérifiez que les colonnes de dates contiennent des données valides', className='text-muted text-center', style={'fontSize': '10px'})
+                html.P(f'Error during calculation: {str(e)}', className='text-danger text-center'),
+                html.P('Check that the date columns contain valid data', className='text-muted text-center', style={'fontSize': '10px'})
             ])
 
     
@@ -540,7 +584,7 @@ def register_callbacks(app):
         
         # Vérifier les données nécessaires
         if 'Year' not in df.columns:
-            return html.Div('Colonne "Year" non disponible', className='text-warning text-center')
+            return html.Div('Column "Year" not available', className='text-warning text-center')
         
         # Colonnes de traitement à analyser (Prep Regimen + TBI)
         treatment_columns = [
@@ -559,8 +603,8 @@ def register_callbacks(app):
         
         if not available_treatment_cols:
             return html.Div([
-                html.P('Colonnes de traitement non disponibles', className='text-warning text-center'),
-                html.P('Colonnes recherchées:', className='text-muted text-center', style={'fontSize': '10px'}),
+                html.P('Treatment columns not available', className='text-warning text-center'),
+                html.P('Searched columns:', className='text-muted text-center', style={'fontSize': '10px'}),
                 html.P(', '.join(treatment_columns), className='text-muted text-center', style={'fontSize': '8px'})
             ])
         
@@ -571,7 +615,7 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée pour les années sélectionnées', className='text-warning text-center')
+            return html.Div('No data for the selected years', className='text-warning text-center')
         
         try:
             # Standardiser les données : convertir 'Yes'/vide en 'Oui'/'Non'
@@ -585,8 +629,8 @@ def register_callbacks(app):
             fig = gr.create_unified_treatment_barplot(
                 data=df_processed,
                 treatment_columns=available_treatment_cols,
-                title="Proportion de patients ayant reçu chaque traitement de préparation",
-                x_axis_title="Traitement",
+                title="Proportion of patients receiving each preparation treatment",
+                x_axis_title="Treatment",
                 y_axis_title="Proportion (%)",
                 width=None,
                 show_values=True,
@@ -600,7 +644,7 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+            return html.Div(f'Error: {str(e)}', className='text-danger text-center')
 
     @app.callback(
         Output('procedures-prophylaxis-chart', 'children'),
@@ -617,7 +661,7 @@ def register_callbacks(app):
         
         # Vérifier les données nécessaires
         if 'Year' not in df.columns:
-            return html.Div('Colonne "Year" non disponible', className='text-warning text-center')
+            return html.Div('Column "Year" not available', className='text-warning text-center')
         
         # Identifier les colonnes de prophylaxie (Oui/Non, excluant les autres variables)
         excluded_prefixes = ['Prep Regimen', 'Age Groups', 'Year', 'Greffes', 'Treatment Date', 
@@ -632,12 +676,13 @@ def register_callbacks(app):
                 is_excluded = any(col.startswith(prefix) for prefix in excluded_prefixes)
                 if not is_excluded:
                     prophylaxis_columns.append(col)
+                    
         
         if not prophylaxis_columns:
             return html.Div([
-                html.P('Colonnes de prophylaxie non disponibles', className='text-warning text-center'),
-                html.P('Aucune donnée de prophylaxie détectée dans le dataset', className='text-muted text-center', style={'fontSize': '10px'}),
-                html.P(f'Colonnes disponibles : {list(df.columns)[:10]}...', className='text-muted text-center', style={'fontSize': '8px'})
+                html.P('Prophylaxis columns not available', className='text-warning text-center'),
+                html.P('No prophylaxis data detected in the dataset', className='text-muted text-center', style={'fontSize': '10px'}),
+                html.P(f'Available columns: {list(df.columns)[:10]}...', className='text-muted text-center', style={'fontSize': '8px'})
             ])
         
         # Filtrer par années
@@ -647,15 +692,15 @@ def register_callbacks(app):
             filtered_df = df
         
         if filtered_df.empty:
-            return html.Div('Aucune donnée pour les années sélectionnées', className='text-warning text-center')
+            return html.Div('No data for the selected years', className='text-warning text-center')
         
         try:
-            # Utiliser la fonction unifiée (les données sont déjà en format Oui/Non)
+            # Utiliser la fonction unifiée
             fig = gr.create_unified_treatment_barplot(
                 data=filtered_df,
                 treatment_columns=prophylaxis_columns,
-                title="Proportion de patients ayant reçu chaque traitement prophylactique",
-                x_axis_title="Traitement",
+                title="Proportion of patients receiving each prophylactic treatment",
+                x_axis_title="Treatment",
                 y_axis_title="Proportion (%)",
                 width=None,
                 show_values=True,
@@ -669,9 +714,9 @@ def register_callbacks(app):
             )
         
         except Exception as e:
-            return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
+            return html.Div(f'Error: {str(e)}', className='text-danger text-center')
         
-    @app.callback(
+    @callback(
         Output('procedures-missing-summary-table', 'children'),
         [Input('data-store', 'data'), Input('current-page', 'data')],
         prevent_initial_call=False
@@ -680,7 +725,7 @@ def register_callbacks(app):
         """Gère le tableau de résumé des données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
-            return html.Div("En attente...", className='text-muted')
+            return html.Div("Waiting...", className='text-muted')
         
         try:
             df = pd.DataFrame(data)
@@ -691,12 +736,17 @@ def register_callbacks(app):
                 'Source Stem Cells', 
                 'Match Type',
                 'Conditioning Regimen Type',
-                'Compatibilité HLA'
+                'Compatibilité HLA',
+                'Treatment Date', 
+                'Anc Recovery',
+                'Date Anc Recovery',
+                'Platelet Reconstitution',
+                'Date Platelet Reconstitution'
             ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Procedures trouvée", color='warning')
+                return dbc.Alert("No Procedures variable found", color='warning')
             
             # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
@@ -704,10 +754,10 @@ def register_callbacks(app):
             return dash_table.DataTable(
                 data=missing_summary.to_dict('records'),
                 columns=[
-                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Column", "id": "Column", "type": "text"},
                     {"name": "Total", "id": "Total patients", "type": "numeric"},
-                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
-                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
                      "format": {"specifier": ".1f"}}
                 ],
                 style_table={'height': '300px', 'overflowY': 'auto'},
@@ -726,8 +776,8 @@ def register_callbacks(app):
                     {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
                     {
                         'if': {
-                            'filter_query': '{Pourcentage manquant} > 20',
-                            'column_id': 'Pourcentage manquant'
+                            'filter_query': '{Percentage missing} > 20',
+                            'column_id': 'Percentage missing'
                         },
                         'backgroundColor': '#ffebee',
                         'color': 'red',
@@ -737,9 +787,9 @@ def register_callbacks(app):
             )
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
-    @app.callback(
+    @callback(
         [Output('procedures-missing-detail-table', 'children'),
          Output('export-missing-procedures-button', 'disabled')],
         [Input('data-store', 'data'), Input('current-page', 'data')],
@@ -749,7 +799,7 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
-            return html.Div("En attente...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True
         
         try:
             df = pd.DataFrame(data)
@@ -760,26 +810,31 @@ def register_callbacks(app):
                 'Source Stem Cells', 
                 'Match Type',
                 'Conditioning Regimen Type',
-                'Compatibilité HLA'
+                'Compatibilité HLA',
+                'Treatment Date', 
+                'Anc Recovery',
+                'Date Anc Recovery',
+                'Platelet Reconstitution',
+                'Date Platelet Reconstitution'
             ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable Procedures trouvée", color='warning'), True
+                return dbc.Alert("No Procedures variable found", color='warning'), True
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+                return dbc.Alert("No missing data found !", color='success'), True
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
             for _, row in detailed_missing.iterrows():
                 detailed_data.append({
                     'Long ID': row['Long ID'],
-                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
-                    'Nb manquant': row['Nombre de colonnes manquantes']
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
                 })
             
             # Sauvegarder les données pour l'export
@@ -790,8 +845,8 @@ def register_callbacks(app):
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
-                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
-                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                        {"name": "Missing variables", "id": "Missing columns"},
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"}
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
@@ -806,15 +861,15 @@ def register_callbacks(app):
             return table_content, False  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
-
-    @app.callback(
-        Output("download-missing-procedures-csv", "data"),
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
+        
+    @callback(
+        Output("download-missing-procedures-excel", "data"),
         Input("export-missing-procedures-button", "n_clicks"),
         prevent_initial_call=True
     )
-    def export_missing_procedures_csv(n_clicks):
-        """Gère l'export CSV des patients avec données manquantes pour Procedures"""
+    def export_missing_procedures_excel(n_clicks):
+        """Gère l'export csv des patients avec données manquantes pour Procedures"""
         if n_clicks is None:
             return dash.no_update
         
@@ -826,10 +881,10 @@ def register_callbacks(app):
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"procedures_donnees_manquantes_{current_date}.csv"
-                
+                filename = f"procedures_missing_data_{current_date}.xlsx"
+
                 return dcc.send_data_frame(
-                    missing_df.to_csv, 
+                    missing_df.to_excel,
                     filename=filename,
                     index=False
                 )
@@ -837,9 +892,9 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export CSV Procedures: {e}")
+            print(f"Error during Excel export Procedures: {e}")
             return dash.no_update
-
+        
 def get_prophylaxis_columns(df):
     """
     Fonction utilitaire pour identifier les colonnes de prophylaxie
@@ -857,12 +912,10 @@ def get_prophylaxis_columns(df):
     prophylaxis_columns = []
     for col in df.columns:
         # Vérifier si c'est une colonne binaire Oui/Non
-        if df[col].isin(['Oui', 'Non']).any():
+        if df[col].isin(['Yes', 'No']).any():
             # Exclure les colonnes système
             is_excluded = any(col.startswith(prefix) for prefix in excluded_prefixes)
             if not is_excluded:
                 prophylaxis_columns.append(col)
     
     return prophylaxis_columns
-
-    

@@ -18,63 +18,22 @@ def get_layout():
         )
     ])
 
-
-def register_callbacks(app):
-    """Enregistre tous les callbacks spécifiques à la page d'accueil"""
-    
-    @app.callback(
-        Output('home-main-content', 'children'),
-        Input('data-store', 'data')
-    )
-    def update_home_content(data):
-        """Met à jour le contenu principal de la page d'accueil"""
-        
-        if data is not None:
-            # Données chargées : afficher le graphique
-            df = pd.DataFrame(data)
-            
-            if 'Year' in df.columns:
-                try:
-                    fig = gr.create_cumulative_barplot(
-                        data=df,
-                        category_column='Year',
-                        title="Nombre de greffes par an",
-                        x_axis_title="Année",
-                        bar_y_axis_title="Nombre de greffes",
-                        line_y_axis_title="Effectif cumulé",
-                        custom_order=sorted(df['Year'].unique().tolist()),
-                        height=500,  # Hauteur réduite pour mieux s'adapter
-                        width=None   # Largeur automatique
-                    )
-                    
-                    return dbc.Card([
-                        dbc.CardHeader([
-                            html.H4("Vue d'ensemble des données", className="mb-0")
-                        ]),
-                        dbc.CardBody([
-                            dcc.Graph(
-                                figure=fig, 
-                                style={'height': '500px'},  # Hauteur fixe pour éviter le débordement
-                                config={'responsive': True}
-                            )
-                        ], className="p-3")
-                    ], className="h-100")
-                    
-                except Exception as e:
-                    return dbc.Alert(
-                        f'Erreur lors de la création du graphique: {str(e)}', 
-                        color='danger'
-                    )
-            else:
-                available_cols = ', '.join(df.columns.tolist()[:10])
-                return dbc.Alert([
-                    html.H5('Colonne "Year" non trouvée dans les données'),
-                    html.P(f'Colonnes disponibles: {available_cols}...')
-                ], color='warning')
-        
-        else:
-            # Pas de données : afficher le message d'accueil
-            return create_welcome_content()
+def create_banner_component():
+    """Crée le composant bannière"""
+    return html.Div([
+        html.Img(
+            src="allograph-app/assets/images/banner.png",
+            style={
+                'width': '100%',
+                'maxWidth': '800px',
+                'height': 'auto',
+                'display': 'block',
+                'margin': '0 auto',
+                'borderRadius': '0px'
+            },
+            className="img-fluid"
+        )
+    ], style={'textAlign': 'center', 'marginTop': '30px', 'marginBottom': '20px'})
 
 def create_welcome_content():
     """Crée le contenu d'accueil quand aucune donnée n'est chargée"""
@@ -84,7 +43,7 @@ def create_welcome_content():
             html.Div([
                 html.H1([
                     html.I(className="fas fa-chart-line me-3", style={'color': '#0D3182'}),
-                    "Bienvenue dans AlloGraph"
+                    "Welcome to AlloGraph"
                 ], className="text-center mb-4"),
                 html.Hr()
             ]),
@@ -92,26 +51,26 @@ def create_welcome_content():
             # Description
             html.Div([
                 html.P([
-                    "Cette application vous permet d'analyser des données de patients depuis le ",
-                    html.Strong("modèle de données de l'EBMT Registry"),
-                    ". Explorez les distributions, tendances et corrélations dans vos données de greffe."
+                    "This application allows you to analyze patient data from the ",
+                    html.Strong("EBMT Registry data model"),
+                    ". Explore the distributions, trends and correlations in your data."
                 ], className="lead text-center mb-4"),
             ]),
             
             # Instructions
             html.Div([
-                html.H4("🔎 Pour commencer :", className="mb-3"),
+                html.H4("🔎 To get started :", className="mb-3"),
                 dbc.Row([
                     dbc.Col([
                         dbc.Card([
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-upload me-2", style={'color': '#28a745'}),
-                                    "1. Chargez vos données"
+                                    "1. Upload your data"
                                 ]),
                                 html.P([
-                                    "Utilisez le bouton de téléchargement dans la barre latérale pour charger votre fichier ",
-                                    html.Code("CSV"), " ou ", html.Code("Excel"), "."
+                                    "Use the upload button in the sidebar to upload your file ",
+                                    html.Code("CSV"), " or ", html.Code("Excel"), "."
                                 ])
                             ])
                         ], color="light", outline=True)
@@ -122,12 +81,12 @@ def create_welcome_content():
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-chart-bar me-2", style={'color': '#007bff'}),
-                                    "2. Explorez les analyses"
+                                    "2. Explore the analyses"
                                 ]),
                                 html.P([
-                                    "Naviguez entre les différentes pages d'analyse : ",
+                                    "Navigate between the different analysis pages : ",
                                     html.Strong("Patients"), ", ", 
-                                    html.Strong("Hémopathies"), ", etc."
+                                    html.Strong("Hemopathies"), ", etc."
                                 ])
                             ])
                         ], color="light", outline=True)
@@ -140,11 +99,11 @@ def create_welcome_content():
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-filter me-2", style={'color': '#ffc107'}),
-                                    "3. Filtrez et stratifiez"
+                                    "3. Filter and stratify"
                                 ]),
                                 html.P([
-                                    "Utilisez les contrôles de la barre latérale pour filtrer par année, ",
-                                    "stratifier par variables, et personnaliser vos analyses."
+                                    "Use the controls in the sidebar to filter, ",
+                                    "stratify, and personalize your analyses."
                                 ])
                             ])
                         ], color="light", outline=True)
@@ -155,37 +114,96 @@ def create_welcome_content():
                             dbc.CardBody([
                                 html.H5([
                                     html.I(className="fas fa-download me-2", style={'color': '#6f42c1'}),
-                                    "4. Exportez vos résultats"
+                                    "4. Export your results"
                                 ]),
                                 html.P([
-                                    "Téléchargez vos graphiques et tableaux pour vos rapports ",
-                                    "et présentations."
+                                    "Download your graphs and tables for your reports ",
+                                    "and presentations."
                                 ])
                             ])
                         ], color="light", outline=True)
                     ], width=6)
                 ])
             ]),
-            
-            # Informations techniques
-            html.Hr(),
-            html.Div([
-                html.H5("📋 Formats supportés :", className="mb-2"),
-                dbc.Row([
-                    dbc.Col([
-                        html.Ul([
-                            html.Li([html.I(className="fas fa-file-csv me-2"), "Fichiers CSV (.csv)"]),
-                            html.Li([html.I(className="fas fa-file-excel me-2"), "Fichiers Excel (.xlsx, .xls)"]),
-                        ], className="list-unstyled")
-                    ], width=6),
-                    dbc.Col([
-                        html.Ul([
-                            html.Li([html.I(className="fas fa-database me-2"), "Données structurées"]),
-                            html.Li([html.I(className="fas fa-chart-pie me-2"), "sur le modèle EBMT"])
-                        ], className="list-unstyled")
-                    ], width=6)
-                ])
-            ], className="text-muted")
-            
         ], className="p-4")
-    ])
+    ], className="shadow-sm")
+
+def register_callbacks(app):
+    """Enregistre tous les callbacks spécifiques à la page d'accueil"""
+    
+    @app.callback(
+        Output('home-main-content', 'children'),
+        Input('data-store', 'data')
+    )
+    def update_home_content(data):
+        """Met à jour le contenu principal de la page d'accueil"""
+        
+        if data is not None:
+            # Données chargées : afficher le graphique + bannière
+            df = pd.DataFrame(data)
+            
+            if 'Year' in df.columns:
+                try:
+                    fig = gr.create_cumulative_barplot(
+                        data=df,
+                        category_column='Year',
+                        title="Number of transplants per year",
+                        x_axis_title="Year",
+                        bar_y_axis_title="Transplant count",
+                        line_y_axis_title="Cumulative frequency",
+                        custom_order=sorted(df['Year'].unique().tolist()),
+                        height=500,  # Hauteur réduite pour mieux s'adapter
+                        width=None   # Largeur automatique
+                    )
+                    
+                    # Retourner le graphique ET la bannière
+                    return html.Div([
+                        # Graphique principal
+                        dbc.Card([
+                            dbc.CardHeader([
+                                html.H4("Data Overview", className="mb-0")
+                            ]),
+                            dbc.CardBody([
+                                dcc.Graph(
+                                    figure=fig, 
+                                    style={'height': '500px'},  # Hauteur fixe pour éviter le débordement
+                                    config={'responsive': True}
+                                )
+                            ], className="p-3")
+                        ], className="h-100 mb-4"),
+                        
+                        # Bannière sous le graphique
+                        create_banner_component()
+                    ])
+                    
+                except Exception as e:
+                    return html.Div([
+                        dbc.Alert(
+                            f'Error creating the graph: {str(e)}', 
+                            color='danger'
+                        ),
+                        # Bannière même en cas d'erreur
+                        create_banner_component()
+                    ])
+            
+            else:
+                # Pas de colonne Year, mais données chargées
+                available_cols = ', '.join(df.columns.tolist()[:10])
+                return html.Div([
+                    dbc.Alert([
+                        html.H5('Column "Year" not found in the data'),
+                        html.P(f'Available columns: {available_cols}...')
+                    ], color='warning'),
+                    # Bannière après le message d'erreur
+                    create_banner_component()
+                ])
+        
+        else:
+            # Pas de données : afficher le cadran explicatif + bannière
+            return html.Div([
+                # Cadran explicatif existant
+                create_welcome_content(),
+                
+                # Bannière sous le cadran
+                create_banner_component()
+            ])

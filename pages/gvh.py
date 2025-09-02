@@ -17,7 +17,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Analyse des Risques Compétitifs')),
+                    dbc.CardHeader(html.H4('Competing Risks Analysis')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
@@ -33,11 +33,16 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        html.Hr(style={
+            'border': '2px solid #dee2e6',
+            'margin': '3rem 0 2rem 0'
+        }),
+        
         dbc.Row([
             # Tableau 1 - Résumé des colonnes
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Résumé par colonne", className='mb-0')),
+                    dbc.CardHeader(html.H5("Summary by column", className='mb-0')),
                     dbc.CardBody([
                         html.Div(id='gvh-missing-summary-table', children=[
                             dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
@@ -51,7 +56,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader([
                         html.Div([
-                            html.H5("Patients concernés", className='mb-0'),
+                            html.H5("Lines affected", className='mb-0'),
                             dbc.Button(
                                 [html.I(className="fas fa-download me-2"), "Export CSV"],
                                 id="export-missing-gvh-button",
@@ -65,8 +70,8 @@ def get_layout():
                         html.Div(id='gvh-missing-detail-table', children=[
                             dbc.Alert("Contenu initial - sera remplacé par le callback", color='warning')
                         ]),
-                        # Composant pour télécharger le fichier CSV (invisible)
-                        dcc.Download(id="download-missing-gvh-csv")
+                        # Composant pour télécharger le fichier Excel (invisible)
+                        dcc.Download(id="download-missing-gvh-excel")
                     ])
                 ])
             ], width=6)
@@ -86,7 +91,7 @@ def create_gvh_sidebar_content(data):
     """
     if data is None or len(data) == 0:
         return html.Div([
-            html.P('Aucune donnée disponible', className='text-warning')
+            html.P('No data available', className='text-warning')
         ])
     
     # Convertir la liste en DataFrame
@@ -100,12 +105,12 @@ def create_gvh_sidebar_content(data):
     
     return html.Div([
         # Sélection du type de GvH
-        html.Label('Type de GvH:', className='mb-2'),
+        html.Label('GvH type:', className='mb-2'),
         dcc.RadioItems(
             id='gvh-type-selection',
             options=[
-                {'label': 'GvH Aiguë', 'value': 'acute'},
-                {'label': 'GvH Chronique', 'value': 'chronic'}
+                {'label': 'Acute GvH', 'value': 'acute'},
+                {'label': 'Chronic GvH', 'value': 'chronic'}
             ],
             value='acute',
             className='mb-3'
@@ -119,7 +124,7 @@ def create_gvh_sidebar_content(data):
         html.Hr(),
         
         # Filtres par année
-        html.H5('Filtres par année', className='mb-2'),
+        html.H5('Year filters', className='mb-2'),
         dcc.Checklist(
             id='gvh-year-filter',
             options=years_options,
@@ -132,12 +137,12 @@ def create_gvh_sidebar_content(data):
         
         # Informations sur les données
         html.Div([
-            html.H6("📊 Informations", className="mb-2"),
+            html.H6("📊 Information", className="mb-2"),
             html.P([
                 "Patients: ", html.Strong(f"{len(df):,}")
             ], className="mb-1", style={'fontSize': '12px'}),
             html.P([
-                "Années: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
+                "Years: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
     ])
@@ -168,7 +173,7 @@ def register_callbacks(app):
         if gvh_type == 'acute':
             # Filtres pour GvH Aiguë (inchangé)
             column_name = 'First aGvHD Maximum Score'
-            title = 'Filtres par Grade aGvH'
+            title = 'Grade filters for aGvH'
             filter_id = 'gvh-grade-filter'
             
             grade_order = ['Grade 0 (none)', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
@@ -193,7 +198,7 @@ def register_callbacks(app):
         else:  # chronic
             # Filtres pour GvH Chronique (MISE À JOUR : Limited et Extensive retirés)
             column_name = 'First cGvHD Maximum NIH Score'
-            title = 'Filtres par Score NIH cGvH'
+            title = 'Score filters for cGvH'
             filter_id = 'gvh-grade-filter'
             
             # Ordre mis à jour sans Limited et Extensive (car transformés)
@@ -220,7 +225,7 @@ def register_callbacks(app):
         if not grade_options:
             return html.Div([
                 html.H6(title, className='mb-2'),
-                html.P(f'Colonne "{column_name}" non disponible', className='text-muted small')
+                html.P(f'Column "{column_name}" not available', className='text-muted small')
             ])
         
         return html.Div([
@@ -252,7 +257,7 @@ def register_callbacks(app):
             return html.Div()
             
         if data is None:
-            return dbc.Alert("Aucune donnée disponible", color="warning")
+            return dbc.Alert("No data available", color="warning")
         
         df = pd.DataFrame(data)
         
@@ -265,7 +270,7 @@ def register_callbacks(app):
         # Filtrer les données par années sélectionnées
         if selected_years and 'Year' in df.columns:
             df = df[df['Year'].isin(selected_years)]
-            print(f"Après filtre années: {len(df)} patients")
+            print(f"After year filter: {len(df)} patients")
         
         # Filtrer par grade/score SEULEMENT pour les patients avec GvH
         if gvh_type == 'acute':
@@ -287,25 +292,25 @@ def register_callbacks(app):
             
             # Combiner les deux groupes
             df = pd.concat([patients_sans_gvh, patients_avec_gvh_filtre], ignore_index=True)
-            print(f"Après filtre grade/score: {len(df)} patients")
-            print(f"  - Patients sans GvH: {len(patients_sans_gvh)}")
-            print(f"  - Patients avec GvH et grade sélectionné: {len(patients_avec_gvh_filtre)}")
+            print(f"After grade/score filter: {len(df)} patients")
+            print(f"  - Patients without GvH: {len(patients_sans_gvh)}")
+            print(f"  - Patients with GvH and selected grade: {len(patients_avec_gvh_filtre)}")
             
         elif column_name in df.columns and not selected_grades:
             # Si aucun grade n'est sélectionné, garder seulement les patients sans GvH
             df = df[df[occurrence_col] != 'Yes']
-            print(f"Aucun grade sélectionné - gardé seulement patients sans GvH: {len(df)} patients")
+            print(f"No grade selected - kept only patients without GvH: {len(df)} patients")
             
             if len(df) == 0:
                 return dbc.Alert(
-                    f"Aucun {'grade' if gvh_type == 'acute' else 'score'} sélectionné pour l'analyse", 
+                    f"No {'grade' if gvh_type == 'acute' else 'score'} selected for analysis", 
                     color="info"
                 )
         
         if df.empty:
-            return dbc.Alert("Aucune donnée disponible avec les filtres sélectionnés", color="warning")
+            return dbc.Alert("No data available with selected filters", color="warning")
         
-        print(f"Dataset final pour analyse: {len(df)} patients")
+        print(f"Final dataset for analysis: {len(df)} patients")
         
         try:
             fig = gr.create_competing_risks_analysis(df, gvh_type)
@@ -315,7 +320,7 @@ def register_callbacks(app):
                 config={'responsive': True}
             )
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de la création du graphique: {str(e)}", color="danger")
+            return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
     
     @app.callback(
         Output('gvh-missing-summary-table', 'children'),
@@ -326,7 +331,7 @@ def register_callbacks(app):
         """Gère le tableau de résumé des données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
-            return html.Div("En attente...", className='text-muted')
+            return html.Div("Waiting...", className='text-muted')
         
         try:
             df = pd.DataFrame(data)
@@ -334,13 +339,13 @@ def register_callbacks(app):
             # Variables spécifiques à analyser pour GvH
             columns_to_analyze = [
                 # Variables GvH Aiguë
-                'First aGvHD Maximum Score',
                 'First Agvhd Occurrence',
+                'First aGvHD Maximum Score',
                 'First Agvhd Occurrence Date',
                 
                 # Variables GvH Chronique
-                'First cGvHD Maximum NIH Score',
                 'First Cgvhd Occurrence', 
+                'First cGvHD Maximum NIH Score',
                 'First Cgvhd Occurrence Date',
                 
                 # Variables de suivi
@@ -350,7 +355,7 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable GvH trouvée", color='warning')
+                return dbc.Alert("No GvH variable found", color='warning')
             
             # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
@@ -358,10 +363,10 @@ def register_callbacks(app):
             return dash_table.DataTable(
                 data=missing_summary.to_dict('records'),
                 columns=[
-                    {"name": "Variable", "id": "Colonne"},
+                    {"name": "Column", "id": "Column", "type": "text"},  # ← Changé de "Colonne"
                     {"name": "Total", "id": "Total patients", "type": "numeric"},
-                    {"name": "Manquantes", "id": "Données manquantes", "type": "numeric"},
-                    {"name": "% Manquant", "id": "Pourcentage manquant", "type": "numeric", 
+                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
                      "format": {"specifier": ".1f"}}
                 ],
                 style_table={'height': '300px', 'overflowY': 'auto'},
@@ -380,8 +385,8 @@ def register_callbacks(app):
                     {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
                     {
                         'if': {
-                            'filter_query': '{Pourcentage manquant} > 20',
-                            'column_id': 'Pourcentage manquant'
+                            'filter_query': '{Percentage missing} > 20',
+                            'column_id': 'Percentage missing'
                         },
                         'backgroundColor': '#ffebee',
                         'color': 'red',
@@ -391,7 +396,7 @@ def register_callbacks(app):
             )
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger')
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
     @app.callback(
         [Output('gvh-missing-detail-table', 'children'),
@@ -403,7 +408,7 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
-            return html.Div("En attente...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True
         
         try:
             df = pd.DataFrame(data)
@@ -411,13 +416,13 @@ def register_callbacks(app):
             # Variables spécifiques à analyser pour GvH
             columns_to_analyze = [
                 # Variables GvH Aiguë
-                'First aGvHD Maximum Score',
                 'First Agvhd Occurrence',
+                'First aGvHD Maximum Score',
                 'First Agvhd Occurrence Date',
                 
                 # Variables GvH Chronique
-                'First cGvHD Maximum NIH Score',
                 'First Cgvhd Occurrence', 
+                'First cGvHD Maximum NIH Score',
                 'First Cgvhd Occurrence Date',
                 
                 # Variables de suivi
@@ -427,21 +432,21 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("Aucune variable GvH trouvée", color='warning'), True
+                return dbc.Alert("No GvH variable found", color='warning'), True
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("🎉 Aucune donnée manquante trouvée !", color='success'), True
+                return dbc.Alert("🎉 No missing data found !", color='success'), True
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
             for _, row in detailed_missing.iterrows():
                 detailed_data.append({
                     'Long ID': row['Long ID'],
-                    'Colonnes manquantes': row['Colonnes avec données manquantes'],
-                    'Nb manquant': row['Nombre de colonnes manquantes']
+                    'Missing columns': row['Missing columns'],  # ← Corrigé
+                    'Nb missing': row['Nb missing']  # ← Corrigé
                 })
             
             # Sauvegarder les données pour l'export
@@ -452,8 +457,8 @@ def register_callbacks(app):
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
-                        {"name": "Variables manquantes", "id": "Colonnes manquantes"},
-                        {"name": "Nb", "id": "Nb manquant", "type": "numeric"}
+                        {"name": "Missing variables", "id": "Missing columns"},
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"}  # ← Corrigé
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
@@ -468,15 +473,15 @@ def register_callbacks(app):
             return table_content, False  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Erreur lors de l'analyse: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
 
     @app.callback(
-        Output("download-missing-gvh-csv", "data"),
+        Output("download-missing-gvh-excel", "data"),  # ← ID changé
         Input("export-missing-gvh-button", "n_clicks"),
         prevent_initial_call=True
     )
-    def export_missing_gvh_csv(n_clicks):
-        """Gère l'export CSV des patients avec données manquantes pour GvH"""
+    def export_missing_gvh_excel(n_clicks):  # ← Nom de fonction changé
+        """Gère l'export csv des patients avec données manquantes pour GvH"""
         if n_clicks is None:
             return dash.no_update
         
@@ -488,10 +493,10 @@ def register_callbacks(app):
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"gvh_donnees_manquantes_{current_date}.csv"
-                
+                filename = f"gvh_missing_data_{current_date}.xlsx"
+
                 return dcc.send_data_frame(
-                    missing_df.to_csv, 
+                    missing_df.to_excel,
                     filename=filename,
                     index=False
                 )
@@ -499,5 +504,5 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Erreur lors de l'export CSV GvH: {e}")
+            print(f"Error during Excel export GvH: {e}")
             return dash.no_update

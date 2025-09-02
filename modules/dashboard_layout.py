@@ -37,17 +37,41 @@ def create_header_with_logo():
                     'marginBottom': '15px'
                 }),
                 
-                # Section navigation intégrée
+                # Section navigation intégrée avec bouton Purge data à droite
                 html.Div([
-                    html.Button('Accueil', id='nav-accueil', className='btn btn-primary me-2 nav-button'),
-                    html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2 nav-button', disabled=False),
-                    html.Button('Hemopathies', id='nav-page1', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('GvH', id='nav-gvh', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Rechute', id='nav-rechute', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Survie', id='nav-survival', className='btn btn-secondary me-2 nav-button', disabled=True),
-                    html.Button('Indicateurs', id='nav-indics', className='btn btn-secondary me-2 nav-button', disabled=True),
-                ], className='d-flex', style={'flexWrap': 'wrap', 'gap': '8px'})
+                    # Boutons de navigation à gauche
+                    html.Div([
+                        html.Button('Home', id='nav-home', className='btn btn-primary me-2 nav-button'),
+                        html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Hemopathies', id='nav-hemopathies', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('GVH', id='nav-gvh', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Relapse', id='nav-relapse', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Survival', id='nav-survival', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Indicators', id='nav-indics', className='btn btn-secondary me-2 nav-button', disabled=True),
+                    ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'gap': '8px'}),
+                    
+                    # Bouton Purge data à droite
+                    html.Div([
+                        dbc.Button(
+                            [
+                                html.I(className="bi bi-trash me-2"),
+                                "Void data"
+                            ],
+                            id="purge-data-button",
+                            color="danger",
+                            size="sm",
+                            outline=True,
+                            style={'display': 'none'}  # Caché par défaut, visible seulement quand des données sont chargées
+                        )
+                    ], style={'marginLeft': 'auto'})  # Push vers la droite
+                    
+                ], style={
+                    'display': 'flex', 
+                    'alignItems': 'center', 
+                    'justifyContent': 'space-between',  # Espace les éléments
+                    'width': '100%'
+                })
                 
             ], className="header-container", style={
                 'padding': '20px',
@@ -64,10 +88,38 @@ def create_base_layout():
     return dbc.Container([
         # Store pour les données
         dcc.Store(id='data-store'),
-        dcc.Store(id='current-page', data='Accueil'),
+        dcc.Store(id='current-page', data='Home'),
         
         # Header unifié avec logo, titre et navigation
         create_header_with_logo(),
+        
+        # Modal de confirmation pour la purge (déplacée ici pour être globale)
+        dbc.Modal([
+            dbc.ModalHeader(dbc.ModalTitle("Confirmer la purge")),
+            dbc.ModalBody([
+                html.P("Are you sure you want to delete all the uploaded data?"),
+                html.P("This action is irreversible.", className="text-muted small")
+            ]),
+            dbc.ModalFooter([
+                dbc.Button(
+                    "Cancel", 
+                    id="cancel-purge", 
+                    className="ms-auto", 
+                    n_clicks=0,
+                    color="secondary"
+                ),
+                dbc.Button(
+                    "Confirm", 
+                    id="confirm-purge", 
+                    className="ms-2", 
+                    n_clicks=0,
+                    color="danger"
+                ),
+            ]),
+        ],
+        id="purge-confirmation-modal",
+        is_open=False,
+        ),
         
         # Container principal avec sidebar et contenu
         dbc.Row([
@@ -91,11 +143,10 @@ def create_base_layout():
         dbc.Row([
             dbc.Col([
                 html.Hr(),
-                html.P('© 2025 - CHRU de Tours - Tous droits réservés', className='text-center text-muted')
+                html.P('© 2025 - CHRU de Tours - All rights reserved', className='text-center text-muted')
             ])
         ])
     ], fluid=True, className='p-4')
-
 
 def create_split_layout(left_component, right_components):
     """
@@ -111,101 +162,6 @@ def create_split_layout(left_component, right_components):
         dbc.Col(left_component, width=6, className='h-100'),
         dbc.Col(right_rows, width=6)
     ], className='h-100')
-
-def create_patients_layout(main_content=None, boxplot_content=None, barplot_content=None, page_prefix='patients'):
-    """
-    Crée le layout spécifique pour la page Patients
-    
-    Args:
-        main_content: Contenu principal avec les onglets (optionnel, pour rétrocompatibilité)
-        boxplot_content: Contenu du boxplot (optionnel, pour rétrocompatibilité)
-        barplot_content: Contenu du barplot (optionnel, pour rétrocompatibilité)
-        page_prefix: Préfixe pour les IDs (par défaut 'patients')
-    """
-    return dbc.Row([
-        # Colonne principale (50% de l'espace)
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader(html.H4('Analyses principales')),
-                dbc.CardBody([
-                    dcc.Tabs(id='main-tabs', value='tab-normalized', children=[
-                        dcc.Tab(label='Graphique normalisé', value='tab-normalized'),
-                        dcc.Tab(label='Table de données', value='tab-table')
-                    ]),
-                    html.Div(
-                        id=f'{page_prefix}-tab-content',  # ← ID adapté avec préfixe
-                        className='mt-3', 
-                        style={'height': '450px', 'overflow': 'hidden'}
-                    )
-                ], className='p-2')
-            ])
-        ], width=6),
-        
-        # Colonne avec les deux graphiques empilés (50% de l'espace)
-        dbc.Col([
-            # Boxplot
-            dbc.Card([
-                dbc.CardHeader(html.H5('Boxplot')),
-                dbc.CardBody([
-                    html.Div(
-                        id=f'{page_prefix}-boxplot-container',  # ← ID adapté avec préfixe
-                        style={'height': '350px', 'overflow': 'hidden'}
-                    )
-                ], className='p-2')
-            ], className='mb-3'),
-            
-            # Barplot
-            dbc.Card([
-                dbc.CardHeader(html.H5('Barplot')),
-                dbc.CardBody([
-                    html.Div(
-                        id=f'{page_prefix}-barplot-container',  # ← ID adapté avec préfixe
-                        style={'height': '350px', 'overflow': 'hidden'}
-                    )
-                ], className='p-2')
-            ])
-        ], width=6)
-    ])
-
-def create_patients_layout_legacy(main_content, boxplot_content, barplot_content):
-    """
-    Version legacy de create_patients_layout pour la rétrocompatibilité
-    Utilise les anciens IDs sans préfixe
-    """
-    return dbc.Row([
-        # Colonne principale (50% de l'espace)
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader(html.H4('Analyses principales')),
-                dbc.CardBody([
-                    dcc.Tabs(id='main-tabs', value='tab-normalized', children=[
-                        dcc.Tab(label='Graphique normalisé', value='tab-normalized'),
-                        dcc.Tab(label='Table de données', value='tab-table')
-                    ]),
-                    html.Div(id='tab-content', className='mt-3', style={'height': '450px', 'overflow': 'hidden'})
-                ], className='p-2')
-            ])
-        ], width=6),
-        
-        # Colonne avec les deux graphiques empilés (50% de l'espace)
-        dbc.Col([
-            # Boxplot
-            dbc.Card([
-                dbc.CardHeader(html.H5('Boxplot')),
-                dbc.CardBody([
-                    html.Div(id='boxplot-container', style={'height': '350px', 'overflow': 'hidden'})
-                ], className='p-2')
-            ], className='mb-3'),
-            
-            # Barplot
-            dbc.Card([
-                dbc.CardHeader(html.H5('Barplot')),
-                dbc.CardBody([
-                    html.Div(id='barplot-container', style={'height': '350px', 'overflow': 'hidden'})
-                ], className='p-2')
-            ])
-        ], width=6)
-    ])
 
 def create_quad_layout(top_left, top_right, bottom_left, bottom_right):
     """
@@ -302,11 +258,11 @@ def create_filter_controls(categorical_columns, years_options):
     ]
     
     # Créer les options pour le dropdown de stratification
-    stratification_options = [{'label': 'Aucune', 'value': 'Aucune'}]
+    stratification_options = [{'label': 'None', 'value': 'None'}]
     stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
     
     return html.Div([
-        html.Label('Axe X des graphiques:', className='mb-2'),
+        html.Label('X-axis:', className='mb-2'),
         dcc.Dropdown(
             id='x-axis-dropdown',
             options=[
@@ -316,8 +272,8 @@ def create_filter_controls(categorical_columns, years_options):
             value='Age Groups',  # Valeur par défaut modifiée
             className='mb-3'
         ),
-        
-        html.Label('Variable de stratification:', className='mb-2'),
+
+        html.Label('Stack variable:', className='mb-2'),
         dcc.Dropdown(
             id='stack-variable-dropdown',
             options=stratification_options,
@@ -326,7 +282,7 @@ def create_filter_controls(categorical_columns, years_options):
         ),
         
         html.Hr(),
-        html.H5('Filtres par année', className='mb-2'),
+        html.H5('Year', className='mb-2'),
         dcc.Checklist(
             id='year-filter-checklist',
             options=years_options,
@@ -356,11 +312,11 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
     ]
     
     # Créer les options pour le dropdown de stratification
-    stratification_options = [{'label': 'Aucune', 'value': 'Aucune'}]
+    stratification_options = [{'label': 'None', 'value': 'None'}]
     stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
     
     return html.Div([
-        html.Label('Variable principale:', className='mb-2'),
+        html.Label('X-axis:', className='mb-2'),
         dcc.Dropdown(
             id='x-axis-dropdown',
             options=[
@@ -370,17 +326,17 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
             value='Main Diagnosis',
             className='mb-3'
         ),
-        
-        html.Label('Variable de stratification:', className='mb-2'),
+
+        html.Label('Stack variable:', className='mb-2'),
         dcc.Dropdown(
             id='stack-variable-dropdown',
             options=stratification_options,
-            value='Aucune',  # Valeur par défaut
+            value='None',  # Valeur par défaut
             className='mb-3'
         ),
         
         html.Hr(),
-        html.H5('Filtres par année', className='mb-2'),
+        html.H5('Year', className='mb-2'),
         dcc.Checklist(
             id='year-filter-checklist',
             options=years_options,

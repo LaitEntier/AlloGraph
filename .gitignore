@@ -1,41 +1,8 @@
 /AlloGraph.code-workspace
 /notebook.ipynb
-data/allogreffes.csv
-data/cartcells.csv
-data/CARTCellsTours_DATA_2024-08-14_2028.csv
-data/CARTCellsToursSanbox_DATA_2024-09-20_0815.csv
-data/Data Dictionary-sept-24.csv
-data/Data Dictionary-sept-24.xlsx
-data/donnees_ebmt_synth.csv
-data/ebmt_data.xlsx
-data/sample_data.csv
-data/sample_data.xlsx
 modules/dashboard_layout.py
 data/ebmt_data_sample.xlsx
-structure.txt
-data/~$ebmt_data_sample.xlsx
-data/colonnes_ebmt.csv
-data/~$ebmt_data.xlsx
-data/data_dictionary.csv
-modules/__pycache__/competing_risks.cpython-310.pyc
-modules/__pycache__/dashboard_layout.cpython-310.pyc
-modules/__pycache__/data_processing.cpython-310.pyc
-pages/__pycache__/__init__.cpython-310.pyc
-pages/__pycache__/gvh.cpython-310.pyc
-pages/__pycache__/hemopathies.cpython-310.pyc
-pages/__pycache__/home.cpython-310.pyc
-pages/__pycache__/indics.cpython-310.pyc
-pages/__pycache__/patients.cpython-310.pyc
-pages/__pycache__/procedures.cpython-310.pyc
-pages/__pycache__/relapse.cpython-310.pyc
-pages/__pycache__/survival.cpython-310.pyc
-visualizations/allogreffes/__pycache__/graphs.cpython-310.pyc
-modules/__pycache__/dashboard_layout.cpython-310.pyc
-modules/__pycache__/data_processing.cpython-310.pyc
-visualizations/allogreffes/__pycache__/graphs.cpython-310.pyc
-modules/__pycache__/data_processing.cpython-310.pyc
-
-modules/glassmorphism_theme.py
+data/add/
 
 # Python
 __pycache__/
@@ -58,6 +25,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyc
+*.cpython-310.pyc
 
 # Virtual environments
 venv/
@@ -85,7 +54,5 @@ Thumbs.db
 # *.csv
 # *.xlsx
 # *.xls
-visualizations/allogreffes/__pycache__/graphs.cpython-310.pyc
-modules/__pycache__/data_processing.cpython-310.pyc
-modules/__pycache__/dashboard_layout.cpython-310.pyc
 app.spec
+structure.txt
