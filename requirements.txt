@@ -1,6 +1,7 @@
 # Core Dash dependencies
 dash==2.14.1
 dash-bootstrap-components==1.5.0
+dash_extensions==1.0.20
 plotly==5.17.0
 
 # Data processing
