@@ -43,11 +43,11 @@ def create_lottie_animation():
             options={
                 "loop": True,
                 "autoplay": True, 
-                "path": "allograph-app/assets/home.json"  # Chemin vers votre fichier JSON
+                "path": "allograph-app/assets/home.json" 
             },
-            width="400px",
-            height="400px",
             style={
+                'width': '400px',    
+                'height': '400px', 
                 'margin': '0 auto',
                 'display': 'block'
             }
