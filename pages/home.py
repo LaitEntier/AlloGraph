@@ -43,16 +43,17 @@ def create_lottie_animation():
             options={
                 "loop": True,
                 "autoplay": True, 
-                "path": "allograph-app/assets/home.json" 
-            },
-            style={
-                'width': '400px',    
-                'height': '400px', 
-                'margin': '0 auto',
-                'display': 'block'
+                "path": "allograph-app/assets/home.json"
             }
         )
-    ], style={'textAlign': 'center', 'marginBottom': '30px'})
+    ], style={
+        'width': '400px',
+        'height': '400px',
+        'margin': '0 auto',
+        'display': 'block',
+        'textAlign': 'center',
+        'marginBottom': '30px'
+    })
     
 def create_welcome_content():
     """Crée le contenu d'accueil quand aucune donnée n'est chargée"""
