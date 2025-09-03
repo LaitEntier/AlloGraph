@@ -603,13 +603,13 @@ def manage_survey_notification(n_intervals, data, later_clicks, toast_is_open,
     # Calculer le temps écoulé (en secondes)
     elapsed_time = current_time - session_start
     
-    # Condition pour déclencher la notification (exemple: 3 minutes = 180 secondes)
-    TRIGGER_TIME = 5  # 3 minutes
-    
+    # Condition pour déclencher la notification
+    TRIGGER_TIME = 5  # 5 secondes
+
     # Si le bouton "Plus tard" a été cliqué
     if ctx.triggered and 'survey-later-btn' in ctx.triggered[0]['prop_id']:
         # Reporter la notification de 5 minutes
-        new_start_time = current_time - (TRIGGER_TIME - 300)  # Reporter de 5 min
+        new_start_time = current_time - (TRIGGER_TIME - 180)  # Reporter de 3 min
         return new_start_time, False, False
     
     # Si le toast se ferme (dismissed), marquer comme montré

@@ -3,6 +3,7 @@ import dash
 from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 import pandas as pd
+from dash_extensions import Lottie
 
 # Import des modules communs
 import visualizations.allogreffes.graphs as gr
@@ -35,6 +36,24 @@ def create_banner_component():
         )
     ], style={'textAlign': 'center', 'marginTop': '30px', 'marginBottom': '20px'})
 
+def create_lottie_animation():
+    """Crée le composant d'animation Lottie"""
+    return html.Div([
+        Lottie(
+            options={
+                "loop": True,
+                "autoplay": True, 
+                "path": "allograph-app/assets/home.json"  # Chemin vers votre fichier JSON
+            },
+            width="400px",
+            height="400px",
+            style={
+                'margin': '0 auto',
+                'display': 'block'
+            }
+        )
+    ], style={'textAlign': 'center', 'marginBottom': '30px'})
+    
 def create_welcome_content():
     """Crée le contenu d'accueil quand aucune donnée n'est chargée"""
     return dbc.Card([
@@ -48,6 +67,8 @@ def create_welcome_content():
                 html.Hr()
             ]),
             
+            create_lottie_animation(),
+
             # Description
             html.Div([
                 html.P([
