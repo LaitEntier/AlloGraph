@@ -1375,8 +1375,8 @@ def create_histogram_with_density(
     y_axis_title: str = "Fréquence",
     bin_size: Optional[float] = None,
     percentile_limit: float = 0.99,
-    color_histogram: str = '#27BDBE',
-    color_density: str = '#FF6B6B',
+    color_histogram: str = '#2ecc71',
+    color_density: str = '#e74c3c',
     opacity: float = 0.75,
     height: int = 400,
     width: Optional[int] = None,
@@ -2339,7 +2339,7 @@ def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_t
         name='Oui',
         x=proportions_df['Traitement'],
         y=proportions_df['Oui_percent'],
-        marker_color='#27BDBE',  # Couleur unifiée bleu-vert
+        marker_color='#2ecc71', 
         text=[f'{p:.1f}%<br>({c})' for p, c in zip(proportions_df['Oui_percent'], proportions_df['Oui_count'])],
         textposition='inside' if show_values else 'none',
         textfont=dict(color='white', size=10),
@@ -2353,7 +2353,7 @@ def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_t
         name='Non',
         x=proportions_df['Traitement'],
         y=proportions_df['Non_percent'],
-        marker_color='#FF6B6B',  # Couleur unifiée rouge-rose
+        marker_color='#e74c3c', 
         text=[f'{p:.1f}%<br>({c})' for p, c in zip(proportions_df['Non_percent'], proportions_df['Non_count'])],
         textposition='inside' if show_values else 'none',
         textfont=dict(color='white', size=10),
