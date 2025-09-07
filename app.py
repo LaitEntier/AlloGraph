@@ -222,7 +222,7 @@ def update_sidebar(current_page, data, metadata):
                 # Section test sample
                 html.Div([
                     html.H6("Test with sample data:", className="mb-2"),
-                    html.P("Load a test dataset to explore the application.", 
+                    html.P("Load a de-identified representative dataset to explore the application.", 
                           className="text-muted", style={'fontSize': '11px'}),
                     dbc.Button([
                         html.I(className="fas fa-flask me-2"),
