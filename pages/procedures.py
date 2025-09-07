@@ -88,7 +88,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Preparation treatments')),
+                    dbc.CardHeader(html.H5('Conditioning regimen')),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-procedures-treatment",
@@ -629,7 +629,7 @@ def register_callbacks(app):
             fig = gr.create_unified_treatment_barplot(
                 data=df_processed,
                 treatment_columns=available_treatment_cols,
-                title="Proportion of patients receiving each preparation treatment",
+                title="Proportion of patients receiving each conditioning regimen",
                 x_axis_title="Treatment",
                 y_axis_title="Proportion (%)",
                 width=None,
