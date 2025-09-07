@@ -104,7 +104,7 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
         styles = {
             'Home': 'btn btn-primary me-2 nav-button' if current_page == 'Home' else 'btn btn-secondary me-2 nav-button',
             'Patients': 'btn btn-primary me-2 nav-button' if current_page == 'Patients' else 'btn btn-secondary me-2 nav-button',
-            'Hemopathies': 'btn btn-primary me-2 nav-button' if current_page == 'Hemopathies' else 'btn btn-secondary me-2 nav-button',
+            'Indications': 'btn btn-primary me-2 nav-button' if current_page == 'Indications' else 'btn btn-secondary me-2 nav-button',
             'Procedures': 'btn btn-primary me-2 nav-button' if current_page == 'Procedures' else 'btn btn-secondary me-2 nav-button',
             'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
             'Relapse': 'btn btn-primary me-2 nav-button' if current_page == 'Relapse' else 'btn btn-secondary me-2 nav-button',
@@ -113,7 +113,7 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
         }
 
         return (current_page, styles['Home'], styles['Patients'],
-                styles['Hemopathies'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
+                styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
                 disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
@@ -125,7 +125,7 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
         styles = {
             'Home': 'btn btn-primary me-2 nav-button' if current_page == 'Home' else 'btn btn-secondary me-2 nav-button',
             'Patients': 'btn btn-primary me-2 nav-button' if current_page == 'Patients' else 'btn btn-secondary me-2 nav-button',
-            'Hemopathies': 'btn btn-primary me-2 nav-button' if current_page == 'Hemopathies' else 'btn btn-secondary me-2 nav-button',
+            'Indications': 'btn btn-primary me-2 nav-button' if current_page == 'Indications' else 'btn btn-secondary me-2 nav-button',
             'Procedures': 'btn btn-primary me-2 nav-button' if current_page == 'Procedures' else 'btn btn-secondary me-2 nav-button',
             'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
             'Relapse': 'btn btn-primary me-2 nav-button' if current_page == 'Relapse' else 'btn btn-secondary me-2 nav-button',
@@ -134,14 +134,14 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
         }
 
         return (current_page, styles['Home'], styles['Patients'],
-                styles['Hemopathies'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
+                styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
                 disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     # Navigation normale
     page_map = {
         'nav-home': 'Home',
         'nav-patients': 'Patients',
-        'nav-hemopathies': 'Hemopathies',
+        'nav-hemopathies': 'Indications',
         'nav-procedures': 'Procedures',
         'nav-gvh': 'GvH',
         'nav-relapse': 'Relapse',
@@ -153,7 +153,7 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
     btn_styles = {
         'Home': 'nav-home',
         'Patients': 'nav-patients',
-        'Hemopathies': 'nav-hemopathies',
+        'Indications': 'nav-hemopathies',
         'Procedures': 'nav-procedures',
         'GvH': 'nav-gvh',
         'Relapse': 'nav-relapse',
@@ -298,7 +298,7 @@ def update_sidebar(current_page, data, metadata):
         content = layouts.create_filter_controls(categorical_columns, years_options)
         return layouts.create_sidebar_layout('Parameters', content)
     
-    elif current_page == 'Hemopathies' and data is not None:
+    elif current_page == 'Indications' and data is not None:
         # Sidebar avec filtres pour la page Hemopathies
         df = pd.DataFrame(data)
         categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
@@ -424,7 +424,7 @@ def update_main_content(current_page, data):
     elif current_page == 'Patients':
             return patients_page.get_layout()
 
-    elif current_page == 'Hemopathies':
+    elif current_page == 'Indications':
             return hemopathies_page.get_layout()
 
     elif current_page == 'Procedures':

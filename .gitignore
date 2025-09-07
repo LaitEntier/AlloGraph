@@ -27,6 +27,7 @@ wheels/
 *.egg
 *.pyc
 *.cpython-310.pyc
+*.odt
 
 # Virtual environments
 venv/

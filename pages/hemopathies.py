@@ -171,7 +171,7 @@ def register_callbacks(app):
     )
     def update_simple_barplot(data, current_page, x_axis, stack_var, selected_years):
         """Barplot simple - distribution des diagnostics du plus au moins commun"""
-        if current_page != 'Hemopathies' or data is None:
+        if current_page != 'Indications' or data is None:
             return html.Div()
         
         df = pd.DataFrame(data)
@@ -283,7 +283,7 @@ def register_callbacks(app):
     )
     def update_normalized_barplot(data, current_page, x_axis, stack_var, selected_years):
         """Barplot normalisé à 100% - même ordre que le barplot simple"""
-        if current_page != 'Hemopathies' or data is None:
+        if current_page != 'Indications' or data is None:
             return html.Div()
         
         df = pd.DataFrame(data)
@@ -382,7 +382,7 @@ def register_callbacks(app):
     )
     def update_performance_scores_boxplot(data, current_page, x_axis, selected_years):
         """Boxplot des Performance Scores avec boutons pour switcher entre les échelles"""
-        if current_page != 'Hemopathies' or data is None:
+        if current_page != 'Indications' or data is None:
             return html.Div()
         
         df = pd.DataFrame(data)
@@ -568,7 +568,7 @@ def register_callbacks(app):
     )
     def update_hemopathies_datatable(data, current_page, selected_years):
         """DataTable avec la répartition des Main Diagnosis par année"""
-        if current_page != 'Hemopathies' or data is None:
+        if current_page != 'Indications' or data is None:
             return html.Div()
         
         df = pd.DataFrame(data)
@@ -746,7 +746,7 @@ def register_callbacks(app):
     def hemopathies_missing_summary_callback(data, current_page):
         """Gère le tableau de résumé des données manquantes pour Hemopathies"""
         
-        if current_page != 'Hemopathies' or not data:
+        if current_page != 'Indications' or not data:
             return html.Div("Waiting...", className='text-muted')
         
         try:
@@ -757,13 +757,14 @@ def register_callbacks(app):
                 'Main Diagnosis', 
                 'Subclass Diagnosis', 
                 'Age Groups', 
-                'Blood + Rh', 
+                'Blood Group',
+                'Rhesus Factor', 
                 'Disease Status At Treatment'
             ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("No Hemopathies variable found", color='warning')
+                return dbc.Alert("No Indications variable found", color='warning')
             
             # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
@@ -815,7 +816,7 @@ def register_callbacks(app):
     def hemopathies_missing_detail_callback(data, current_page):
         """Gère le tableau détaillé des patients avec données manquantes pour Hemopathies"""
         
-        if current_page != 'Hemopathies' or not data:
+        if current_page != 'Indications' or not data:
             return html.Div("Waiting...", className='text-muted'), True
         
         try:
@@ -826,13 +827,14 @@ def register_callbacks(app):
                 'Main Diagnosis', 
                 'Subclass Diagnosis', 
                 'Age Groups', 
-                'Blood + Rh', 
+                'Blood Group',
+                'Rhesus Factor', 
                 'Disease Status At Treatment'
             ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("No Hemopathies variable found", color='warning'), True
+                return dbc.Alert("No Indications variable found", color='warning'), True
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
@@ -904,5 +906,5 @@ def register_callbacks(app):
                 return dash.no_update
                 
         except Exception as e:
-            print(f"Error during Excel export Hemopathies: {e}")
+            print(f"Error during Excel export Indications: {e}")
             return dash.no_update

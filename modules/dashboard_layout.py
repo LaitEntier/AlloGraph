@@ -43,7 +43,7 @@ def create_header_with_logo():
                     html.Div([
                         html.Button('Home', id='nav-home', className='btn btn-primary me-2 nav-button'),
                         html.Button('Patients', id='nav-patients', className='btn btn-secondary me-2 nav-button', disabled=True),
-                        html.Button('Hemopathies', id='nav-hemopathies', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Indications', id='nav-hemopathies', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Procedures', id='nav-procedures', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('GVH', id='nav-gvh', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Relapse', id='nav-relapse', className='btn btn-secondary me-2 nav-button', disabled=True),
