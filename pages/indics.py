@@ -1878,7 +1878,8 @@ def create_prise_greffe_quarterly_visualization(year_data, selected_year):
             xaxis_title='Quarter',
             yaxis_title='Percentage (%)',
             height=450,
-            yaxis=dict(range=[0, 105])
+            yaxis=dict(range=[0, 105]),
+            template='plotly_white'
         )
         
         return html.Div([
