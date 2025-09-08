@@ -18,7 +18,7 @@ class CompetingRisksAnalyzer:
         """
         self.data = data.copy()
         self.reference_date_col = reference_date_col
-        self.data[reference_date_col] = pd.to_datetime(self.data[reference_date_col])
+        self.data[reference_date_col] = pd.to_datetime(self.data[reference_date_col], format='mixed', errors='coerce')
         
     def create_competing_risks_plot_original(self, results_df, patient_data, events_config, 
                                            title="Analyse de Risques Compétitifs", 
@@ -233,11 +233,11 @@ class CompetingRisksAnalyzer:
         df = self.data.copy()
         
         # Convertir les dates
-        df[followup_config['date_col']] = pd.to_datetime(df[followup_config['date_col']])
+        df[followup_config['date_col']] = pd.to_datetime(df[followup_config['date_col']], format='mixed', errors='coerce')
         
         for event_name, config in events_config.items():
-            df[config['date_col']] = pd.to_datetime(df[config['date_col']])
-        
+            df[config['date_col']] = pd.to_datetime(df[config['date_col']], format='mixed', errors='coerce')
+
         # Calculer les temps d'événement avec validation
         df['time_to_last_followup'] = (df[followup_config['date_col']] - df[self.reference_date_col]).dt.days
         

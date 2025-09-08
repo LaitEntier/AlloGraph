@@ -2076,10 +2076,10 @@ def calculate_max_followup_days(data):
         df = data.copy()
         
         # Convertir les dates nécessaires
-        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
-        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], errors='coerce')
-        df['First Cgvhd Occurrence Date'] = pd.to_datetime(df['First Cgvhd Occurrence Date'], errors='coerce')
-        
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], format='mixed', errors='coerce')
+        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], format='mixed', errors='coerce')
+        df['First Cgvhd Occurrence Date'] = pd.to_datetime(df['First Cgvhd Occurrence Date'], format='mixed', errors='coerce')
+
         # Calculer les durées de suivi
         df['followup_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
         df['gvhc_days'] = (df['First Cgvhd Occurrence Date'] - df['Treatment Date']).dt.days

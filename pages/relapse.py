@@ -143,10 +143,10 @@ def calculate_max_relapse_followup_days(data):
         df = data.copy()
         
         # Convertir les dates nécessaires
-        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
-        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], errors='coerce')
-        df['First Relapse Date'] = pd.to_datetime(df['First Relapse Date'], errors='coerce')
-        
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], format='mixed', errors='coerce')
+        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], format='mixed', errors='coerce')
+        df['First Relapse Date'] = pd.to_datetime(df['First Relapse Date'], format='mixed', errors='coerce')
+
         # Calculer les durées de suivi
         df['followup_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
         df['relapse_days'] = (df['First Relapse Date'] - df['Treatment Date']).dt.days
