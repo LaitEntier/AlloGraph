@@ -176,10 +176,12 @@ def register_callbacks(app):
             title = 'Grade filters for aGvH'
             filter_id = 'gvh-grade-filter'
             
-            grade_order = ['Grade 0 (none)', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
+            grade_order = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
             
             if column_name in df.columns:
                 available_grades = df[column_name].dropna().unique().tolist()
+                # Filtrer explicitement le Grade 0 (none)
+                available_grades = [g for g in available_grades if g != 'Grade 0 (none)']
                 
                 grade_options = []
                 for grade in grade_order:
