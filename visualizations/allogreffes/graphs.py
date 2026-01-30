@@ -3124,3 +3124,568 @@ def quick_missing_analysis(df, columns_to_check):
             }
     
     return results
+def create_upset_plot(data, set_columns, title="UpSet Plot - Treatment Combinations",
+                      min_subset_size=None, max_subsets=15, sort_by='degree',
+                      height=600, width=None, color_main='#0D3182', color_highlight='#c0392b'):
+    """
+    Crée un UpSet plot (intersection plot) pour visualiser les combinaisons de traitements.
+    
+    L'UpSet plot est une alternative aux diagrammes de Venn pour visualiser les intersections
+    entre plusieurs ensembles. Il est particulièrement utile pour les données de prophylaxie
+    où les patients peuvent recevoir plusieurs traitements simultanément.
+    
+    Structure du plot:
+    - En haut: barres horizontales montrant la taille de chaque intersection
+    - En bas: matrice de points montrant quels traitements sont inclus dans chaque intersection
+    - À gauche: barres verticales montrant la fréquence totale de chaque traitement
+    
+    Args:
+        data (pd.DataFrame): DataFrame contenant les données
+        set_columns (list): Liste des colonnes représentant les ensembles (ex: noms des traitements)
+        title (str): Titre du graphique
+        min_subset_size (int): Taille minimale d'une intersection pour être affichée
+        max_subsets (int): Nombre maximum d'intersections à afficher
+        sort_by (str): 'degree' (nombre de traitements) ou 'cardinality' (taille de l'intersection)
+        height (int): Hauteur du graphique
+        width (int): Largeur du graphique
+        color_main (str): Couleur principale pour les barres
+        color_highlight (str): Couleur pour les intersections à un seul traitement
+        
+    Returns:
+        plotly.graph_objects.Figure: Figure Plotly de type UpSet
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    import pandas as pd
+    import numpy as np
+    
+    # Vérifier que les colonnes existent
+    available_cols = [col for col in set_columns if col in data.columns]
+    if not available_cols:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Aucune colonne d'ensemble disponible",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(title=title, height=height, width=width)
+        return fig
+    
+    # Convertir les données en format binaire (0/1)
+    binary_data = data[available_cols].copy()
+    for col in available_cols:
+        # Convertir Oui/Yes en 1, tout le reste en 0
+        binary_data[col] = binary_data[col].apply(
+            lambda x: 1 if str(x).lower() in ['oui', 'yes', '1', 'true'] else 0
+        )
+    
+    # Calculer les fréquences totales par traitement (pour le graphique latéral)
+    set_totals = binary_data.sum().sort_values(ascending=True)
+    
+    # Générer toutes les combinaisons possibles et calculer leurs effectifs
+    # Créer une clé unique pour chaque combinaison de traitements
+    binary_data['_combination'] = binary_data.apply(
+        lambda row: ','.join([col for col in available_cols if row[col] == 1]),
+        axis=1
+    )
+    
+    # Compter les effectifs par combinaison
+    combination_counts = binary_data['_combination'].value_counts()
+    
+    # Exclure la combinaison vide (patients sans aucun traitement)
+    combination_counts = combination_counts[combination_counts.index != '']
+    
+    if len(combination_counts) == 0:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Aucune combinaison de traitements trouvée",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(title=title, height=height, width=width)
+        return fig
+    
+    # Filtrer par taille minimale si spécifiée
+    if min_subset_size is not None:
+        combination_counts = combination_counts[combination_counts >= min_subset_size]
+    
+    # Calculer le 'degree' (nombre de traitements dans chaque combinaison)
+    combination_degrees = combination_counts.index.map(
+        lambda x: len(x.split(',')) if x else 0
+    )
+    
+    # Créer un DataFrame pour faciliter le tri
+    subset_df = pd.DataFrame({
+        'combination': combination_counts.index,
+        'count': combination_counts.values,
+        'degree': combination_degrees
+    })
+    
+    # Trier selon le critère choisi
+    if sort_by == 'degree':
+        # Trier d'abord par degree décroissant, puis par count décroissant
+        subset_df = subset_df.sort_values(['degree', 'count'], ascending=[False, False])
+    else:  # cardinality
+        subset_df = subset_df.sort_values('count', ascending=False)
+    
+    # Limiter au nombre maximum de sous-ensembles
+    subset_df = subset_df.head(max_subsets)
+    
+    # Calculer les dimensions pour les sous-graphiques
+    n_sets = len(available_cols)
+    n_subsets = len(subset_df)
+    
+    # Largeur par défaut si non spécifiée
+    if width is None:
+        width = max(800, 200 + n_subsets * 40)
+    
+    # Créer les sous-graphiques avec make_subplots
+    # Disposition: [barres latérales, barres du haut, matrice des points]
+    fig = make_subplots(
+        rows=2, cols=2,
+        column_widths=[0.25, 0.75],
+        row_heights=[0.6, 0.4],
+        vertical_spacing=0.05,
+        horizontal_spacing=0.02,
+        subplot_titles=(None, None, None, None),
+        specs=[
+            [{"type": "bar"}, {"type": "bar"}],
+            [{"type": "bar"}, {"type": "scatter"}]
+        ]
+    )
+    
+    # --- 1. Graphique latéral: fréquence de chaque traitement ---
+    fig.add_trace(
+        go.Bar(
+            x=set_totals.values,
+            y=set_totals.index,
+            orientation='h',
+            marker_color=color_main,
+            name='Total patients',
+            text=set_totals.values,
+            textposition='outside',
+            textfont=dict(size=9),
+            hovertemplate='<b>%{y}</b><br>Patients: %{x}<extra></extra>',
+            showlegend=False
+        ),
+        row=1, col=1
+    )
+    
+    # --- 2. Graphique du haut: taille des intersections ---
+    # Couleurs différentes selon le degree
+    bar_colors = []
+    for degree in subset_df['degree']:
+        if degree == 1:
+            bar_colors.append(color_highlight)  # Intersections simples en rouge
+        else:
+            # Dégradé de bleu selon le degree
+            intensity = 0.4 + (min(degree, 5) / 5) * 0.6
+            bar_colors.append(f'rgba(13, 49, 130, {intensity})')
+    
+    fig.add_trace(
+        go.Bar(
+            x=list(range(len(subset_df))),
+            y=subset_df['count'],
+            marker_color=bar_colors,
+            name='Intersection size',
+            text=subset_df['count'],
+            textposition='outside',
+            textfont=dict(size=10),
+            hovertemplate='<b>Intersection #%{%{x} + 1}</b><br>Patients: %{y}<br>Traitements: %{customdata}<extra></extra>',
+            customdata=subset_df['combination'],
+            showlegend=False
+        ),
+        row=1, col=2
+    )
+    
+    # --- 3. Matrice des points: quels traitements sont dans chaque intersection ---
+    set_list = list(set_totals.index)  # Ordre trié
+    
+    # Tracer les lignes de grille horizontales (un traitement = une ligne)
+    for i, set_name in enumerate(set_list):
+        fig.add_trace(
+            go.Scatter(
+                x=[-0.5, n_subsets - 0.5],
+                y=[i, i],
+                mode='lines',
+                line=dict(color='lightgray', width=1),
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=2, col=2
+        )
+    
+    # Tracer les points et les lignes de connexion
+    for subset_idx, row in subset_df.iterrows():
+        subset_idx_pos = subset_df.index.get_loc(subset_idx)
+        combination = row['combination']
+        sets_in_combination = combination.split(',') if combination else []
+        
+        # Indices des traitements dans cette combinaison
+        set_indices = [set_list.index(s) for s in sets_in_combination if s in set_list]
+        
+        if len(set_indices) == 1:
+            # Un seul traitement: juste un point
+            fig.add_trace(
+                go.Scatter(
+                    x=[subset_idx_pos],
+                    y=[set_indices[0]],
+                    mode='markers',
+                    marker=dict(size=12, color=color_highlight, symbol='circle'),
+                    showlegend=False,
+                    hovertemplate=f'<b>{sets_in_combination[0]}</b><br>Patients: {row["count"]}<extra></extra>'
+                ),
+                row=2, col=2
+            )
+        elif len(set_indices) > 1:
+            # Plusieurs traitements: points reliés par des lignes
+            # Ligne de connexion
+            fig.add_trace(
+                go.Scatter(
+                    x=[subset_idx_pos] * len(set_indices),
+                    y=set_indices,
+                    mode='lines',
+                    line=dict(color=color_main, width=3),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=2, col=2
+            )
+            # Points
+            for set_idx, set_name in zip(set_indices, sets_in_combination):
+                fig.add_trace(
+                    go.Scatter(
+                        x=[subset_idx_pos],
+                        y=[set_idx],
+                        mode='markers',
+                        marker=dict(size=12, color=color_main, symbol='circle'),
+                        showlegend=False,
+                        hovertemplate=f'<b>{combination}</b><br>Patients: {row["count"]}<extra></extra>'
+                    ),
+                    row=2, col=2
+                )
+    
+    # Configuration des axes
+    # Axe X du graphique du haut (numéros d'intersection)
+    fig.update_xaxes(
+        tickvals=list(range(len(subset_df))),
+        ticktext=[f'#{i+1}' for i in range(len(subset_df))],
+        tickangle=0,
+        title_text='',
+        row=1, col=2
+    )
+    
+    # Axe Y du graphique latéral (noms des traitements)
+    fig.update_yaxes(
+        title_text='',
+        row=1, col=1
+    )
+    
+    # Axe Y du graphique du haut (effectifs)
+    fig.update_yaxes(
+        title_text='Patients in intersection',
+        row=1, col=2
+    )
+    
+    # Axe Y de la matrice (noms des traitements alignés)
+    fig.update_yaxes(
+        tickvals=list(range(len(set_list))),
+        ticktext=set_list,
+        tickmode='array',
+        title_text='',
+        row=2, col=2
+    )
+    
+    # Axe X de la matrice (aligné avec le graphique du haut)
+    fig.update_xaxes(
+        tickvals=list(range(len(subset_df))),
+        ticktext=[f'#{i+1}' for i in range(len(subset_df))],
+        title_text='Intersection number',
+        row=2, col=2
+    )
+    
+    # Masquer les axes du sous-graphique vide (bas gauche)
+    fig.update_xaxes(visible=False, row=2, col=1)
+    fig.update_yaxes(visible=False, row=2, col=1)
+    
+    # Ajouter une annotation pour le titre du graphique latéral
+    fig.add_annotation(
+        x=0.5, y=1.05,
+        xref='x domain', yref='y domain',
+        xanchor='center', yanchor='bottom',
+        text='<b>Treatment frequency</b>',
+        showarrow=False,
+        font=dict(size=11),
+        row=1, col=1
+    )
+    
+    # Layout général
+    fig.update_layout(
+        title=dict(
+            text=title,
+            x=0.5,
+            xanchor='center',
+            font=dict(size=16, family='Arial, sans-serif')
+        ),
+        height=height,
+        width=width,
+        template='plotly_white',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        showlegend=False,
+        margin=dict(l=150, r=50, t=80, b=80)
+    )
+    
+    return fig
+
+
+def create_upset_plot_simple(data, set_columns, title="UpSet Plot - Treatment Combinations",
+                              max_combinations=20, min_patients=1, height=600, width=None):
+    """
+    Version simplifiée de l'UpSet plot pour les traitements prophylactiques.
+    
+    Cette version est optimisée pour la visualisation des combinaisons de traitements
+    dans AlloGraph, avec une mise en page plus compacte et des tooltips informatifs.
+    
+    Args:
+        data (pd.DataFrame): DataFrame avec les données
+        set_columns (list): Liste des colonnes de traitements
+        title (str): Titre du graphique
+        max_combinations (int): Nombre maximum de combinaisons à afficher
+        min_patients (int): Nombre minimum de patients pour afficher une combinaison
+        height (int): Hauteur du graphique
+        width (int): Largeur du graphique
+        
+    Returns:
+        plotly.graph_objects.Figure: Figure UpSet plot
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    import pandas as pd
+    
+    # Vérifier les colonnes disponibles
+    available_cols = [col for col in set_columns if col in data.columns]
+    if not available_cols:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No treatment data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=14
+        )
+        fig.update_layout(title=title, height=height, width=width or 600)
+        return fig
+    
+    # Convertir en binaire
+    binary_data = data[available_cols].copy()
+    for col in available_cols:
+        binary_data[col] = binary_data[col].apply(
+            lambda x: 1 if str(x).lower() in ['oui', 'yes', '1', 'true'] else 0
+        )
+    
+    # Calculer les totaux par traitement
+    set_totals = binary_data.sum().sort_values(ascending=True)
+    
+    # Créer les combinaisons
+    binary_data['_combo'] = binary_data.apply(
+        lambda row: ','.join([col for col in available_cols if row[col] == 1]),
+        axis=1
+    )
+    
+    # Compter et filtrer
+    combo_counts = binary_data['_combo'].value_counts()
+    combo_counts = combo_counts[combo_counts.index != '']  # Exclure vide
+    combo_counts = combo_counts[combo_counts >= min_patients]  # Filtrer minimum
+    combo_counts = combo_counts.head(max_combinations)  # Limiter nombre
+    
+    if len(combo_counts) == 0:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No treatment combinations found",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=14
+        )
+        fig.update_layout(title=title, height=height, width=width or 600)
+        return fig
+    
+    n_sets = len(available_cols)
+    n_combos = len(combo_counts)
+    
+    # Calculer la largeur automatique basée sur le nombre de combinaisons
+    if width is None:
+        width = max(900, 200 + n_combos * 40)
+    
+    # Créer la figure avec sous-graphiques - domaines explicites pour alignement
+    fig = make_subplots(
+        rows=2, cols=2,
+        column_widths=[0.20, 0.80],
+        row_heights=[0.50, 0.50],
+        vertical_spacing=0.02,
+        horizontal_spacing=0.01,
+        specs=[[{"type": "bar"}, {"type": "bar"}],
+               [{"type": "bar"}, {"type": "scatter"}]]
+    )
+    
+    # 1. Barres latérales: fréquence totale
+    fig.add_trace(
+        go.Bar(
+            x=set_totals.values,
+            y=set_totals.index,
+            orientation='h',
+            marker_color='#0D3182',
+            text=set_totals.values,
+            textposition='outside',
+            textfont=dict(size=9),
+            hovertemplate='<b>%{y}</b><br>Total: %{x} patients<extra></extra>',
+            showlegend=False
+        ),
+        row=1, col=1
+    )
+    
+    # 2. Barres du haut: taille des intersections
+    colors_top = ['#c0392b' if len(c.split(',')) == 1 else '#0D3182' 
+                  for c in combo_counts.index]
+    
+    fig.add_trace(
+        go.Bar(
+            x=list(range(n_combos)),
+            y=combo_counts.values,
+            marker_color=colors_top,
+            text=combo_counts.values,
+            textposition='outside',
+            textfont=dict(size=10),
+            hovertemplate='<b>%{customdata}</b><br>Patients: %{y}<extra></extra>',
+            customdata=[c.replace(',', '<br>+ ') for c in combo_counts.index],
+            showlegend=False
+        ),
+        row=1, col=2
+    )
+    
+    # 3. Matrice des points
+    set_list = list(set_totals.index)
+    
+    # Lignes de grille horizontales
+    for i in range(n_sets):
+        fig.add_trace(
+            go.Scatter(
+                x=[-0.5, n_combos - 0.5],
+                y=[i, i],
+                mode='lines',
+                line=dict(color='#e0e0e0', width=1.5),
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=2, col=2
+        )
+    
+    # Points et connexions
+    for i, (combo, count) in enumerate(combo_counts.items()):
+        sets_in = combo.split(',') if combo else []
+        indices = [set_list.index(s) for s in sets_in if s in set_list]
+        
+        if len(indices) == 1:
+            fig.add_trace(
+                go.Scatter(
+                    x=[i],
+                    y=[indices[0]],
+                    mode='markers',
+                    marker=dict(size=16, color='#c0392b', 
+                               line=dict(color='white', width=2)),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=2, col=2
+            )
+        elif len(indices) > 1:
+            # Ligne de connexion verticale
+            fig.add_trace(
+                go.Scatter(
+                    x=[i] * len(indices),
+                    y=indices,
+                    mode='lines',
+                    line=dict(color='#2E86AB', width=5),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ),
+                row=2, col=2
+            )
+            # Points
+            for idx in indices:
+                fig.add_trace(
+                    go.Scatter(
+                        x=[i],
+                        y=[idx],
+                        mode='markers',
+                        marker=dict(size=14, color='#0D3182',
+                                   line=dict(color='white', width=2)),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ),
+                    row=2, col=2
+                )
+    
+    # Configuration des axes - CLÉ POUR L'ALIGNEMENT
+    # Masquer axe X du graphique latéral
+    fig.update_xaxes(visible=False, row=1, col=1)
+    fig.update_yaxes(title_text='', row=1, col=1)
+    
+    # Axe X du graphique du haut - sans titre, ticks seulement
+    fig.update_xaxes(
+        tickvals=list(range(n_combos)),
+        ticktext=[f'{i+1}' for i in range(n_combos)],
+        tickangle=0,
+        title_text='',
+        range=[-0.5, n_combos - 0.5],
+        constrain='domain',
+        row=1, col=2
+    )
+    fig.update_yaxes(
+        title_text='Patients',
+        row=1, col=2
+    )
+    
+    # Axe X de la matrice - ALIGNÉ avec le graphique du haut
+    fig.update_xaxes(
+        tickvals=list(range(n_combos)),
+        ticktext=[f'{i+1}' for i in range(n_combos)],
+        title_text='Combination',
+        range=[-0.5, n_combos - 0.5],
+        constrain='domain',
+        row=2, col=2
+    )
+    fig.update_yaxes(
+        tickvals=list(range(n_sets)),
+        ticktext=set_list,
+        tickmode='array',
+        title_text='',
+        row=2, col=2
+    )
+    
+    # Masher le sous-graphique vide
+    fig.update_xaxes(visible=False, row=2, col=1)
+    fig.update_yaxes(visible=False, row=2, col=1)
+    
+    # Layout optimisé pour remplir le conteneur
+    fig.update_layout(
+        title=dict(
+            text=title,
+            x=0.5,
+            xanchor='center',
+            font=dict(size=15, family='Arial, sans-serif')
+        ),
+        height=height,
+        width=width,
+        template='plotly_white',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        showlegend=False,
+        # Marges réduites pour maximiser l'espace du plot
+        margin=dict(l=150, r=30, t=60, b=40),
+        # S'assurer que le plot utilise tout l'espace disponible
+        autosize=True
+    )
+    
+    return fig

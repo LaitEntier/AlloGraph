@@ -5,6 +5,7 @@ import pandas as pd
 import plotly
 import modules.dashboard_layout as layouts
 import visualizations.allogreffes.graphs as gr
+import visualizations.allogreffes.upsetjs_embed as upsetjs
 
 def get_layout():
     """Retourne le layout de la page Procedures avec graphiques empilés verticalement et spinners"""
@@ -65,40 +66,68 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
-        # Troisième graphique - Traitements Prophylactiques
+        # Troisième graphique - Traitements Prophylactiques (avec onglets)
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Prophylactic treatments')),
+                    dbc.CardHeader([
+                        html.H5('Prophylactic treatments'),
+                    ]),
                     dbc.CardBody([
-                        dcc.Loading(
-                            id="loading-procedures-prophylaxis",
-                            type="circle",
-                            children=html.Div(
-                                id='procedures-prophylaxis-chart',
-                                style={'height': '420px', 'overflow': 'hidden'}
-                            )
+                        dcc.Tabs(
+                            id='procedures-prophylaxis-tabs',
+                            value='tab-barplot',
+                            children=[
+                                dcc.Tab(label='Treatment proportions', value='tab-barplot'),
+                                dcc.Tab(label='Combination analysis', value='tab-upset')
+                            ]
+                        ),
+                        html.Div(
+                            style={'marginTop': '15px', 'minHeight': '580px'},
+                            children=[
+                                dcc.Loading(
+                                    id="loading-procedures-prophylaxis",
+                                    type="circle",
+                                    children=html.Div(
+                                        id='procedures-prophylaxis-content',
+                                        style={'width': '100%', 'overflow': 'auto'}
+                                    )
+                                )
+                            ]
                         )
-                    ], className='p-2')
+                    ], className='p-3')
                 ])
             ], width=12)
         ], className='mb-4'),
         
-        # Quatrième graphique - Traitements de Préparation
+        # Quatrième graphique - Traitements de Préparation (avec onglets)
         dbc.Row([
             dbc.Col([
                 dbc.Card([
                     dbc.CardHeader(html.H5('Conditioning regimen')),
                     dbc.CardBody([
-                        dcc.Loading(
-                            id="loading-procedures-treatment",
-                            type="circle",
-                            children=html.Div(
-                                id='procedures-treatment-chart',
-                                style={'height': '420px', 'overflow': 'hidden'}
-                            )
+                        dcc.Tabs(
+                            id='procedures-treatment-tabs',
+                            value='tab-barplot',
+                            children=[
+                                dcc.Tab(label='Treatment proportions', value='tab-barplot'),
+                                dcc.Tab(label='Combination analysis (UpSet)', value='tab-upset')
+                            ]
+                        ),
+                        html.Div(
+                            style={'marginTop': '15px', 'minHeight': '580px'},
+                            children=[
+                                dcc.Loading(
+                                    id="loading-procedures-treatment",
+                                    type="circle",
+                                    children=html.Div(
+                                        id='procedures-treatment-content',
+                                        style={'width': '100%', 'overflow': 'auto'}
+                                    )
+                                )
+                            ]
                         )
-                    ], className='p-2')
+                    ], className='p-3')
                 ])
             ], width=12)
         ], className='mb-4'),
@@ -570,13 +599,14 @@ def register_callbacks(app):
 
     
     @app.callback(
-        Output('procedures-treatment-chart', 'children'),
-        [Input('data-store', 'data'),
-        Input('current-page', 'data'),
-        Input('procedures-year-filter', 'value')]
+        Output('procedures-treatment-content', 'children'),
+        [Input('procedures-treatment-tabs', 'value'),
+         Input('data-store', 'data'),
+         Input('current-page', 'data'),
+         Input('procedures-year-filter', 'value')]
     )
-    def update_treatment_chart(data, current_page, selected_years):
-        """Met à jour le graphique des proportions de traitement de préparation avec barres empilées Oui/Non"""
+    def update_treatment_chart(active_tab, data, current_page, selected_years):
+        """Met à jour le contenu des onglets de traitement de préparation (barplot ou UpSet)"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
@@ -625,35 +655,56 @@ def register_callbacks(app):
                     lambda x: 'Oui' if x == 'Yes' else 'Non'
                 )
             
-            # Utiliser la fonction unifiée
-            fig = gr.create_unified_treatment_barplot(
-                data=df_processed,
-                treatment_columns=available_treatment_cols,
-                title="Proportion of patients receiving each conditioning regimen",
-                x_axis_title="Treatment",
-                y_axis_title="Proportion (%)",
-                width=None,
-                show_values=True,
-                remove_prefix="Prep Regimen "  # Supprimer le préfixe pour l'affichage (TBI restera inchangé)
-            )
-            
-            return dcc.Graph(
-                figure=fig,
-                style={'height': '100%'},
-                config={'responsive': True, 'displayModeBar': False}
-            )
+            if active_tab == 'tab-barplot':
+                # Afficher le barplot des proportions
+                fig = gr.create_unified_treatment_barplot(
+                    data=df_processed,
+                    treatment_columns=available_treatment_cols,
+                    title="Proportion of patients receiving each conditioning regimen",
+                    x_axis_title="Treatment",
+                    y_axis_title="Proportion (%)",
+                    width=None,
+                    show_values=True,
+                    remove_prefix="Prep Regimen "  # Supprimer le préfixe pour l'affichage (TBI restera inchangé)
+                )
+                
+                return dcc.Graph(
+                    figure=fig,
+                    style={'height': '100%'},
+                    config={'responsive': True, 'displayModeBar': False}
+                )
+            else:  # tab-upset
+                # Afficher le UpSet plot SVG interactif pour les combinaisons de traitement
+                dynamic_height = max(580, 280 + len(available_treatment_cols) * 30)
+                
+                component_config = upsetjs.create_upsetjs_dash_component(
+                    data=df_processed,
+                    set_columns=available_treatment_cols,
+                    title=f"Conditioning regimen combinations (n={len(df_processed)} patients)",
+                    height=dynamic_height,
+                    max_combinations=20,
+                    min_patients=1,
+                    remove_prefix="Prep Regimen "  # Remove prefix for cleaner display
+                )
+                
+                # Create iframe with data URL
+                return html.Iframe(
+                    src=component_config.get('src'),
+                    style={'width': '100%', 'height': f'{dynamic_height}px', 'border': 'none'}
+                )
         
         except Exception as e:
             return html.Div(f'Error: {str(e)}', className='text-danger text-center')
 
     @app.callback(
-        Output('procedures-prophylaxis-chart', 'children'),
-        [Input('data-store', 'data'),
+        Output('procedures-prophylaxis-content', 'children'),
+        [Input('procedures-prophylaxis-tabs', 'value'),
+         Input('data-store', 'data'),
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value')]
     )
-    def update_prophylaxis_chart(data, current_page, selected_years):
-        """Met à jour le graphique des proportions de prophylaxie avec style unifié"""
+    def update_prophylaxis_chart(active_tab, data, current_page, selected_years):
+        """Met à jour le contenu des onglets de prophylaxie (barplot ou UpSet)"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
@@ -695,27 +746,46 @@ def register_callbacks(app):
             return html.Div('No data for the selected years', className='text-warning text-center')
         
         try:
-            # Utiliser la fonction unifiée
-            fig = gr.create_unified_treatment_barplot(
-                data=filtered_df,
-                treatment_columns=prophylaxis_columns,
-                title="Proportion of patients receiving each prophylactic treatment",
-                x_axis_title="Treatment",
-                y_axis_title="Proportion (%)",
-                width=None,
-                show_values=True,
-                remove_prefix=None  # Pas de préfixe à supprimer pour la prophylaxie
-            )
-            
-            return dcc.Graph(
-                figure=fig,
-                style={'height': '100%'},
-                config={'responsive': True, 'displayModeBar': False}
-            )
+            if active_tab == 'tab-barplot':
+                # Afficher le barplot des proportions
+                fig = gr.create_unified_treatment_barplot(
+                    data=filtered_df,
+                    treatment_columns=prophylaxis_columns,
+                    title="Proportion of patients receiving each prophylactic treatment",
+                    x_axis_title="Treatment",
+                    y_axis_title="Proportion (%)",
+                    width=None,
+                    show_values=True,
+                    remove_prefix=None
+                )
+                
+                return dcc.Graph(
+                    figure=fig,
+                    style={'height': '100%'},
+                    config={'responsive': True, 'displayModeBar': False}
+                )
+            else:  # tab-upset
+                # Afficher le UpSet plot SVG interactif
+                dynamic_height = max(580, 280 + len(prophylaxis_columns) * 30)
+                
+                component_config = upsetjs.create_upsetjs_dash_component(
+                    data=filtered_df,
+                    set_columns=prophylaxis_columns,
+                    title=f"Prophylactic treatment combinations (n={len(filtered_df)} patients)",
+                    height=dynamic_height,
+                    max_combinations=20,
+                    min_patients=1
+                )
+                
+                # Create iframe with data URL
+                return html.Iframe(
+                    src=component_config.get('src'),
+                    style={'width': '100%', 'height': f'{dynamic_height}px', 'border': 'none'}
+                )
         
         except Exception as e:
             return html.Div(f'Error: {str(e)}', className='text-danger text-center')
-        
+    
     @callback(
         Output('procedures-missing-summary-table', 'children'),
         [Input('data-store', 'data'), Input('current-page', 'data')],
