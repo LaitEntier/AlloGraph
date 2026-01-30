@@ -31,7 +31,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Kaplan-Meier global survival curve')),
+                    dbc.CardHeader(html.H5('Kaplan-Meier overall survival curve')),
                     dbc.CardBody([
                         html.Div(
                             id='survival-global-curve'
@@ -879,7 +879,7 @@ def register_callbacks(app):
             fig = create_interactive_single_km_curve(
                 processed_data,
                 max_years=max_years,
-                title=f"Kaplan-Meier global survival curve (N={len(processed_data)})"
+                title=f"Kaplan-Meier overall survival curve (N={len(processed_data)})"
             )
             
             return dcc.Graph(

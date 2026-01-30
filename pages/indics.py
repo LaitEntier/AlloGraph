@@ -129,7 +129,7 @@ def create_indicators_sidebar_content(data):
                 id='indicator-selection-sidebar',
                 options=[
                     {'label': 'TRM (Toxicity-Related Mortality)', 'value': 'TRM'},
-                    {'label': 'Global survival', 'value': 'survie_globale'},
+                    {'label': 'Overall survival', 'value': 'survie_globale'},
                     {'label': 'Acute GVH (aGVH)', 'value': 'gvha'},
                     {'label': 'Chronic GVH (cGVH)', 'value': 'gvhc'},
                     {'label': 'Transplantation success', 'value': 'prise_greffe'},
@@ -1174,7 +1174,7 @@ def create_survie_global_visualization(df, analysis_year):
         
     except Exception as e:
         print(f"ERROR in create_survie_global_visualization: {str(e)}")
-        return dbc.Alert(f"Error in global survival visualization: {str(e)}", color="danger")
+        return dbc.Alert(f"Error in overall survival visualization: {str(e)}", color="danger")
 
 def create_survie_quarterly_visualization(year_data, selected_year):
     """
@@ -3584,7 +3584,7 @@ def get_variables_for_indicator(indicator):
                 'Date Of Last Follow Up',
                 'Treatment Date',
             ],
-            'name': 'Global survival'
+            'name': 'Overall survival'
         },
         'prise_greffe': {
             'variables': [

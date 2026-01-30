@@ -136,16 +136,16 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Aplasia duration analysis")),
+                    dbc.CardHeader(html.H5("ANC Recovery & Platelet Reconstitution duration analysis")),
                     dbc.CardBody([
                         dcc.Tabs(
                             id='procedures-aplasia-tabs',
                             value='tab-global',
                             children=[
-                                dcc.Tab(label='Aplasia - Global view', value='tab-global'),
-                                dcc.Tab(label='Aplasia - By year', value='tab-stratified'),
-                                dcc.Tab(label='Thrombocytopenia - Global view', value='tab-thrombopenia-global'),
-                                dcc.Tab(label='Thrombocytopenia - By year', value='tab-thrombopenia-stratified')
+                                dcc.Tab(label='ANC Recovery - Global view', value='tab-global'),
+                                dcc.Tab(label='ANC Recovery - By year', value='tab-stratified'),
+                                dcc.Tab(label='Platelet Reconstitution - Global view', value='tab-thrombopenia-global'),
+                                dcc.Tab(label='Platelet Reconstitution - By year', value='tab-thrombopenia-stratified')
                             ]
                         ),
                         html.Div(
@@ -438,7 +438,7 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Missing columns for calculating aplasia duration:", className='text-warning text-center'),
+                        html.P("Missing columns for calculating ANC Recovery duration:", className='text-warning text-center'),
                         html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
@@ -448,7 +448,7 @@ def register_callbacks(app):
                     filter_column='Anc Recovery',
                     filter_value='Yes',
                     date_columns=('Treatment Date', 'Date Anc Recovery'),
-                    title="Global distribution of aplasia duration",
+                    title="Global distribution of ANC Recovery duration",
                     x_axis_title="Days",
                     y_axis_title="Number of patients",
                     bin_size=2,
@@ -464,7 +464,7 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Missing columns for calculating aplasia duration:", className='text-warning text-center'),
+                        html.P("Missing columns for calculating ANC Recovery duration:", className='text-warning text-center'),
                         html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
@@ -489,7 +489,7 @@ def register_callbacks(app):
                         date_columns=('Treatment Date', 'Date Anc Recovery'),
                         selected_strata=years_to_display,
                         max_strata=3,
-                        title=f"Aplasia duration by year ({', '.join(map(str, years_to_display))})",
+                        title=f"ANC Recovery duration by year ({', '.join(map(str, years_to_display))})",
                         x_axis_title="Days",
                         y_axis_title="Number of patients",
                         bin_size=2,
@@ -521,7 +521,7 @@ def register_callbacks(app):
                     filter_column='Platelet Reconstitution',
                     filter_value='Yes',
                     date_columns=('Treatment Date', 'Date Platelet Reconstitution'),
-                    title="Global distribution of thrombocytopenia duration",
+                    title="Global distribution of Platelet Reconstitution duration",
                     x_axis_title="Days",
                     y_axis_title="Number of patients",
                     bin_size=2,
@@ -538,7 +538,7 @@ def register_callbacks(app):
                 
                 if missing_cols:
                     return html.Div([
-                        html.P("Missing columns for calculating thrombocytopenia duration:", className='text-warning text-center'),
+                        html.P("Missing columns for calculating Platelet Reconstitution duration:", className='text-warning text-center'),
                         html.P(f"Missing columns: {', '.join(missing_cols)}", className='text-muted text-center', style={'fontSize': '10px'})
                     ])
                 
@@ -563,7 +563,7 @@ def register_callbacks(app):
                         date_columns=('Treatment Date', 'Date Platelet Reconstitution'),
                         selected_strata=years_to_display,
                         max_strata=3,
-                        title=f"Thrombocytopenia duration by year ({', '.join(map(str, years_to_display))})",
+                        title=f"Platelet Reconstitution duration by year ({', '.join(map(str, years_to_display))})",
                         x_axis_title="Days",
                         y_axis_title="Number of patients",
                         bin_size=2,
