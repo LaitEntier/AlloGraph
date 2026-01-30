@@ -286,14 +286,14 @@ def create_sidebar_layout(title, content):
 
 def create_upload_component():
     """
-    Crée le composant d'upload standardisé
+    Creates the standardized upload component
     """
     return dcc.Upload(
         id='upload-data',
         children=html.Div([
-            html.Div('Glissez-déposez', style={'fontSize': '12px'}),
-            html.Div('ou', style={'fontSize': '10px', 'margin': '2px 0'}),
-            html.A('sélectionnez', style={'fontSize': '12px'})
+            html.Div('Drag and drop', style={'fontSize': '12px'}),
+            html.Div('or', style={'fontSize': '10px', 'margin': '2px 0'}),
+            html.A('select', style={'fontSize': '12px'})
         ]),
         style={
             'width': '100%',

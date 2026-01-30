@@ -893,7 +893,7 @@ def create_simple_normalized_barplot(
 def create_cumulative_barplot(
     data,
     category_column,
-    title="Distribution et cumul des effectifs",
+    title="Distribution and cumulative count",
     x_axis_title=None,
     bar_y_axis_title="Patient count",
     line_y_axis_title="Cumulative count",
@@ -1009,10 +1009,10 @@ def create_grouped_barplot_with_cumulative(
     data,
     x_column,
     group_column,
-    title="Distribution par année avec effectifs cumulés",
+    title="Distribution by year with cumulative counts",
     x_axis_title=None,
-    bar_y_axis_title="Nombre de patients",
-    line_y_axis_title="Effectif cumulé",
+    bar_y_axis_title="Patient count",
+    line_y_axis_title="Cumulative count",
     height=500,
     width=1500,
     custom_x_order=None,
@@ -1077,7 +1077,7 @@ def create_grouped_barplot_with_cumulative(
         cumulative_totals = yearly_totals.cumsum()
         
         fig.add_trace(go.Scatter(
-            name='Effectif cumulé',
+            name='Cumulative count',
             x=grouped_data[x_column],
             y=cumulative_totals,
             mode='lines+markers+text',
@@ -1193,7 +1193,7 @@ def create_stacked_barplot(
     
     # Définir les titres par défaut
     x_axis_title = x_axis_title or x_column
-    y_axis_title = y_axis_title or "Nombre de patients"
+    y_axis_title = y_axis_title or "Patient count"
     
     # Préparer les traces pour chaque catégorie d'empilement
     traces = []
@@ -1296,7 +1296,7 @@ def create_normalized_barplot(
     
     # Définir les titres par défaut
     x_axis_title = x_axis_title or x_column
-    y_axis_title = y_axis_title or "Pourcentage (%)"
+    y_axis_title = y_axis_title or "Percentage (%)"
     
     # Préparer les traces pour chaque catégorie d'empilement
     traces = []
@@ -1370,9 +1370,9 @@ def create_histogram_with_density(
     filter_column: Optional[str] = None,
     filter_value: Optional[str] = None,
     date_columns: Optional[Tuple[str, str]] = None,
-    title: str = "Distribution avec densité",
-    x_axis_title: str = "Valeurs",
-    y_axis_title: str = "Fréquence",
+    title: str = "Distribution with density curve",
+    x_axis_title: str = "Values",
+    y_axis_title: str = "Frequency",
     bin_size: Optional[float] = None,
     percentile_limit: float = 0.99,
     color_histogram: str = '#2ecc71',
@@ -1405,40 +1405,6 @@ def create_histogram_with_density(
         
     Returns:
         go.Figure: Figure Plotly avec histogramme et densité
-        
-    Examples:
-        # Exemple 1: Durée d'aplasie
-        fig = create_histogram_with_density(
-            data=df,
-            value_column='duree_aplasie',
-            filter_column='Anc Recovery',
-            filter_value='Yes',
-            date_columns=('Treatment Date', 'Date Anc Recovery'),
-            title="Durée d'aplasie",
-            x_axis_title="Jours",
-            y_axis_title="Nombre de patients",
-            bin_size=2
-        )
-        
-        # Exemple 2: Âge au diagnostic
-        fig = create_histogram_with_density(
-            data=df,
-            value_column='Age At Diagnosis',
-            title="Distribution de l'âge au diagnostic",
-            x_axis_title="Âge (années)",
-            y_axis_title="Nombre de patients",
-            bin_size=5
-        )
-        
-        # Exemple 3: Durée de suivi
-        fig = create_histogram_with_density(
-            data=df,
-            value_column='duree_suivi',
-            date_columns=('Treatment Date', 'Date Of Last Contact'),
-            title="Durée de suivi",
-            x_axis_title="Jours",
-            y_axis_title="Nombre de patients"
-        )
     """
     
     # Copie des données pour éviter les modifications
@@ -1517,7 +1483,7 @@ def create_histogram_with_density(
                 size=bin_size
             ),
             yaxis='y1',
-            hovertemplate="<b>Intervalle:</b> %{x}<br><b>Fréquence:</b> %{y}<extra></extra>"
+            hovertemplate="<b>Interval:</b> %{x}<br><b>Frequency:</b> %{y}<extra></extra>"
         )
     )
     
@@ -1540,10 +1506,10 @@ def create_histogram_with_density(
                 go.Scatter(
                     x=xs,
                     y=ys_scaled,
-                    name='Densité',
+                    name='Density',
                     line=dict(color=color_density, width=2),
                     yaxis='y1',
-                    hovertemplate="<b>Valeur:</b> %{x:.1f}<br><b>Densité:</b> %{y:.1f}<extra></extra>"
+                    hovertemplate="<b>Value:</b> %{x:.1f}<br><b>Density:</b> %{y:.1f}<extra></extra>"
                 )
             )
         except Exception as e:
@@ -1592,10 +1558,10 @@ def create_histogram_with_density(
         y=0.98,
         xref='paper',
         yref='paper',
-        text=f"<b>Statistiques:</b><br>"
+        text=f"<b>Statistics:</b><br>"
              f"N = {len(display_values)}<br>"
-             f"Moyenne = {mean_val:.1f}<br>"
-             f"Écart-type = {std_val:.1f}<br>"
+             f"Mean = {mean_val:.1f}<br>"
+             f"Std Dev = {std_val:.1f}<br>"
              f"Min = {min_val:.1f}<br>"
              f"Max = {max_val:.1f}",
         showarrow=False,
@@ -1614,8 +1580,8 @@ def create_duration_histogram(
     date_end_col: str,
     filter_column: Optional[str] = None,
     filter_value: Optional[str] = None,
-    title: str = "Distribution des durées",
-    unit: str = "jours",
+    title: str = "Distribution of durations",
+    unit: str = "days",
     bin_size: Optional[float] = None,
     **kwargs
 ) -> go.Figure:
@@ -1659,9 +1625,9 @@ def create_stratified_histogram_with_density(
     date_columns: Optional[Tuple[str, str]] = None,
     selected_strata: Optional[List] = None,
     max_strata: int = 3,
-    title: str = "Distribution stratifiée avec densité",
-    x_axis_title: str = "Valeurs",
-    y_axis_title: str = "Fréquence",
+    title: str = "Stratified distribution with density",
+    x_axis_title: str = "Values",
+    y_axis_title: str = "Frequency",
     bin_size: Optional[float] = None,
     percentile_limit: float = 0.99,
     opacity: float = 0.6,
@@ -1696,33 +1662,6 @@ def create_stratified_histogram_with_density(
         
     Returns:
         go.Figure: Figure Plotly avec histogrammes et densités stratifiés
-        
-    Examples:
-        # Durée d'aplasie par année (3 dernières années)
-        fig = create_stratified_histogram_with_density(
-            data=df,
-            value_column='duree_aplasie',
-            stratification_column='Year',
-            filter_column='Anc Recovery',
-            filter_value='Yes',
-            date_columns=('Treatment Date', 'Date Anc Recovery'),
-            title="Durée d'aplasie par année",
-            x_axis_title="Jours",
-            y_axis_title="Nombre de patients",
-            bin_size=2,
-            max_strata=3
-        )
-        
-        # Âge au diagnostic par diagnostic principal
-        fig = create_stratified_histogram_with_density(
-            data=df,
-            value_column='Age At Diagnosis',
-            stratification_column='Main Diagnosis',
-            title="Âge au diagnostic par pathologie",
-            x_axis_title="Âge (années)",
-            bin_size=5,
-            max_strata=3
-        )
     """
     
     # Copie des données pour éviter les modifications
@@ -1846,8 +1785,8 @@ def create_stratified_histogram_with_density(
                 ),
                 legendgroup=f"group_{stratum}",
                 hovertemplate=f"<b>{stratification_column}: {stratum}</b><br>" +
-                             "Intervalle: %{x}<br>" +
-                             "Fréquence: %{y}<br>" +
+                             "Interval: %{x}<br>" +
+                             "Frequency: %{y}<br>" +
                              f"N = {len(display_values)}<extra></extra>"
             )
         )
@@ -1870,13 +1809,13 @@ def create_stratified_histogram_with_density(
                     go.Scatter(
                         x=xs,
                         y=ys_scaled,
-                        name=f"Densité {stratum}",
+                        name=f"Density {stratum}",
                         line=dict(color=color, width=3),
                         legendgroup=f"group_{stratum}",
                         showlegend=False,  # Éviter la duplication dans la légende
-                        hovertemplate=f"<b>Densité {stratification_column}: {stratum}</b><br>" +
-                                     "Valeur: %{x:.1f}<br>" +
-                                     "Densité: %{y:.1f}<extra></extra>"
+                        hovertemplate=f"<b>Density {stratification_column}: {stratum}</b><br>" +
+                                     "Value: %{x:.1f}<br>" +
+                                     "Density: %{y:.1f}<extra></extra>"
                     )
                 )
             except Exception as e:
@@ -1929,7 +1868,7 @@ def create_stratified_histogram_with_density(
     
     # Ajout d'annotations avec les statistiques pour chaque strate
     if strata_stats:
-        annotation_text = "<b>Statistiques par strate:</b><br>"
+        annotation_text = "<b>Stratum-specific statistics:</b><br>"
         for stratum, stats in strata_stats.items():
             annotation_text += f"<b>{stratum}:</b> N={stats['n']}, μ={stats['mean']:.1f}, σ={stats['std']:.1f}<br>"
         
@@ -1976,8 +1915,8 @@ def create_stacked_yes_no_barplot(data, treatment_columns, title="", x_axis_titl
         counts = data[col].value_counts()
         total = len(data)
         
-        oui_count = counts.get('Oui', 0)
-        non_count = counts.get('Non', 0)
+        oui_count = counts.get('Yes', 0)
+        non_count = counts.get('No', 0)
         
         oui_percent = (oui_count / total) * 100 if total > 0 else 0
         non_percent = (non_count / total) * 100 if total > 0 else 0
@@ -2003,7 +1942,7 @@ def create_stacked_yes_no_barplot(data, treatment_columns, title="", x_axis_titl
     
     # Barre pour "Oui"
     fig.add_trace(go.Bar(
-        name='Oui',
+        name='Yes',
         x=proportions_df['Traitement'],
         y=proportions_df['Oui_percent'],
         marker_color='#27BDBE',
@@ -2014,7 +1953,7 @@ def create_stacked_yes_no_barplot(data, treatment_columns, title="", x_axis_titl
     
     # Barre pour "Non"
     fig.add_trace(go.Bar(
-        name='Non',
+        name='No',
         x=proportions_df['Traitement'],
         y=proportions_df['Non_percent'],
         marker_color='#FF6B6B',
@@ -2127,8 +2066,8 @@ def create_competing_risks_analysis(data, gvh_type):
         required_gvh_columns = ['First Agvhd Occurrence', 'First Agvhd Occurrence Date']
         max_days = 100  # Garder 100 jours pour GVH aiguë
         initial_display_days = 100  # Affichage complet pour GVH aiguë
-        title = "Analyse de Risques Compétitifs : GvH Aiguë vs Décès (100 jours)"
-        event_label = 'GvH Aiguë'
+        title = "Competing Risks Analysis: Acute Graft-versus-Host Disease vs Death (100 Days)"
+        event_label = 'Acute GvH'
         event_color = '#e74c3c'
     else:  # chronic
         required_gvh_columns = ['First Cgvhd Occurrence', 'First Cgvhd Occurrence Date']
@@ -2137,8 +2076,8 @@ def create_competing_risks_analysis(data, gvh_type):
         max_days = calculate_max_followup_days(data)
         initial_display_days = 365  # Affichage initial limité à 1 an
         
-        title = f"Analyse de Risques Compétitifs : GvH Chronique vs Décès (jusqu'à {max_days} jours)"
-        event_label = 'GvH Chronique'
+        title = f"Competing Risks Analysis: Chronic Graft-versus-Host Disease vs Death (up to {max_days} days)"
+        event_label = 'Chronic GvH'
         event_color = '#f39c12'
     
     # Vérifier que toutes les colonnes nécessaires existent
@@ -2336,7 +2275,7 @@ def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_t
     
     # Barre pour "Oui" - couleur bleu-vert cohérente
     fig.add_trace(go.Bar(
-        name='Oui',
+        name='Yes',
         x=proportions_df['Traitement'],
         y=proportions_df['Oui_percent'],
         marker_color='#2ecc71', 
@@ -2344,13 +2283,13 @@ def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_t
         textposition='inside' if show_values else 'none',
         textfont=dict(color='white', size=10),
         hovertemplate='<b>%{x}</b><br>' +
-                      'Patients avec traitement: %{text}<br>' +
+                      'Patients with treatment: %{text}<br>' +
                       '<extra></extra>'
     ))
     
     # Barre pour "Non" - couleur rouge-rose cohérente
     fig.add_trace(go.Bar(
-        name='Non',
+        name='No',
         x=proportions_df['Traitement'],
         y=proportions_df['Non_percent'],
         marker_color='#e74c3c', 
@@ -2358,7 +2297,7 @@ def create_unified_treatment_barplot(data, treatment_columns, title="", x_axis_t
         textposition='inside' if show_values else 'none',
         textfont=dict(color='white', size=10),
         hovertemplate='<b>%{x}</b><br>' +
-                      'Patients sans traitement: %{text}<br>' +
+                      'Patients without treatment: %{text}<br>' +
                       '<extra></extra>'
     ))
     
@@ -2405,10 +2344,10 @@ def create_grouped_barplot_with_cumulative_by_category(
     data,
     x_column,
     group_column,
-    title="Distribution par année avec effectifs cumulés par catégorie",
+    title="Distribution by year with cumulative counts by category",
     x_axis_title=None,
-    bar_y_axis_title="Nombre de patients",
-    line_y_axis_title="Effectif cumulé par catégorie",
+    bar_y_axis_title="Number of patients",
+    line_y_axis_title="Cumulative count by category",
     height=500,
     width=1500,
     custom_x_order=None,
@@ -2458,7 +2397,7 @@ def create_grouped_barplot_with_cumulative_by_category(
     if show_bars:
         for i, category in enumerate(group_categories):
             fig.add_trace(go.Bar(
-                name=f'{category} (effectifs)',
+                name=f'{category} (counts)',
                 x=grouped_data[x_column],
                 y=grouped_data[category],
                 marker_color=colors[i % len(colors)],
@@ -2484,7 +2423,7 @@ def create_grouped_barplot_with_cumulative_by_category(
             line_color = f'rgb({r},{g},{b})'
         
         fig.add_trace(go.Scatter(
-            name=f'{category} (cumulé)',
+            name=f'{category} (cumulative)',
             x=grouped_data[x_column],
             y=cumulative_data,
             mode='lines+markers+text',
@@ -2493,9 +2432,9 @@ def create_grouped_barplot_with_cumulative_by_category(
             text=cumulative_data,
             textposition='top center',
             textfont=dict(size=12),
-            hovertemplate=f'<b>{category} (cumulé)</b><br>' +
-                         'Année: %{x}<br>' +
-                         'Effectif cumulé: %{y}<br>' +
+            hovertemplate=f'<b>{category} (cumulative)</b><br>' +
+                         'Year: %{x}<br>' +
+                         'Cumulative count: %{y}<br>' +
                          '<extra></extra>'
         ))
     
@@ -2580,13 +2519,13 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     
     # Mapper les valeurs pour les rendre plus lisibles
     donor_mapping = {
-        'Transplant donor cytomegalovirus antibody positive': 'Positif',
-        'Transplant donor cytomegalovirus antibody negative': 'Négatif'
+        'Transplant donor cytomegalovirus antibody positive': 'Positive',
+        'Transplant donor cytomegalovirus antibody negative': 'Negative'
     }
     
     patient_mapping = {
-        'Positive': 'Positif',
-        'Negative': 'Négatif'
+        'Positive': 'Positive',
+        'Negative': 'Negative'
     }
     
     # Appliquer les mappings
@@ -2618,9 +2557,9 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
         rows=1, cols=3,
         specs=[[{"type": "pie"}, {"type": "pie"}, {"type": "pie"}]],
         subplot_titles=[
-            'Statut CMV Donneur',
-            'Statut CMV Receveur', 
-            'Combinaisons Donneur/Receveur'
+            'Donor CMV Status',
+            'Recipient CMV Status', 
+            'Donor/Recipient Combinations'
         ],
         horizontal_spacing=0.05
     )
@@ -2636,13 +2575,13 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
             go.Pie(
                 labels=donor_counts.index,
                 values=donor_counts.values,
-                name="Donneur",
+                name="Donor",
                 marker_colors=colors_pos_neg,
                 textinfo='label+percent+value',
                 texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
-                hovertemplate='<b>Statut Donneur: %{label}</b><br>' +
-                             'Nombre: %{value}<br>' +
-                             'Pourcentage: %{percent}<br>' +
+                hovertemplate='<b>Donor CMV Status: %{label}</b><br>' +
+                             'Number: %{value}<br>' +
+                             'Percentage: %{percent}<br>' +
                              '<extra></extra>'
             ),
             row=1, col=1
@@ -2659,9 +2598,9 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
                 marker_colors=colors_pos_neg,
                 textinfo='label+percent+value',
                 texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
-                hovertemplate='<b>Statut Patient: %{label}</b><br>' +
-                             'Nombre: %{value}<br>' +
-                             'Pourcentage: %{percent}<br>' +
+                hovertemplate='<b>Recipient CMV Status: %{label}</b><br>' +
+                             'Number: %{value}<br>' +
+                             'Percentage: %{percent}<br>' +
                              '<extra></extra>'
             ),
             row=1, col=2
@@ -2673,7 +2612,7 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     combination_counts = df_clean['CMV_Combination'].value_counts()
     
     # Ordonner les combinaisons de manière logique
-    preferred_order = ['Positif/Positif', 'Positif/Négatif', 'Négatif/Positif', 'Négatif/Négatif']
+    preferred_order = ['Positive/Positive', 'Positive/Negative', 'Negative/Positive', 'Negative/Negative']
     ordered_combinations = []
     ordered_values = []
     ordered_colors = []
@@ -2700,9 +2639,9 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
                 marker_colors=ordered_colors,
                 textinfo='label+percent+value',
                 texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
-                hovertemplate='<b>Combinaison: %{label}</b><br>' +
-                             'Nombre: %{value}<br>' +
-                             'Pourcentage: %{percent}<br>' +
+                hovertemplate='<b>Combination: %{label}</b><br>' +
+                             'Number: %{value}<br>' +
+                             'Percentage: %{percent}<br>' +
                              '<extra></extra>'
             ),
             row=1, col=3
@@ -3293,7 +3232,7 @@ def create_upset_plot(data, set_columns, title="UpSet Plot - Treatment Combinati
             text=subset_df['count'],
             textposition='outside',
             textfont=dict(size=10),
-            hovertemplate='<b>Intersection #%{%{x} + 1}</b><br>Patients: %{y}<br>Traitements: %{customdata}<extra></extra>',
+            hovertemplate='<b>Intersection #%{%{x} + 1}</b><br>Patients: %{y}<br>Treatments: %{customdata}<extra></extra>',
             customdata=subset_df['combination'],
             showlegend=False
         ),
