@@ -125,11 +125,11 @@ def process_data(df):
     """
 
     # Créer une colonne 'Year' à partir de 'Date Diagnosis'
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
     df['Year'] = df['Treatment Date'].dt.year.astype(str)
 
-    df['Date Diagnosis'] = pd.to_datetime(df['Date Diagnosis'], errors='coerce')
-    df['Date Of Birth'] = pd.to_datetime(df['Date Of Birth'], errors='coerce')
+    df['Date Diagnosis'] = pd.to_datetime(df['Date Diagnosis'], dayfirst=True, format='mixed', errors='coerce')
+    df['Date Of Birth'] = pd.to_datetime(df['Date Of Birth'], dayfirst=True, format='mixed', errors='coerce')
     # Calculer l'age au diagnostic en années
     df['Age At Diagnosis'] = (df['Date Diagnosis'] - df['Date Of Birth']).dt.days // 365.25
 

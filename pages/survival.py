@@ -6,7 +6,9 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
+import traceback
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
@@ -32,8 +34,7 @@ def get_layout():
                     dbc.CardHeader(html.H5('Kaplan-Meier global survival curve')),
                     dbc.CardBody([
                         html.Div(
-                            id='survival-global-curve',
-                            style={'height': '600px', 'overflow': 'hidden'}
+                            id='survival-global-curve'
                         )
                     ], className='p-2')
                 ])
@@ -47,8 +48,7 @@ def get_layout():
                     dbc.CardHeader(html.H5('Kaplan-Meier survival curves by year')),
                     dbc.CardBody([
                         html.Div(
-                            id='survival-curves-by-year',
-                            style={'height': '700px', 'overflow': 'hidden'}
+                            id='survival-curves-by-year'
                         )  
                     ], className='p-2')
                 ])
@@ -137,8 +137,10 @@ def create_survival_sidebar_content(data):
     # Obtenir les années disponibles pour les filtres
     years_options = []
     if 'Year' in df.columns:
-        available_years = sorted(df['Year'].unique().tolist())
+        available_years = sorted(df['Year'].unique().tolist(), reverse=True)  # Descending order
         years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+        # Select only the last 3 years by default
+        default_years = [year['value'] for year in years_options[:3]] if len(years_options) >= 3 else [year['value'] for year in years_options]
     
     return html.Div([
         # Paramètres d'analyse - RadioItems pour la durée
@@ -161,7 +163,7 @@ def create_survival_sidebar_content(data):
         dcc.Checklist(
             id='survival-year-filter',
             options=years_options,
-            value=[year['value'] for year in years_options],
+            value=default_years,
             inline=False,
             className='mb-3'
         ),
@@ -200,9 +202,10 @@ def prepare_survival_data(df):
     # Copier les données
     processed_data = df.copy()
     
-    # Convertir les dates
-    processed_data['Treatment Date'] = pd.to_datetime(processed_data['Treatment Date'])
-    processed_data['Date Of Last Follow Up'] = pd.to_datetime(processed_data['Date Of Last Follow Up'])
+    # Convertir les dates (format européen dd-mm-yyyy ou ISO8601)
+    # Utiliser format='mixed' avec dayfirst pour gérer les différents formats
+    processed_data['Treatment Date'] = pd.to_datetime(processed_data['Treatment Date'], dayfirst=True, format='mixed')
+    processed_data['Date Of Last Follow Up'] = pd.to_datetime(processed_data['Date Of Last Follow Up'], dayfirst=True, format='mixed')
     
     # Calculer la durée de suivi en jours et en années
     processed_data['follow_up_days'] = (
@@ -236,6 +239,9 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Ka
     if max_years:
         max_days = max_years * 365.25
         processed_data_filtered = processed_data.copy()
+        # Convertir en float pour éviter l'incompatibilité de dtype
+        processed_data_filtered['follow_up_days'] = processed_data_filtered['follow_up_days'].astype(float)
+        processed_data_filtered['statut_deces'] = processed_data_filtered['statut_deces'].astype(float)
         mask_over_max = processed_data_filtered['follow_up_days'] > max_days
         processed_data_filtered.loc[mask_over_max, 'follow_up_days'] = max_days
         processed_data_filtered.loc[mask_over_max, 'statut_deces'] = 0
@@ -268,10 +274,40 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Ka
         for t, p, ci_l, ci_u in zip(timeline_years, survival_probs, ci_lower, ci_upper)
     ]
     
-    # Créer la figure
-    fig = go.Figure()
+    # Identifier les temps de censure (où des patients sont censurés)
+    event_table = kmf.event_table
+    censoring_times_days = event_table[event_table['censored'] > 0].index.values
+    censoring_times_years = censoring_times_days / 365.25
     
-    # Courbe principale avec style amélioré
+    # Obtenir les probabilités de survie aux temps de censure
+    # Utiliser la survie juste avant la censure (à l'index le plus proche)
+    censoring_surv_probs = []
+    for ct_day in censoring_times_days:
+        # Trouver l'index dans timeline_days le plus proche mais <= ct_day
+        valid_indices = timeline_days <= ct_day
+        if valid_indices.any():
+            closest_idx = np.where(valid_indices)[0][-1]  # Dernier index valide
+            censoring_surv_probs.append(survival_probs[closest_idx])
+        else:
+            censoring_surv_probs.append(1.0)  # Valeur par défaut au début
+    
+    # Calculer le nombre de sujets à risque aux temps spécifiés
+    time_points = np.arange(0, int(display_max) + 1)
+    at_risk_counts = []
+    for t in time_points:
+        t_days = t * 365.25
+        at_risk = len(processed_data_filtered[processed_data_filtered['follow_up_days'] >= t_days])
+        at_risk_counts.append(at_risk)
+    
+    # Créer la figure avec subplots pour la table "Number at risk"
+    fig = make_subplots(
+        rows=2, cols=1,
+        row_heights=[0.82, 0.18],
+        vertical_spacing=0.05,
+        subplot_titles=(None, None)
+    )
+    
+    # Courbe principale (row 1)
     fig.add_trace(go.Scatter(
         x=timeline_years,
         y=survival_probs,
@@ -281,9 +317,27 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Ka
         hovertemplate='%{hovertext}<extra></extra>',
         hovertext=hover_text,
         opacity=0.9
-    ))
+    ), row=1, col=1)
     
-    # Intervalle de confiance avec style élégant
+    # Marqueurs uniquement aux temps de censure (row 1)
+    if len(censoring_times_years) > 0:
+        censoring_hover = [
+            f"Censoring<br>Time: {t:.1f} years<br>Survival: {p:.3f}"
+            for t, p in zip(censoring_times_years, censoring_surv_probs)
+        ]
+        fig.add_trace(go.Scatter(
+            x=censoring_times_years,
+            y=censoring_surv_probs,
+            mode='markers',
+            name='Censored',
+            marker=dict(symbol='cross', size=10, color='#2E86AB'),
+            hovertemplate='%{hovertext}<extra></extra>',
+            hovertext=censoring_hover,
+            showlegend=False,
+            opacity=0.7
+        ), row=1, col=1)
+    
+    # Intervalle de confiance (row 1)
     fig.add_trace(go.Scatter(
         x=np.concatenate([timeline_years, timeline_years[::-1]]),
         y=np.concatenate([ci_upper, ci_lower[::-1]]),
@@ -294,7 +348,7 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Ka
         showlegend=False,
         name='IC 95%',
         opacity=0.6
-    ))
+    ), row=1, col=1)
     
     # Ligne médiane avec style amélioré
     median_survival_days = kmf.median_survival_time_
@@ -305,14 +359,16 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Ka
             line_dash="dash", 
             line_color="#e74c3c", 
             line_width=2,
-            opacity=0.8
+            opacity=0.8,
+            row=1, col=1
         )
         fig.add_vline(
             x=median_survival_years, 
             line_dash="dash", 
             line_color="#e74c3c", 
             line_width=2,
-            opacity=0.8
+            opacity=0.8,
+            row=1, col=1
         )
         fig.add_annotation(
             x=median_survival_years + display_max*0.05,
@@ -322,56 +378,109 @@ def create_interactive_single_km_curve(processed_data, max_years=None, title="Ka
             font=dict(color="#e74c3c", size=12, family='Arial, sans-serif'),
             bgcolor="rgba(255, 255, 255, 0.8)",
             bordercolor="#e74c3c",
-            borderwidth=1
+            borderwidth=1,
+            row=1, col=1
         )
     
-    # Mise en forme avec style professionnel
+    # Table "Number at risk" dans la deuxième rangée
+    # Titre
+    fig.add_annotation(
+        x=0, y=0.7,
+        xref='x2 domain', yref='y2 domain',
+        text='<b>Number at risk</b>',
+        showarrow=False,
+        font=dict(size=11, family='Arial, sans-serif', color='#2c3e50'),
+        xanchor='left',
+        row=2, col=1
+    )
+    
+    # Nombres à risque
+    for t, count in zip(time_points, at_risk_counts):
+        if t <= display_max:
+            fig.add_annotation(
+                x=t, y=0.2,
+                xref='x2', yref='y2 domain',
+                text=str(count),
+                showarrow=False,
+                font=dict(size=11, family='Arial, sans-serif', color='#2c3e50'),
+                xanchor='center',
+                row=2, col=1
+            )
+    
+    # Mise en forme
     fig.update_layout(
         title={
             'text': f'<b>{title}</b>', 
             'x': 0.5, 
-            'y': 0.95,
+            'y': 0.97,
             'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#2c3e50'}
         },
-        xaxis_title='<b>Time (years)</b>',
-        yaxis_title='<b>Survival probability</b>',
-        xaxis=dict(
-            range=[0, display_max], 
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128, 128, 128, 0.2)',
-            zeroline=True,
-            zerolinewidth=2,
-            zerolinecolor='rgba(128, 128, 128, 0.5)',
-            tickfont=dict(size=12, family='Arial, sans-serif', color='#34495e'),
-            titlefont=dict(size=14, family='Arial, sans-serif', color='#2c3e50'),
-            showline=True,
-            linewidth=2,
-            linecolor='#bdc3c7',
-            mirror=True,
-            dtick=1 if display_max <= 10 else 2  # Graduations tous les 1 ou 2 ans
-        ),
-        yaxis=dict(
-            range=[0, 1.05], 
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128, 128, 128, 0.2)',
-            zeroline=True,
-            zerolinewidth=2,
-            zerolinecolor='rgba(128, 128, 128, 0.5)',
-            tickfont=dict(size=12, family='Arial, sans-serif', color='#34495e'),
-            titlefont=dict(size=14, family='Arial, sans-serif', color='#2c3e50'),
-            showline=True,
-            linewidth=2,
-            linecolor='#bdc3c7',
-            mirror=True,
-            tickformat='.2f'
-        ),
+        showlegend=False,
         plot_bgcolor='rgba(248, 249, 250, 0.8)',
         paper_bgcolor='white',
-        height=550,
-        margin=dict(l=80, r=60, t=80, b=60),
+        height=520,
+        margin=dict(l=80, r=60, t=60, b=40),
         font=dict(family='Arial, sans-serif', color='#2c3e50')
+    )
+    
+    # Axe X du graphique principal
+    fig.update_xaxes(
+        range=[0, display_max],
+        title_text='<b>Time (years)</b>',
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128, 128, 128, 0.2)',
+        showline=True,
+        linewidth=2,
+        linecolor='#bdc3c7',
+        mirror=True,
+        dtick=1 if display_max <= 10 else 2,
+        row=1, col=1
+    )
+    
+    # Axe Y du graphique principal
+    fig.update_yaxes(
+        range=[0, 1.05],
+        title_text='<b>Survival probability</b>',
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128, 128, 128, 0.2)',
+        showline=True,
+        linewidth=2,
+        linecolor='#bdc3c7',
+        mirror=True,
+        tickformat='.2f',
+        row=1, col=1
+    )
+    
+    # Axe X de la table (même échelle, pas de titre, pas de grille)
+    fig.update_xaxes(
+        range=[0, display_max],
+        showgrid=False,
+        showline=False,
+        showticklabels=False,
+        zeroline=False,
+        row=2, col=1
+    )
+    
+    # Axe Y de la table (caché)
+    fig.update_yaxes(
+        range=[0, 1],
+        showgrid=False,
+        showline=False,
+        showticklabels=False,
+        zeroline=False,
+        row=2, col=1
+    )
+    
+    # Fond blanc pour la zone de la table (row 2)
+    fig.add_shape(
+        type="rect",
+        xref="paper", yref="paper",
+        x0=0, y0=0, x1=1, y1=0.18,
+        fillcolor="white",
+        line=dict(width=0),
+        layer="below"
     )
     
     return fig
@@ -391,6 +500,9 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
     if max_years:
         max_days = max_years * 365.25
         processed_data_filtered = processed_data.copy()
+        # Convertir en float pour éviter l'incompatibilité de dtype
+        processed_data_filtered['follow_up_days'] = processed_data_filtered['follow_up_days'].astype(float)
+        processed_data_filtered['statut_deces'] = processed_data_filtered['statut_deces'].astype(float)
         mask_over_max = processed_data_filtered['follow_up_days'] > max_days
         processed_data_filtered.loc[mask_over_max, 'follow_up_days'] = max_days
         processed_data_filtered.loc[mask_over_max, 'statut_deces'] = 0
@@ -406,7 +518,14 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
     
     # Obtenir les années uniques et les couleurs
     years = sorted(processed_data_filtered['Year'].unique())
-    colors = px.colors.qualitative.Set1[:len(years)]
+    # Utiliser une palette étendue ou cyclique pour supporter beaucoup d'années
+    extended_palette = (px.colors.qualitative.Set1 + 
+                        px.colors.qualitative.Set2 + 
+                        px.colors.qualitative.Set3 +
+                        px.colors.qualitative.Dark24 +
+                        px.colors.qualitative.Light24)
+    # Cycle through colors if there are more years than colors
+    colors = [extended_palette[i % len(extended_palette)] for i in range(len(years))]
     
     # Stocker les statistiques
     stats_summary = []
@@ -444,7 +563,22 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
                 for t, p, ci_l, ci_u in zip(timeline_years, survival_probs, ci_lower, ci_upper)
             ]
             
-            # Ajouter la courbe principale avec style amélioré
+            # Identifier les temps de censure (où des patients sont censurés)
+            event_table = kmf.event_table
+            censoring_times_days = event_table[event_table['censored'] > 0].index.values
+            censoring_times_years = censoring_times_days / 365.25
+            
+            # Obtenir les probabilités de survie aux temps de censure
+            censoring_surv_probs = []
+            for ct_day in censoring_times_days:
+                valid_indices = timeline_days <= ct_day
+                if valid_indices.any():
+                    closest_idx = np.where(valid_indices)[0][-1]
+                    censoring_surv_probs.append(survival_probs[closest_idx])
+                else:
+                    censoring_surv_probs.append(1.0)
+            
+            # Ajouter la courbe principale (ligne uniquement)
             fig.add_trace(go.Scatter(
                 x=timeline_years,
                 y=survival_probs,
@@ -457,18 +591,47 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
                 opacity=0.9
             ))
             
-            # Ajouter l'intervalle de confiance avec transparence élégante
-            fig.add_trace(go.Scatter(
-                x=np.concatenate([timeline_years, timeline_years[::-1]]),
-                y=np.concatenate([ci_upper, ci_lower[::-1]]),
-                fill='toself',
-                fillcolor=colors[i].replace('rgb', 'rgba').replace(')', ', 0.15)'),
-                line=dict(color='rgba(255,255,255,0)'),
-                hoverinfo="skip",
-                showlegend=False,
-                name=f'95% CI - Year {year}',
-                opacity=0.6
-            ))
+            # Marqueurs uniquement aux temps de censure
+            if len(censoring_times_years) > 0:
+                censoring_hover = [
+                    f"Censoring<br>Time: {t:.1f} years<br>Survival: {p:.3f}"
+                    for t, p in zip(censoring_times_years, censoring_surv_probs)
+                ]
+                fig.add_trace(go.Scatter(
+                    x=censoring_times_years,
+                    y=censoring_surv_probs,
+                    mode='markers',
+                    name=f'Censored - Year {year}',
+                    marker=dict(symbol='cross', size=9, color=colors[i]),
+                    hovertemplate='%{hovertext}<extra></extra>',
+                    hovertext=censoring_hover,
+                    showlegend=False,
+                    opacity=0.7
+                ))
+            
+            # Ajouter l'intervalle de confiance seulement si peu d'années (sinon c'est trop chargé)
+            if len(years) <= 10:
+                # Convertir la couleur en rgba avec transparence
+                color = colors[i]
+                if color.startswith('rgb'):
+                    fill_color = color.replace('rgb', 'rgba').replace(')', ', 0.15)')
+                elif color.startswith('#'):
+                    # Convertir hex en rgba
+                    fill_color = f'rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.15)'
+                else:
+                    fill_color = 'rgba(128, 128, 128, 0.15)'
+                
+                fig.add_trace(go.Scatter(
+                    x=np.concatenate([timeline_years, timeline_years[::-1]]),
+                    y=np.concatenate([ci_upper, ci_lower[::-1]]),
+                    fill='toself',
+                    fillcolor=fill_color,
+                    line=dict(color='rgba(255,255,255,0)'),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    name=f'95% CI - Year {year}',
+                    opacity=0.6
+                ))
             
             # Calculer les statistiques
             median_survival_days = kmf.median_survival_time_
@@ -554,6 +717,58 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
                 'Survie 10 ans (%)': format_survival_with_ci(surv_10yr, me_10yr)
             })
     
+    # Calculer le nombre de sujets à risque pour chaque année
+    time_points = np.arange(0, int(display_max) + 1)
+    at_risk_by_year = {}
+    for year in years:
+        year_data = processed_data_filtered[processed_data_filtered['Year'] == year]
+        at_risk_counts = []
+        for t in time_points:
+            t_days = t * 365.25
+            at_risk = len(year_data[year_data['follow_up_days'] >= t_days])
+            at_risk_counts.append(at_risk)
+        at_risk_by_year[year] = at_risk_counts
+    
+    # Créer les annotations pour le tableau "Number at risk"
+    annotations = []
+    
+    # Titre du tableau
+    annotations.append(dict(
+        x=0, y=-0.12,
+        xref='paper', yref='paper',
+        text='<b>Number at risk</b>',
+        showarrow=False,
+        font=dict(size=12, family='Arial, sans-serif', color='#2c3e50'),
+        xanchor='left'
+    ))
+    
+    # Pour chaque année, ajouter une ligne
+    y_offset = -0.17
+    for i, year in enumerate(years):
+        color = colors[i] if i < len(colors) else '#2c3e50'
+        # Label de l'année (positionné à gauche de la colonne t=0)
+        annotations.append(dict(
+            x=-0.02, y=y_offset,
+            xref='paper', yref='paper',
+            text=f'{year}',
+            showarrow=False,
+            font=dict(size=10, family='Arial, sans-serif', color=color),
+            xanchor='right'
+        ))
+        # Nombres à risque (commençant à t=0)
+        for t, count in zip(time_points, at_risk_by_year[year]):
+            if t <= display_max:
+                x_pos = t / display_max if display_max > 0 else 0
+                annotations.append(dict(
+                    x=x_pos, y=y_offset,
+                    xref='paper', yref='paper',
+                    text=str(count),
+                    showarrow=False,
+                    font=dict(size=10, family='Arial, sans-serif', color='#2c3e50'),
+                    xanchor='center'
+                ))
+        y_offset -= 0.04
+    
     # Mise en forme du graphique avec style élégant
     fig.update_layout(
         title={
@@ -606,11 +821,12 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
             borderwidth=1,
             font=dict(size=11, family='Arial, sans-serif', color='#2c3e50')
         ),
+        annotations=annotations,
         hovermode='closest',
         plot_bgcolor='rgba(248, 249, 250, 0.8)',
         paper_bgcolor='white',
-        height=650,
-        margin=dict(l=80, r=80, t=80, b=60),
+        height=450 + len(years) * 25,
+        margin=dict(l=80, r=80, t=60, b=60 + len(years) * 20),
         font=dict(family='Arial, sans-serif', color='#2c3e50')
     )
     
@@ -716,12 +932,25 @@ def register_callbacks(app):
                 return no_data_alert, no_data_alert
             
             # Vérifier qu'on a plusieurs années
-            if 'Year' not in processed_data.columns :
+            if 'Year' not in processed_data.columns:
                 single_year_alert = dbc.Alert(
                     'At least 2 years of data are necessary for the comparison by year', 
                     color='info'
                 )
                 return single_year_alert, single_year_alert
+            
+            # Limiter le nombre d'années affichées si trop nombreuses
+            years = sorted(processed_data['Year'].unique(), reverse=True)  # Descending order
+            year_limit_warning = None
+            if len(years) > 20:
+                # Garder seulement les 15 dernières années
+                recent_years = years[:15]
+                processed_data = processed_data[processed_data['Year'].isin(recent_years)]
+                year_limit_warning = dbc.Alert(
+                    f"Too many years selected. Showing only the 15 most recent years.",
+                    color='info',
+                    className='mb-3'
+                )
             
             # Déterminer la limite maximale
             max_years = 10 if max_duration == 'limited' else None
@@ -732,12 +961,15 @@ def register_callbacks(app):
                 max_years=max_years
             )
             
-            # Graphique
-            graph_component = dcc.Graph(
+            # Graphique (avec avertissement si années limitées)
+            graph_children = [dcc.Graph(
                 figure=fig,
                 style={'height': '100%'},
                 config={'responsive': True}
-            )
+            )]
+            if year_limit_warning:
+                graph_children.insert(0, year_limit_warning)
+            graph_component = html.Div(graph_children)
             
             # Tableau des statistiques
             if not stats_df.empty:
@@ -778,7 +1010,15 @@ def register_callbacks(app):
             return graph_component, table_component
         
         except Exception as e:
-            error_alert = dbc.Alert(f'Error during survival analysis: {str(e)}', color='danger')
+            error_msg = f'Error during survival analysis: {str(e)}'
+            print(f"\n{'='*60}")
+            print(error_msg)
+            print(traceback.format_exc())
+            print(f"{'='*60}\n")
+            error_alert = dbc.Alert([
+                html.H6('Error during survival analysis', className='mb-2'),
+                html.Pre(str(e), style={'whiteSpace': 'pre-wrap', 'fontSize': '11px'})
+            ], color='danger')
             return error_alert, error_alert
     
     @app.callback(
