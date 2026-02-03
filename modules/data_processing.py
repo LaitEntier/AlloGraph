@@ -59,20 +59,20 @@ def rename_conditioning_regimen_values(df):
 
 def create_hla_compatibility_variable(df):
     """
-    Crée une variable 'Compatibilité HLA' basée sur Donor Type et Match Type.
+    Crée une variable 'Donor Type (2)' basée sur Donor Type et Match Type.
     
     Args:
         df (pd.DataFrame): DataFrame avec les colonnes Donor Type et Match Type
         
     Returns:
-        pd.DataFrame: DataFrame avec la nouvelle colonne 'Compatibilité HLA'
+        pd.DataFrame: DataFrame avec la nouvelle colonne 'Donor Type (2)'
     """
     df = df.copy()
     
     # Vérifier si les colonnes existent
     if 'Donor Type' not in df.columns or 'Match Type' not in df.columns:
-        print("Attention: Colonnes 'Donor Type' ou 'Match Type' manquantes pour créer la variable 'Compatibilité HLA'")
-        df['Compatibilité HLA'] = 'unknown'
+        print("Attention: Colonnes 'Donor Type' ou 'Match Type' manquantes pour créer la variable 'Donor Type (2)'")
+        df['Donor Type (2)'] = 'unknown'
         return df
     
     # Créer la variable combinée
@@ -97,18 +97,18 @@ def create_hla_compatibility_variable(df):
         
         # Logique de combinaison selon les spécifications
         if donor_type == 'Related donor' and match_type == 'Match':
-            return 'Related Match'
+            return 'Genoidentical'
         elif donor_type == 'Related donor' and match_type == 'Mismatch':
-            return 'Related Mismatch'
+            return 'MRD (Haplo)'
         elif donor_type == 'Unrelated donor' and match_type == 'Match':
-            return 'Unrelated Match'
+            return 'MUD'
         elif donor_type == 'Unrelated donor' and match_type == 'Mismatch':
-            return 'Unrelated Mismatch'
+            return 'MMUD'
         else:
             # Pour toute autre combinaison non prévue
             return 'unknown'
     
-    df['Compatibilité HLA'] = df.apply(combine_hla_compatibility, axis=1)
+    df['Donor Type (2)'] = df.apply(combine_hla_compatibility, axis=1)
     
     return df
 
@@ -144,7 +144,7 @@ def process_data(df):
     # Nouvelle variable : Blood + Rh (combinaison de Blood Group et Rhesus Factor)
     df = create_blood_rh_variable(df)
     
-    # Nouvelle variable : Compatibilité HLA (combinaison de Donor Type et Match Type)
+    # Nouvelle variable : Donor Type (2) (combinaison de Donor Type et Match Type)
     df = create_hla_compatibility_variable(df)
     
     # Renommage des valeurs dans Conditioning Regimen Type

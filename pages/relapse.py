@@ -343,10 +343,12 @@ def register_callbacks(app):
         
     @app.callback(
         Output('relapse-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), Input('current-page', 'data')],
+        [Input('data-store', 'data'), 
+         Input('current-page', 'data'),
+         Input('relapse-year-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_summary_callback(data, current_page):
+    def relapse_missing_summary_callback(data, current_page, selected_years):
         """Gère le tableau de résumé des données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -354,6 +356,13 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par années si spécifié
+            if selected_years and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
+            
+            if df.empty:
+                return html.Div('No data for the selected years', className='text-warning text-center')
             
             # Variables spécifiques à analyser pour Rechute
             columns_to_analyze = [
@@ -436,10 +445,12 @@ def register_callbacks(app):
     @app.callback(
         [Output('relapse-missing-detail-table', 'children'),
          Output('export-missing-relapse-button', 'disabled')],
-        [Input('data-store', 'data'), Input('current-page', 'data')],
+        [Input('data-store', 'data'), 
+         Input('current-page', 'data'),
+         Input('relapse-year-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_detail_callback(data, current_page):
+    def relapse_missing_detail_callback(data, current_page, selected_years):
         """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -447,6 +458,13 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par années si spécifié
+            if selected_years and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
+            
+            if df.empty:
+                return html.Div('No data for the selected years', className='text-warning text-center'), True
             
             # Variables spécifiques à analyser pour Rechute
             columns_to_analyze = [

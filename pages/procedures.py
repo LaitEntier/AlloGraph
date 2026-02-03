@@ -237,7 +237,7 @@ def get_main_chart_variable_options(data):
         'Source Stem Cells': 'Source of stem cells', 
         'Match Type': 'Match type',
         'Conditioning Regimen Type': 'Conditioning regimen type',
-        'Compatibilité HLA': 'HLA Compatibility'
+        'Donor Type (2)': 'Donor Type (2)'
     }
     
     # Ajouter les colonnes qui existent réellement
@@ -786,10 +786,12 @@ def register_callbacks(app):
     
     @callback(
         Output('procedures-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), Input('current-page', 'data')],
+        [Input('data-store', 'data'), 
+         Input('current-page', 'data'),
+         Input('procedures-year-filter', 'value')],
         prevent_initial_call=False
     )
-    def procedures_missing_summary_callback(data, current_page):
+    def procedures_missing_summary_callback(data, current_page, selected_years):
         """Gère le tableau de résumé des données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
@@ -798,13 +800,20 @@ def register_callbacks(app):
         try:
             df = pd.DataFrame(data)
             
-            # Variables spécifiques à analyser pour Procedures
+            # Filtrer par années si spécifié
+            if selected_years and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
+            
+            if df.empty:
+                return html.Div('No data for the selected years', className='text-warning text-center')
+            
+                # Variables spécifiques à analyser pour Procedures
             columns_to_analyze = [
                 'Donor Type',
                 'Source Stem Cells', 
                 'Match Type',
                 'Conditioning Regimen Type',
-                'Compatibilité HLA',
+                'Donor Type (2)',
                 'Treatment Date', 
                 'Anc Recovery',
                 'Date Anc Recovery',
@@ -882,10 +891,12 @@ def register_callbacks(app):
     @callback(
         [Output('procedures-missing-detail-table', 'children'),
          Output('export-missing-procedures-button', 'disabled')],
-        [Input('data-store', 'data'), Input('current-page', 'data')],
+        [Input('data-store', 'data'), 
+         Input('current-page', 'data'),
+         Input('procedures-year-filter', 'value')],
         prevent_initial_call=False
     )
-    def procedures_missing_detail_callback(data, current_page):
+    def procedures_missing_detail_callback(data, current_page, selected_years):
         """Gère le tableau détaillé des patients avec données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
@@ -894,13 +905,20 @@ def register_callbacks(app):
         try:
             df = pd.DataFrame(data)
             
+            # Filtrer par années si spécifié
+            if selected_years and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
+            
+            if df.empty:
+                return html.Div('No data for the selected years', className='text-warning text-center'), True
+            
             # Variables spécifiques à analyser pour Procedures
             columns_to_analyze = [
                 'Donor Type',
                 'Source Stem Cells', 
                 'Match Type',
                 'Conditioning Regimen Type',
-                'Compatibilité HLA',
+                'Donor Type (2)',
                 'Treatment Date', 
                 'Anc Recovery',
                 'Date Anc Recovery',

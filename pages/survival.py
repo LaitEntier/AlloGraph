@@ -1024,10 +1024,12 @@ def register_callbacks(app):
     
     @app.callback(
         Output('survival-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), Input('current-page', 'data')],
+        [Input('data-store', 'data'), 
+         Input('current-page', 'data'),
+         Input('survival-year-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_summary_callback(data, current_page):
+    def survival_missing_summary_callback(data, current_page, selected_years):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -1035,6 +1037,13 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par années si spécifié
+            if selected_years and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
+            
+            if df.empty:
+                return html.Div('No data for the selected years', className='text-warning text-center')
             
             # Variables spécifiques à analyser pour Survie
             columns_to_analyze = [
@@ -1096,10 +1105,12 @@ def register_callbacks(app):
     @app.callback(
         [Output('survival-missing-detail-table', 'children'),
          Output('export-missing-survival-button', 'disabled')],
-        [Input('data-store', 'data'), Input('current-page', 'data')],
+        [Input('data-store', 'data'), 
+         Input('current-page', 'data'),
+         Input('survival-year-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_detail_callback(data, current_page):
+    def survival_missing_detail_callback(data, current_page, selected_years):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -1107,6 +1118,13 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par années si spécifié
+            if selected_years and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
+            
+            if df.empty:
+                return html.Div('No data for the selected years', className='text-warning text-center'), True
             
             # Variables spécifiques à analyser pour Survie
             columns_to_analyze = [

@@ -3774,10 +3774,11 @@ def register_callbacks(app):
         Output('indicators-missing-summary-table', 'children'),
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('selected-indicator-store', 'data')],
+         Input('selected-indicator-store', 'data'),
+         Input('year-selection-sidebar', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_summary_callback(data, current_page, selected_indicator):
+    def indicators_missing_summary_callback(data, current_page, selected_indicator, selected_year):
         """Gère le tableau de résumé des données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3788,6 +3789,13 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par année si spécifié (single year dropdown)
+            if selected_year and 'Year' in df.columns:
+                df = df[df['Year'] == selected_year]
+            
+            if df.empty:
+                return html.Div('No data for the selected year', className='text-warning text-center')
             
             # Obtenir les variables spécifiques à l'indicateur sélectionné
             columns_to_analyze, indicator_name = get_variables_for_indicator(selected_indicator)
@@ -3844,10 +3852,11 @@ def register_callbacks(app):
          Output('export-missing-indicators-button', 'disabled')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('selected-indicator-store', 'data')],
+         Input('selected-indicator-store', 'data'),
+         Input('year-selection-sidebar', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_detail_callback(data, current_page, selected_indicator):
+    def indicators_missing_detail_callback(data, current_page, selected_indicator, selected_year):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3858,6 +3867,13 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par année si spécifié (single year dropdown)
+            if selected_year and 'Year' in df.columns:
+                df = df[df['Year'] == selected_year]
+            
+            if df.empty:
+                return html.Div('No data for the selected year', className='text-warning text-center'), True
             
             # Obtenir les variables spécifiques à l'indicateur sélectionné
             columns_to_analyze, indicator_name = get_variables_for_indicator(selected_indicator)
