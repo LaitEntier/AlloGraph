@@ -210,8 +210,6 @@ def get_layout():
                 ])
             ], width=6),
         ]),
-        # Filtre des années (optionnel si vous en avez un)
-        dcc.Store(id='procedures-year-filter')  # Store pour les filtres d'années
     ], fluid=True)
 
 def get_main_chart_variable_options(data):
