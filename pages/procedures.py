@@ -237,7 +237,7 @@ def get_main_chart_variable_options(data):
         'Source Stem Cells': 'Source of stem cells', 
         'Match Type': 'Match type',
         'Conditioning Regimen Type': 'Conditioning regimen type',
-        'Donor Type (2)': 'Donor Type (2)'
+        'Donor Match Category': 'Donor Match Category'
     }
     
     # Ajouter les colonnes qui existent réellement
@@ -813,7 +813,7 @@ def register_callbacks(app):
                 'Source Stem Cells', 
                 'Match Type',
                 'Conditioning Regimen Type',
-                'Donor Type (2)',
+                'Donor Match Category',
                 'Treatment Date', 
                 'Anc Recovery',
                 'Date Anc Recovery',
@@ -918,7 +918,7 @@ def register_callbacks(app):
                 'Source Stem Cells', 
                 'Match Type',
                 'Conditioning Regimen Type',
-                'Donor Type (2)',
+                'Donor Match Category',
                 'Treatment Date', 
                 'Anc Recovery',
                 'Date Anc Recovery',
