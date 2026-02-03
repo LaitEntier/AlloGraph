@@ -821,41 +821,62 @@ def register_callbacks(app):
             # Utiliser la fonction existante de graphs.py
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
-            return dash_table.DataTable(
-                data=missing_summary.to_dict('records'),
-                columns=[
-                    {"name": "Column", "id": "Column", "type": "text"},
-                    {"name": "Total", "id": "Total patients", "type": "numeric"},
-                    {"name": "Missing", "id": "Missing data", "type": "numeric"},
-                    {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
-                     "format": {"specifier": ".1f"}}
-                ],
-                style_table={'height': '300px', 'overflowY': 'auto'},
-                style_cell={
-                    'textAlign': 'center',
-                    'padding': '8px',
-                    'fontSize': '12px',
-                    'fontFamily': 'Arial, sans-serif',
-                    'color': '#021F59'
-                },
-                style_header={
-                    'backgroundColor': '#021F59',
-                    'color': 'white',
-                    'fontWeight': 'bold'
-                },
-                style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
-                    {
-                        'if': {
-                            'filter_query': '{Percentage missing} > 20',
-                            'column_id': 'Percentage missing'
-                        },
-                        'backgroundColor': '#F2A594',
-                        'color': 'red',
+            # Calculer le nombre de patients décédés pendant le conditionnement
+            died_during_conditioning = 0
+            if 'Status Last Follow Up' in df.columns and 'Treatment Date' in df.columns and 'Date Of Last Follow Up' in df.columns:
+                died_during_conditioning = df.apply(gr._is_patient_died_during_conditioning, axis=1).sum()
+            
+            # Créer le contenu avec optionnellement l'info sur les décès pendant conditionnement
+            content = []
+            
+            if died_during_conditioning > 0:
+                content.append(
+                    dbc.Alert([
+                        html.I(className="fas fa-info-circle me-2"),
+                        html.Strong(f"{died_during_conditioning} patient(s) "),
+                        "died during conditioning. Engraftment data (ANC Recovery, Platelet Reconstitution) are not applicable for these patients and are excluded from missing data counts."
+                    ], color='info', className='mb-2', style={'fontSize': '12px'})
+                )
+            
+            content.append(
+                dash_table.DataTable(
+                    data=missing_summary.to_dict('records'),
+                    columns=[
+                        {"name": "Column", "id": "Column", "type": "text"},
+                        {"name": "Total", "id": "Total patients", "type": "numeric"},
+                        {"name": "Missing", "id": "Missing data", "type": "numeric"},
+                        {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
+                         "format": {"specifier": ".1f"}}
+                    ],
+                    style_table={'height': '300px', 'overflowY': 'auto'},
+                    style_cell={
+                        'textAlign': 'center',
+                        'padding': '8px',
+                        'fontSize': '12px',
+                        'fontFamily': 'Arial, sans-serif',
+                        'color': '#021F59'
+                    },
+                    style_header={
+                        'backgroundColor': '#021F59',
+                        'color': 'white',
                         'fontWeight': 'bold'
-                    }
-                ]
+                    },
+                    style_data_conditional=[
+                        {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
+                        {
+                            'if': {
+                                'filter_query': '{Percentage missing} > 20',
+                                'column_id': 'Percentage missing'
+                            },
+                            'backgroundColor': '#F2A594',
+                            'color': 'red',
+                            'fontWeight': 'bold'
+                        }
+                    ]
+                )
             )
+            
+            return html.Div(content)
             
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')

@@ -2667,9 +2667,65 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     
     return fig
 
+def _is_patient_died_during_conditioning(row):
+    """
+    Détermine si un patient est décédé pendant la phase de conditionnement.
+    
+    Un patient est considéré comme décédé pendant le conditionnement si:
+    - Son statut de suivi est 'Dead'
+    - ET la date de décès/suivi est très proche de la date de traitement (greffe)
+    
+    Cette fonction utilise une heuristique: si le patient est décédé dans les 7 jours
+    suivant la greffe, on considère qu'il est décédé pendant le conditionnement.
+    
+    Args:
+        row (pd.Series): Ligne du DataFrame représentant un patient
+        
+    Returns:
+        bool: True si le patient est décédé pendant le conditionnement
+    """
+    # Vérifier si le statut est 'Dead'
+    status = row.get('Status Last Follow Up', '')
+    if status != 'Dead':
+        return False
+    
+    # Vérifier si nous avons les dates nécessaires
+    treatment_date = row.get('Treatment Date', None)
+    last_followup_date = row.get('Date Of Last Follow Up', None)
+    
+    if pd.isna(treatment_date) or pd.isna(last_followup_date):
+        # Si on n'a pas les dates, on ne peut pas déterminer, donc on suppose que non
+        return False
+    
+    try:
+        # Convertir en datetime si ce sont des strings
+        if isinstance(treatment_date, str):
+            treatment_date = pd.to_datetime(treatment_date, format='mixed', errors='coerce')
+        if isinstance(last_followup_date, str):
+            last_followup_date = pd.to_datetime(last_followup_date, format='mixed', errors='coerce')
+        
+        if pd.isna(treatment_date) or pd.isna(last_followup_date):
+            return False
+        
+        # Calculer la différence en jours
+        days_diff = (last_followup_date - treatment_date).days
+        
+        # Si le patient est décédé dans les 7 jours suivant la greffe
+        # (ou même jour, ce qui pourrait indiquer une donnée manquante de date)
+        return days_diff <= 7
+        
+    except (ValueError, TypeError):
+        # En cas d'erreur de conversion, on ne peut pas déterminer
+        return False
+
+
 def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     """
     Analyse les données manquantes pour les colonnes spécifiées
+    
+    Cette fonction prend en compte les cas où les données ne sont pas véritablement
+    manquantes mais plutôt non applicables, notamment lorsqu'un patient décède
+    pendant la phase de conditionnement.
     
     Args:
         df (pd.DataFrame): Dataset des patients
@@ -2685,26 +2741,195 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     if not existing_columns:
         return pd.DataFrame(), pd.DataFrame()
     
-    analysis_df = df[existing_columns + [patient_id_col]].copy()
+    # Colonnes supplémentaires nécessaires pour les calculs conditionnels
+    required_cols_for_analysis = existing_columns + [patient_id_col]
+    
+    # Ajouter les colonnes nécessaires pour les calculs conditionnels
+    conditional_cols = [
+        'Status Last Follow Up', 'Treatment Date', 'Date Of Last Follow Up',
+        'Platelet Reconstitution', 'Anc Recovery',
+        'First Agvhd Occurrence', 'First Cgvhd Occurrence',
+        'First Relapse'
+    ]
+    
+    for col in conditional_cols:
+        if col in df.columns and col not in required_cols_for_analysis:
+            required_cols_for_analysis.append(col)
+    
+    analysis_df = df[required_cols_for_analysis].copy()
+    
+    # Pré-calculer les patients décédés pendant le conditionnement
+    analysis_df['died_during_conditioning'] = analysis_df.apply(
+        _is_patient_died_during_conditioning, axis=1
+    )
+    
+    # Définir les colonnes qui ne sont pas applicables si le patient est décédé
+    # pendant le conditionnement (événements post-greffe)
+    post_transplant_columns = {
+        'First Agvhd Occurrence',
+        'First aGvHD Maximum Score',
+        'First Agvhd Occurrence Date',
+        'First Cgvhd Occurrence',
+        'First cGvHD Maximum NIH Score',
+        'First Cgvhd Occurrence Date',
+        'Anc Recovery',
+        'Date Anc Recovery',
+        'Platelet Reconstitution',
+        'Date Platelet Reconstitution',
+        'First Relapse',
+        'First Relapse Date'
+    }
     
     # Résumé par colonne
     missing_summary = []
     total_patients = len(analysis_df)
     
     for col in existing_columns:
-        # Cas particuliers
-        if col == 'Date Platelet Reconstitution':
-            # Compter comme manquant seulement si vide ET Platelet Reconstitution != 'Yes'
+        # Cas particuliers pour les colonnes post-greffe si le patient est décédé
+        # pendant le conditionnement
+        if col in post_transplant_columns:
+            # Ne pas compter comme manquant si le patient est décédé pendant le conditionnement
+            died_during_cond = analysis_df['died_during_conditioning']
+            
+            if col == 'First Agvhd Occurrence':
+                # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
+                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                missing_count = missing_condition.sum()
+                
+            elif col == 'First aGvHD Maximum Score':
+                # Manquant si: vide ET First Agvhd Occurrence = 'Yes' 
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'First Agvhd Occurrence' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['First Agvhd Occurrence'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+                    
+            elif col == 'First Agvhd Occurrence Date':
+                # Manquant si: vide ET First Agvhd Occurrence = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'First Agvhd Occurrence' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['First Agvhd Occurrence'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+                    
+            elif col == 'First Cgvhd Occurrence':
+                # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
+                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                missing_count = missing_condition.sum()
+                
+            elif col == 'First cGvHD Maximum NIH Score':
+                # Manquant si: vide ET First Cgvhd Occurrence = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'First Cgvhd Occurrence' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['First Cgvhd Occurrence'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+                    
+            elif col == 'First Cgvhd Occurrence Date':
+                # Manquant si: vide ET First Cgvhd Occurrence = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'First Cgvhd Occurrence' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['First Cgvhd Occurrence'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+                    
+            elif col == 'Anc Recovery':
+                # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
+                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                missing_count = missing_condition.sum()
+                
+            elif col == 'Date Anc Recovery':
+                # Manquant si: vide ET Anc Recovery = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'Anc Recovery' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['Anc Recovery'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+                    
+            elif col == 'Platelet Reconstitution':
+                # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
+                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                missing_count = missing_condition.sum()
+                
+            elif col == 'Date Platelet Reconstitution':
+                # Manquant si: vide ET Platelet Reconstitution = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'Platelet Reconstitution' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['Platelet Reconstitution'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+                    
+            elif col == 'First Relapse':
+                # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
+                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                missing_count = missing_condition.sum()
+                
+            elif col == 'First Relapse Date':
+                # Manquant si: vide ET First Relapse = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                if 'First Relapse' in analysis_df.columns:
+                    missing_condition = (
+                        (analysis_df[col].isna()) & 
+                        (analysis_df['First Relapse'] == 'Yes') &
+                        (~died_during_cond)
+                    )
+                    missing_count = missing_condition.sum()
+                else:
+                    missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                    missing_count = missing_condition.sum()
+            else:
+                # Autres colonnes post-greffe - logique par défaut
+                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                missing_count = missing_condition.sum()
+        
+        elif col == 'Date Platelet Reconstitution':
+            # Compter comme manquant seulement si vide ET Platelet Reconstitution = 'Yes'
             if 'Platelet Reconstitution' in analysis_df.columns:
-                missing_condition = (analysis_df[col].isna()) & (analysis_df['Platelet Reconstitution'] != 'Yes')
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['Platelet Reconstitution'] == 'Yes')
                 missing_count = missing_condition.sum()
             else:
                 missing_count = analysis_df[col].isna().sum()
 
         elif col == 'Date Anc Recovery':
-            # Compter comme manquant seulement si vide ET Anc Recovery != 'Yes'
+            # Compter comme manquant seulement si vide ET Anc Recovery = 'Yes'
             if 'Anc Recovery' in analysis_df.columns:
-                missing_condition = (analysis_df[col].isna()) & (analysis_df['Anc Recovery'] != 'Yes')
+                missing_condition = (analysis_df[col].isna()) & (analysis_df['Anc Recovery'] == 'Yes')
                 missing_count = missing_condition.sum()
             else:
                 missing_count = analysis_df[col].isna().sum()
@@ -2784,18 +3009,99 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     for _, row in analysis_df.iterrows():
         patient_id = row[patient_id_col]
         missing_columns = []
+        died_during_cond = row['died_during_conditioning']
         
         for col in existing_columns:
             is_missing = False
             
             if col == 'Date Platelet Reconstitution':
-                # Manquant si vide ET Platelet Reconstitution != 'Yes'
-                is_missing = (pd.isna(row[col]) and 
-                            row.get('Platelet Reconstitution', 'No') != 'Yes')
+                # Manquant si vide ET Platelet Reconstitution = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                is_missing = (
+                    pd.isna(row[col]) and 
+                    row.get('Platelet Reconstitution', 'No') == 'Yes' and
+                    not died_during_cond
+                )
+                
             elif col == 'Date Anc Recovery':
-                # Manquant si vide ET Anc Recovery != 'Yes'
-                is_missing = (pd.isna(row[col]) and 
-                            row.get('Anc Recovery', 'No') != 'Yes')
+                # Manquant si vide ET Anc Recovery = 'Yes'
+                # ET patient n'est PAS décédé pendant conditionnement
+                is_missing = (
+                    pd.isna(row[col]) and 
+                    row.get('Anc Recovery', 'No') == 'Yes' and
+                    not died_during_cond
+                )
+                
+            elif col == 'Death Cause':
+                # Manquant si vide ET Status Last Follow Up = 'Dead'
+                is_missing = (
+                    pd.isna(row[col]) and 
+                    row.get('Status Last Follow Up', '') == 'Dead'
+                )
+                
+            elif col == 'Death Date':
+                # Manquant si vide ET Status Last Follow Up = 'Dead'
+                is_missing = (
+                    pd.isna(row[col]) and 
+                    row.get('Status Last Follow Up', '') == 'Dead'
+                )
+                
+            elif col in post_transplant_columns:
+                # Pour les autres colonnes post-greffe
+                # Manquant si vide ET patient n'est PAS décédé pendant conditionnement
+                # (avec logiques additionnelles spécifiques)
+                
+                if col == 'First Agvhd Occurrence':
+                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    
+                elif col == 'First aGvHD Maximum Score':
+                    is_missing = (
+                        pd.isna(row[col]) and 
+                        row.get('First Agvhd Occurrence', '') == 'Yes' and
+                        not died_during_cond
+                    )
+                    
+                elif col == 'First Agvhd Occurrence Date':
+                    is_missing = (
+                        pd.isna(row[col]) and 
+                        row.get('First Agvhd Occurrence', '') == 'Yes' and
+                        not died_during_cond
+                    )
+                    
+                elif col == 'First Cgvhd Occurrence':
+                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    
+                elif col == 'First cGvHD Maximum NIH Score':
+                    is_missing = (
+                        pd.isna(row[col]) and 
+                        row.get('First Cgvhd Occurrence', '') == 'Yes' and
+                        not died_during_cond
+                    )
+                    
+                elif col == 'First Cgvhd Occurrence Date':
+                    is_missing = (
+                        pd.isna(row[col]) and 
+                        row.get('First Cgvhd Occurrence', '') == 'Yes' and
+                        not died_during_cond
+                    )
+                    
+                elif col == 'Anc Recovery':
+                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    
+                elif col == 'Platelet Reconstitution':
+                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    
+                elif col == 'First Relapse':
+                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    
+                elif col == 'First Relapse Date':
+                    is_missing = (
+                        pd.isna(row[col]) and 
+                        row.get('First Relapse', '') == 'Yes' and
+                        not died_during_cond
+                    )
+                else:
+                    is_missing = pd.isna(row[col]) and not died_during_cond
             else:
                 # Logique standard pour les autres colonnes
                 is_missing = pd.isna(row[col])
