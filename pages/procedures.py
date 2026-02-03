@@ -111,7 +111,7 @@ def get_layout():
                             value='tab-barplot',
                             children=[
                                 dcc.Tab(label='Treatment proportions', value='tab-barplot'),
-                                dcc.Tab(label='Combination analysis (UpSet)', value='tab-upset')
+                                dcc.Tab(label='Combination analysis', value='tab-upset')
                             ]
                         ),
                         html.Div(
