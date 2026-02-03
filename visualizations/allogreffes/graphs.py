@@ -2397,7 +2397,8 @@ def create_grouped_barplot_with_cumulative_by_category(
     if show_bars:
         for i, category in enumerate(group_categories):
             fig.add_trace(go.Bar(
-                name=f'{category} (counts)',
+                name=str(category),
+                legendgroup=f"group_{category}",
                 x=grouped_data[x_column],
                 y=grouped_data[category],
                 marker_color=colors[i % len(colors)],
@@ -2424,6 +2425,7 @@ def create_grouped_barplot_with_cumulative_by_category(
         
         fig.add_trace(go.Scatter(
             name=f'{category} (cumulative)',
+            legendgroup=f"group_{category}",
             x=grouped_data[x_column],
             y=cumulative_data,
             mode='lines+markers+text',
@@ -2432,6 +2434,7 @@ def create_grouped_barplot_with_cumulative_by_category(
             text=cumulative_data,
             textposition='top center',
             textfont=dict(size=12),
+            showlegend=False,  # Caché car groupé avec la barre
             hovertemplate=f'<b>{category} (cumulative)</b><br>' +
                          'Year: %{x}<br>' +
                          'Cumulative count: %{y}<br>' +
