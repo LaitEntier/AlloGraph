@@ -34,7 +34,7 @@ def get_layout():
         ], className='mb-4'),
 
         html.Hr(style={
-            'border': '2px solid #dee2e6',
+            'border': '2px solid #d4c4b5',
             'margin': '3rem 0 2rem 0'
         }),
 
@@ -56,7 +56,7 @@ def get_layout():
                     dbc.Card([
                         dbc.CardHeader([
                             html.Div([
-                                html.H5("Lines affected", className='mb-0'),
+                                html.H5("Lines affected", className='mb-0', style={'color': '#ffffff'}),
                                 dbc.Button(
                                     [html.I(className="fas fa-download me-2"), "Export CSV"],
                                     id="export-missing-relapse-button",
@@ -387,21 +387,22 @@ def register_callbacks(app):
                     'textAlign': 'center',
                     'padding': '8px',
                     'fontSize': '12px',
-                    'fontFamily': 'Arial, sans-serif'
+                    'fontFamily': 'Arial, sans-serif',
+                    'color': '#021F59'
                 },
                 style_header={
-                    'backgroundColor': '#0D3182',
+                    'backgroundColor': '#021F59',
                     'color': 'white',
                     'fontWeight': 'bold'
                 },
                 style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
                     {
                         'if': {
                             'filter_query': '{Percentage missing} > 20',
                             'column_id': 'Percentage missing'
                         },
-                        'backgroundColor': '#ffebee',
+                        'backgroundColor': '#F2A594',
                         'color': 'red',
                         'fontWeight': 'bold'
                     }
@@ -468,9 +469,9 @@ def register_callbacks(app):
                         {"name": "Nb", "id": "Nb missing", "type": "numeric"} 
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
-                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
-                    style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
-                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}],
+                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px', 'color': '#021F59'},
+                    style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold'},
+                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'}],
                     filter_action='native',
                     sort_action='native',
                     page_size=10

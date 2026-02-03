@@ -186,7 +186,7 @@ def update_sidebar(current_page, data, metadata):
             content = html.Div([
                 # Section upload classique
                 html.Div([
-                    html.H6("Upload your data:", className="mb-2"),
+                    html.H6("Upload your data:", className="mb-2", style={'color': '#021F59'}),
                     layouts.create_upload_component(),
                     html.Div(id='upload-status')
                 ], className="mb-4"),
@@ -202,11 +202,11 @@ def update_sidebar(current_page, data, metadata):
                         html.Div(style={
                             'flex': '1',
                             'height': '1px',
-                            'backgroundColor': '#dee2e6'
+                            'backgroundColor': '#77ACF2'
                         }),
                         html.Span("Or", style={
                             'padding': '0 15px',
-                            'color': '#6c757d',
+                            'color': '#021F59',
                             'fontSize': '12px',
                             'fontWeight': '500',
                             'textTransform': 'uppercase'
@@ -221,11 +221,11 @@ def update_sidebar(current_page, data, metadata):
                 
                 # Section test sample
                 html.Div([
-                    html.H6("Test with sample data:", className="mb-2"),
+                    html.H6("Test with sample data:", className="mb-2", style={'color': '#021F59'}),
                     html.P("Load a de-identified representative dataset to explore the application.", 
-                          className="text-muted", style={'fontSize': '11px'}),
+                          style={'fontSize': '11px', 'color': '#021F59'}),
                     dbc.Button([
-                        html.I(className="fas fa-flask me-2"),
+                        html.I(className="bi bi-flask me-2"),
                         "Load test sample"
                     ], 
                     id="load-test-sample-btn", 
@@ -247,7 +247,7 @@ def update_sidebar(current_page, data, metadata):
                 
             content = html.Div([
                 dbc.Alert([
-                    html.H6("📊 Data loaded:", className="mb-2"),
+                    html.H6("📊 Data loaded:", className="mb-2", style={'color': '#021F59'}),
                     html.P([
                         html.Strong(filename)
                     ], className="mb-1", style={'fontSize': '11px'}),
@@ -259,7 +259,7 @@ def update_sidebar(current_page, data, metadata):
                 
                 # Section pour charger un nouveau fichier
                 html.Div([
-                    html.H6("New file:", className="mb-2"),
+                    html.H6("New file:", className="mb-2", style={'color': '#021F59'}),
                     layouts.create_upload_component(),
                     html.Div(id='upload-status')
                 ])
@@ -349,6 +349,27 @@ def update_sidebar(current_page, data, metadata):
                 html.P('Data loaded. Use the navigation buttons to explore your data.', className='text-success')
             ])
         return layouts.create_sidebar_layout('Information', content)
+
+
+@app.callback(
+    [Output('sidebar-content', 'style'),
+     Output('main-content', 'width')],
+    [Input('current-page', 'data'),
+     Input('data-store', 'data')]
+)
+def toggle_sidebar_visibility(current_page, data):
+    """Cache la sidebar sur la page d'accueil quand aucune donnée n'est chargée"""
+    if current_page == 'Home' and data is None:
+        # Cacher la sidebar et élargir le contenu principal
+        return {'display': 'none'}, 12
+    else:
+        # Afficher la sidebar normalement
+        return {
+            'position': 'sticky',
+            'top': '20px',
+            'height': 'fit-content',
+            'z-index': '1000'
+        }, 10
 
 
 @app.callback(

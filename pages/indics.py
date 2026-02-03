@@ -53,7 +53,7 @@ def get_layout():
 
         # Section données manquantes - nouvelle section dynamique
         html.Hr(style={
-            'border': '2px solid #dee2e6',
+            'border': '2px solid #d4c4b5',
             'margin': '3rem 0 2rem 0'
         }),
         
@@ -64,7 +64,7 @@ def get_layout():
                     dbc.CardHeader([
                         html.H5("Missing data analysis", className='mb-0'),
                         html.Small(id='indicators-missing-subtitle', 
-                                 className='text-muted')
+                                 style={'color': '#ffffff'})
                     ]),
                     dbc.CardBody([
                         html.Div(id='indicators-missing-summary-table', children=[
@@ -79,7 +79,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader([
                         html.Div([
-                            html.H5("Lines affected", className='mb-0'),
+                            html.H5("Lines affected", className='mb-0', style={'color': '#ffffff'}),
                             dbc.Button(
                                 [html.I(className="fas fa-download me-2"), "Export CSV"],
                                 id="export-missing-indicators-button",
@@ -121,10 +121,10 @@ def create_indicators_sidebar_content(data):
         
         return html.Div([
             # Titre de section
-            html.H6("Analysis Parameters", className='mb-3 text-primary'),
+            html.H6("Analysis Parameters", className='mb-3', style={'color': '#021F59'}),
             
             # Sélection d'indicateur
-            html.Label('Select Indicator:', className='mb-2 fw-bold'),
+            html.Label('Select Indicator:', className='mb-2 fw-bold', style={'color': '#021F59'}),
             dcc.Dropdown(
                 id='indicator-selection-sidebar',
                 options=[
@@ -143,7 +143,7 @@ def create_indicators_sidebar_content(data):
             html.Hr(),
             
             # Sélection d'année
-            html.Label('Year for analysis:', className='mb-2 fw-bold'),
+            html.Label('Year for analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
             html.Small("Year for badges (Global) or quarterly data", className='text-muted d-block mb-2'),
             dcc.Dropdown(
                 id='year-selection-sidebar',
@@ -909,11 +909,11 @@ def create_trm_datatable(result_df):
                     {"name": "TRM D365", "id": "TRM_D365"},
                     {"name": "TRM D365 (%)", "id": "TRM_D365_%"}
                 ],
-                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
+                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
                 style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
-                    {'if': {'column_id': ['TRM_D30_%', 'TRM_D100_%', 'TRM_D365_%']}, 'backgroundColor': '#ffebee', 'fontWeight': 'bold'}
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
+                    {'if': {'column_id': ['TRM_D30_%', 'TRM_D100_%', 'TRM_D365_%']}, 'backgroundColor': '#F2A594', 'fontWeight': 'bold'}
                 ]
             )
         ])
@@ -1017,8 +1017,8 @@ def create_compact_trm_table(quarterly_df):
             {"name": "TRM", "id": "TRM_Count"},
             {"name": "TRM%", "id": "TRM_Percentage", "type": "numeric", "format": {"specifier": ".1f"}}
         ],
-        style_cell={'textAlign': 'center', 'fontSize': '9px', 'padding': '3px'},
-        style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '8px'}
+        style_cell={'textAlign': 'center', 'fontSize': '9px', 'padding': '3px', 'color': '#021F59'},
+        style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '8px'}
     )
 
 def create_wide_trm_table(quarterly_df):
@@ -1039,20 +1039,21 @@ def create_wide_trm_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '11px', 
             'padding': '8px',
-            'minWidth': '100px'
+            'minWidth': '100px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '10px',
             'padding': '8px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['TRM_D30_%']}, 'backgroundColor': '#fdeaa7', 'fontWeight': 'bold'},
             {'if': {'column_id': ['TRM_D100_%']}, 'backgroundColor': '#fadbd8', 'fontWeight': 'bold'},
-            {'if': {'column_id': ['TRM_D365_%']}, 'backgroundColor': '#ffebee', 'fontWeight': 'bold'}
+            {'if': {'column_id': ['TRM_D365_%']}, 'backgroundColor': '#F2A594', 'fontWeight': 'bold'}
         ]
     )
 
@@ -1072,7 +1073,7 @@ def create_trm_quarter_badge(quarterly_df, quarter_num, selected_year):
     total_patients = quarter_info['Total_Patients']
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{trm_pct:.1f}%", className="text-center mb-1", style={'color': '#e74c3c'}),
@@ -1088,7 +1089,7 @@ def create_trm_quarter_badges_column(quarterly_df, quarter_num):
     
     if quarter_data.empty:
         return html.Div([
-            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
             dbc.Alert("No data", color="light")
         ])
     
@@ -1135,7 +1136,7 @@ def create_trm_quarter_badges_column(quarterly_df, quarter_num):
         badges.append(badge)
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         html.Div(badges)
     ])
 
@@ -1514,10 +1515,10 @@ def create_survie_datatable(result_df):
                     {"name": "Alive D365", "id": "Alive_D365"},
                     {"name": "Surv D365 (%)", "id": "Surv_D365_%"}
                 ],
-                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
+                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
                 style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
                     {'if': {'column_id': ['Surv_D30_%', 'Surv_D100_%', 'Surv_D365_%']}, 'backgroundColor': '#e8f5e8', 'fontWeight': 'bold'}
                 ]
             )
@@ -1630,17 +1631,18 @@ def create_wide_survie_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '12px', 
             'padding': '12px',
-            'minWidth': '120px'
+            'minWidth': '120px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '12px',
             'padding': '12px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['Survival_Percentage']}, 'backgroundColor': '#e8f5e8', 'fontWeight': 'bold'}
         ]
     )
@@ -1661,7 +1663,7 @@ def create_survie_quarter_badge(quarterly_df, quarter_num, selected_year):
     total_patients = quarter_info['Total_Patients']
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{survival_pct:.1f}%", className="text-center mb-1", style={'color': '#27ae60'}),
@@ -1677,7 +1679,7 @@ def create_survie_quarter_badges_column(quarterly_df, quarter_num):
     
     if quarter_data.empty:
         return html.Div([
-            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
             dbc.Alert("No data", color="light")
         ])
     
@@ -1724,7 +1726,7 @@ def create_survie_quarter_badges_column(quarterly_df, quarter_num):
         badges.append(badge)
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         html.Div(badges)
     ])
 
@@ -1746,17 +1748,18 @@ def create_wide_survie_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '11px', 
             'padding': '8px',
-            'minWidth': '100px'
+            'minWidth': '100px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '10px',
             'padding': '8px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['Survival_D30_%']}, 'backgroundColor': '#d5f4e6', 'fontWeight': 'bold'},
             {'if': {'column_id': ['Survival_D100_%']}, 'backgroundColor': '#a9dfbf', 'fontWeight': 'bold'},
             {'if': {'column_id': ['Survival_D365_%']}, 'backgroundColor': '#e8f5e8', 'fontWeight': 'bold'}
@@ -2025,8 +2028,8 @@ def create_prise_greffe_datatable(result_df):
                     {"name": "Percentage", "id": "Percentage"},
                     {"name": "≥80%", "id": "Target_80%"}
                 ],
-                style_cell={'textAlign': 'center', 'fontSize': '12px', 'padding': '8px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'}
+                style_cell={'textAlign': 'center', 'fontSize': '12px', 'padding': '8px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold'}
             )
         ])
     except Exception as e:
@@ -2103,17 +2106,18 @@ def create_wide_prise_greffe_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '12px', 
             'padding': '12px',
-            'minWidth': '120px'
+            'minWidth': '120px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '12px',
             'padding': '12px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['Graft_Uptake_Percentage']}, 'backgroundColor': '#e3f2fd', 'fontWeight': 'bold'}
         ]
     )
@@ -2138,7 +2142,7 @@ def create_prise_greffe_quarter_badge(quarterly_df, quarter_num, selected_year):
     text_color = '#27ae60' if uptake_pct >= 80 else '#f39c12'
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{uptake_pct:.1f}%", className="text-center mb-1", style={'color': text_color}),
@@ -2407,8 +2411,8 @@ def create_sortie_aplasie_datatable(result_df):
                     {"name": "ANC Recovery", "id": "ANC_Recovery"},
                     {"name": "Percentage", "id": "Percentage"}
                 ],
-                style_cell={'textAlign': 'center', 'fontSize': '12px', 'padding': '8px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'}
+                style_cell={'textAlign': 'center', 'fontSize': '12px', 'padding': '8px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold'}
             )
         ])
     except Exception as e:
@@ -2485,17 +2489,18 @@ def create_wide_sortie_aplasie_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '12px', 
             'padding': '12px',
-            'minWidth': '120px'
+            'minWidth': '120px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '12px',
             'padding': '12px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['ANC_Recovery_Percentage']}, 'backgroundColor': '#f3e5f5', 'fontWeight': 'bold'}
         ]
     )
@@ -2520,7 +2525,7 @@ def create_sortie_aplasie_quarter_badge(quarterly_df, quarter_num, selected_year
     text_color = '#27ae60' if recovery_pct >= 80 else '#f39c12'
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{recovery_pct:.1f}%", className="text-center mb-1", style={'color': text_color}),
@@ -2849,14 +2854,14 @@ def create_gvhc_datatable(result_combined):
                     {"name": "Total cGVH", "id": "Total_cGVH"},
                     {"name": "Total (%)", "id": "Total_%"}
                 ],
-                style_cell={'textAlign': 'center', 'fontSize': '10px', 'padding': '4px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '9px'},
+                style_cell={'textAlign': 'center', 'fontSize': '10px', 'padding': '4px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '9px'},
                 style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
                     {'if': {'column_id': ['Mild_%']}, 'backgroundColor': '#d5f4e6', 'fontWeight': 'bold'},
                     {'if': {'column_id': ['Moderate_%']}, 'backgroundColor': '#fdeaa7', 'fontWeight': 'bold'},
                     {'if': {'column_id': ['Severe_%']}, 'backgroundColor': '#fadbd8', 'fontWeight': 'bold'},
-                    {'if': {'column_id': ['Total_%']}, 'backgroundColor': '#e8f4fd', 'fontWeight': 'bold'}
+                    {'if': {'column_id': ['Total_%']}, 'backgroundColor': 'rgba(119, 172, 242, 0.2)', 'fontWeight': 'bold'}
                 ]
             )
         ])
@@ -2934,21 +2939,22 @@ def create_wide_gvhc_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '12px', 
             'padding': '12px',
-            'minWidth': '100px'
+            'minWidth': '100px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '12px',
             'padding': '12px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['Mild']}, 'backgroundColor': '#d5f4e6'},
             {'if': {'column_id': ['Moderate']}, 'backgroundColor': '#fdeaa7'},
             {'if': {'column_id': ['Severe']}, 'backgroundColor': '#fadbd8'},
-            {'if': {'column_id': ['cGVH_Percentage']}, 'backgroundColor': '#e8f4fd', 'fontWeight': 'bold'}
+            {'if': {'column_id': ['cGVH_Percentage']}, 'backgroundColor': 'rgba(119, 172, 242, 0.2)', 'fontWeight': 'bold'}
         ]
     )
 
@@ -2968,7 +2974,7 @@ def create_gvhc_quarter_badge(quarterly_df, quarter_num, selected_year):
     total_patients = quarter_info['Total_Patients']
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{gvhc_pct:.1f}%", className="text-center mb-1", style={'color': '#8e44ad'}),
@@ -3320,11 +3326,11 @@ def create_rechute_datatable(result_df):
                     {"name": "Relapse D365", "id": "Relapse_D365"},
                     {"name": "Relapse D365 (%)", "id": "Relapse_D365_%"}
                 ],
-                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px'},
-                style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
+                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
                 style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
-                    {'if': {'column_id': ['Relapse_D100_%', 'Relapse_D365_%']}, 'backgroundColor': '#ffebee', 'fontWeight': 'bold'}
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
+                    {'if': {'column_id': ['Relapse_D100_%', 'Relapse_D365_%']}, 'backgroundColor': '#F2A594', 'fontWeight': 'bold'}
                 ]
             )
         ])
@@ -3428,18 +3434,19 @@ def create_wide_rechute_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '12px', 
             'padding': '12px',
-            'minWidth': '120px'
+            'minWidth': '120px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '12px',
             'padding': '12px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
-            {'if': {'column_id': ['Relapse_Percentage']}, 'backgroundColor': '#ffebee', 'fontWeight': 'bold'}
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
+            {'if': {'column_id': ['Relapse_Percentage']}, 'backgroundColor': '#F2A594', 'fontWeight': 'bold'}
         ]
     )
 
@@ -3459,7 +3466,7 @@ def create_rechute_quarter_badge(quarterly_df, quarter_num, selected_year):
     total_patients = quarter_info['Total_Patients']
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{relapse_pct:.1f}%", className="text-center mb-1", style={'color': '#e74c3c'}),
@@ -3475,7 +3482,7 @@ def create_rechute_quarter_badges_column(quarterly_df, quarter_num):
     
     if quarter_data.empty:
         return html.Div([
-            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
             dbc.Alert("No data", color="light")
         ])
     
@@ -3516,7 +3523,7 @@ def create_rechute_quarter_badges_column(quarterly_df, quarter_num):
         badges.append(badge)
     
     return html.Div([
-        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+        html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
         html.Div(badges)
     ])
 
@@ -3536,19 +3543,20 @@ def create_wide_rechute_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '11px', 
             'padding': '8px',
-            'minWidth': '120px'
+            'minWidth': '120px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '10px',
             'padding': '8px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['Relapse_D100_%']}, 'backgroundColor': '#fadbd8', 'fontWeight': 'bold'},
-            {'if': {'column_id': ['Relapse_D365_%']}, 'backgroundColor': '#ffebee', 'fontWeight': 'bold'}
+            {'if': {'column_id': ['Relapse_D365_%']}, 'backgroundColor': '#F2A594', 'fontWeight': 'bold'}
         ]
     )
 
@@ -3806,21 +3814,22 @@ def register_callbacks(app):
                     'textAlign': 'center',
                     'padding': '8px',
                     'fontSize': '12px',
-                    'fontFamily': 'Arial, sans-serif'
+                    'fontFamily': 'Arial, sans-serif',
+                    'color': '#021F59'
                 },
                 style_header={
-                    'backgroundColor': '#0D3182',
+                    'backgroundColor': '#021F59',
                     'color': 'white',
                     'fontWeight': 'bold'
                 },
                 style_data_conditional=[
-                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+                    {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
                     {
                         'if': {
                             'filter_query': '{Percentage missing} > 20',
                             'column_id': 'Percentage missing'
                         },
-                        'backgroundColor': '#ffebee',
+                        'backgroundColor': '#F2A594',
                         'color': 'red',
                         'fontWeight': 'bold'
                     }
@@ -3888,9 +3897,9 @@ def register_callbacks(app):
                         # Ne pas afficher la colonne Indicator dans la table
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
-                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px'},
-                    style_header={'backgroundColor': '#0D3182', 'color': 'white', 'fontWeight': 'bold'},
-                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'}],
+                    style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px', 'color': '#021F59'},
+                    style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold'},
+                    style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'}],
                     filter_action='native',
                     sort_action='native',
                     page_size=10
@@ -4065,10 +4074,11 @@ def create_gvha_datatable(result_combined):
             style_cell={
                 'textAlign': 'center',
                 'padding': '8px',
-                'fontSize': '12px'
+                'fontSize': '12px',
+                'color': '#021F59'
             },
             style_header={
-                'backgroundColor': '#0D3182',
+                'backgroundColor': '#021F59',
                 'color': 'white',
                 'fontWeight': 'bold',
                 'textAlign': 'center'
@@ -4076,7 +4086,7 @@ def create_gvha_datatable(result_combined):
             style_data_conditional=[
                 {
                     'if': {'row_index': 'odd'},
-                    'backgroundColor': '#f8f9fa'
+                    'backgroundColor': '#F2E9DF'
                 }
             ]
         )
@@ -4440,19 +4450,20 @@ def create_wide_quarterly_table(quarterly_df):
             'textAlign': 'center', 
             'fontSize': '12px', 
             'padding': '12px',
-            'minWidth': '100px'
+            'minWidth': '100px',
+            'color': '#021F59'
         },
         style_header={
-            'backgroundColor': '#0D3182', 
+            'backgroundColor': '#021F59', 
             'color': 'white', 
             'fontWeight': 'bold',
             'fontSize': '12px',
             'padding': '12px'
         },
         style_data_conditional=[
-            {'if': {'row_index': 'odd'}, 'backgroundColor': '#f8f9fa'},
+            {'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'},
             {'if': {'column_id': ['Grade_2', 'Grade_3', 'Grade_4']}, 'backgroundColor': '#fff3cd'},
-            {'if': {'column_id': ['Pct_GVH_2_4', 'Pct_GVH_3_4']}, 'backgroundColor': '#e8f4fd', 'fontWeight': 'bold'}
+            {'if': {'column_id': ['Pct_GVH_2_4', 'Pct_GVH_3_4']}, 'backgroundColor': 'rgba(119, 172, 242, 0.2)', 'fontWeight': 'bold'}
         ],
         style_table={
             'overflowX': 'auto'  # Scroll horizontal si nécessaire
@@ -4483,7 +4494,7 @@ def create_quarter_badges_column(quarterly_df, quarter_num, selected_year):
         
         return html.Div([
             # Titre du trimestre
-            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#0D3182', 'fontWeight': 'bold'}),
+            html.H6(f"Q{quarter_num}", className='text-center mb-2', style={'color': '#021F59', 'fontWeight': 'bold'}),
             
             # Badge GVH 2-4
             dbc.Card([

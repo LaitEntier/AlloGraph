@@ -11,25 +11,19 @@ def create_header_with_logo():
                 # Section supérieure : Logo et titre
                 html.Div([
                     # Logo à gauche
-                    html.Img(
-                        src="allograph-app/assets/images/logo.svg",
-                        className="app-logo",
-                        style={
-                            'height': '50px',
-                            'width': 'auto',
-                            'marginRight': '15px'
-                        }
-                    ),
-                    # Titre avec styling spécial
-                    html.H1([
-                        html.Span("Allo", style={'color': '#2c3e50'}),
-                        html.Span("Graph", style={'color': '#c0392b'})
-                    ], className="main-title", style={
-                        'margin': '0',
-                        'fontSize': '32px',
-                        'fontWeight': 'bold',
-                        'fontFamily': 'Arial, sans-serif'
-                    })
+                    html.A(
+                        html.Img(
+                            src="allograph-app/assets/images/logo.svg",
+                            className="app-logo",
+                            style={
+                                'height': '150px',
+                                'width': 'auto',
+                                'cursor': 'pointer'
+                            }
+                        ),
+                        href="/",
+                        style={'textDecoration': 'none'}
+                    )
                 ], style={
                     'display': 'flex',
                     'alignItems': 'center',
@@ -74,11 +68,7 @@ def create_header_with_logo():
                 })
                 
             ], className="header-container", style={
-                'padding': '20px',
-                'backgroundColor': '#ffffff00',
-                'marginBottom': '20px',
-                'borderRadius': '0 0 0 0',
-                'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+                'padding': '20px 24px 10px 24px'
             })
         ])
     ])
@@ -219,8 +209,8 @@ def create_base_layout():
         # Footer
         dbc.Row([
             dbc.Col([
-                html.Hr(),
-                html.P('© 2025 - CHRU de Tours - All rights reserved', className='text-center text-muted')
+                html.Hr(style={'borderColor': '#021F59', 'borderWidth': '2px'}),
+                html.P('© 2025 - CHRU de Tours - All rights reserved', className='text-center', style={'color': '#021F59'})
             ])
         ])
     ], fluid=True, className='p-4')
@@ -276,13 +266,12 @@ def create_sidebar_layout(title, content):
     Crée un layout standardisé pour la sidebar avec style sticky amélioré
     """
     return dbc.Card([
-        dbc.CardHeader(html.H4(title, style={'fontSize': '16px', 'margin': '0'})),
+        dbc.CardHeader(html.H4(title, style={'fontSize': '18px', 'margin': '0', 'fontWeight': '700'})),
         dbc.CardBody(content, className='p-3')
     ], style={
-        'maxHeight': '85vh',  # Hauteur maximale pour éviter que la sidebar soit trop haute
-        'overflowY': 'auto',  # Scroll interne si le contenu est trop long
-        'boxShadow': '0 2px 8px rgba(0,0,0,0.1)'  # Ombre légère pour un effet visuel
-    })
+        'maxHeight': '85vh',
+        'overflowY': 'auto'
+    }, className='sidebar-card')
 
 def create_upload_component():
     """
@@ -291,24 +280,28 @@ def create_upload_component():
     return dcc.Upload(
         id='upload-data',
         children=html.Div([
-            html.Div('Drag and drop', style={'fontSize': '12px'}),
-            html.Div('or', style={'fontSize': '10px', 'margin': '2px 0'}),
-            html.A('select', style={'fontSize': '12px'})
+            html.Div('Drag and drop', style={'fontSize': '12px', 'color': '#021F59'}),
+            html.Div('or', style={'fontSize': '10px', 'margin': '2px 0', 'color': '#021F59'}),
+            html.A('select', style={'fontSize': '12px', 'color': '#021F59'})
         ]),
         style={
             'width': '100%',
             'height': '70px',
             'lineHeight': '16px',
-            'borderWidth': '1px',
+            'borderWidth': '2px',
             'borderStyle': 'dashed',
-            'borderRadius': '5px',
+            'borderRadius': '12px',
+            'borderColor': '#021F59',
             'textAlign': 'center',
             'margin': '10px 0',
             'padding': '8px',
             'display': 'flex',
             'flexDirection': 'column',
             'justifyContent': 'center',
-            'alignItems': 'center'
+            'alignItems': 'center',
+            'backgroundColor': '#ffffff',
+            'cursor': 'pointer',
+            'transition': 'all 0.3s ease'
         },
         multiple=False
     )
@@ -339,7 +332,7 @@ def create_filter_controls(categorical_columns, years_options):
     stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
     
     return html.Div([
-        html.Label('X-axis:', className='mb-2'),
+        html.Label('X-axis:', className='mb-2', style={'color': '#021F59'}),
         dcc.Dropdown(
             id='x-axis-dropdown',
             options=[
@@ -350,7 +343,7 @@ def create_filter_controls(categorical_columns, years_options):
             className='mb-3'
         ),
 
-        html.Label('Stack variable:', className='mb-2'),
+        html.Label('Stack variable:', className='mb-2', style={'color': '#021F59'}),
         dcc.Dropdown(
             id='stack-variable-dropdown',
             options=stratification_options,
@@ -359,7 +352,7 @@ def create_filter_controls(categorical_columns, years_options):
         ),
         
         html.Hr(),
-        html.H5('Year', className='mb-2'),
+        html.H5('Year', className='mb-2', style={'color': '#021F59'}),
         dcc.Checklist(
             id='year-filter-checklist',
             options=years_options,
@@ -393,7 +386,7 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
     stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
     
     return html.Div([
-        html.Label('X-axis:', className='mb-2'),
+        html.Label('X-axis:', className='mb-2', style={'color': '#021F59'}),
         dcc.Dropdown(
             id='x-axis-dropdown',
             options=[
@@ -404,7 +397,7 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
             className='mb-3'
         ),
 
-        html.Label('Stack variable:', className='mb-2'),
+        html.Label('Stack variable:', className='mb-2', style={'color': '#021F59'}),
         dcc.Dropdown(
             id='stack-variable-dropdown',
             options=stratification_options,
@@ -413,7 +406,7 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
         ),
         
         html.Hr(),
-        html.H5('Year', className='mb-2'),
+        html.H5('Year', className='mb-2', style={'color': '#021F59'}),
         dcc.Checklist(
             id='year-filter-checklist',
             options=years_options,
