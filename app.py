@@ -57,6 +57,27 @@ app = dash.Dash(
 )
 app.title = "AlloGraph"
 
+# Custom index string with SVG favicon
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        <link rel="icon" type="image/svg+xml" href="/allograph-app/assets/images/ico.svg">
+        {%css%}
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
 # Layout de base avec navigation mise à jour
 app.layout = html.Div([
     layouts.create_base_layout(),
