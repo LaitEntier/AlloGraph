@@ -14,21 +14,13 @@ import modules.data_processing as data_processing
 import visualizations.allogreffes.graphs as gr
 
 def get_layout():
-    """Layout SANS store trimestre avec section données manquantes"""
+    """Layout avec sélection Yearly/Quarterly dans la sidebar"""
     return dbc.Container([
-        # Stores cachés pour communication (SANS selected-quarter-store)
+        # Stores cachés pour communication
         dcc.Store(id='selected-indicator-store', data='gvha'),
         dcc.Store(id='selected-year-store', data=None),
-        
-        # Onglets principaux
-        dbc.Row([
-            dbc.Col([
-                dcc.Tabs(id='indicators-main-tabs', value='global-view', children=[
-                    dcc.Tab(label='Global View (All Years)', value='global-view'),
-                    dcc.Tab(label='Quarterly View', value='quarterly-view')
-                ], className='mb-3')
-            ], width=12)
-        ]),
+        dcc.Store(id='selected-years-checklist-store', data=[]),
+        dcc.Store(id='analysis-mode-store', data='yearly'),  # 'yearly' ou 'quarterly'
         
         # Zone principale
         dbc.Row([
@@ -102,7 +94,7 @@ def get_layout():
     ], fluid=True)
 
 def create_indicators_sidebar_content(data):
-    """Sidebar SANS sélecteur de trimestre pour la nouvelle interface"""
+    """Sidebar avec sélection Yearly/Quarterly et contrôles d'années dynamiques"""
     if data is None or len(data) == 0:
         return html.Div([
             html.P('No data available', className='text-warning'),
@@ -115,9 +107,13 @@ def create_indicators_sidebar_content(data):
         
         # Options d'années disponibles
         years_options = []
+        available_years = []
         if 'Year' in df.columns:
             available_years = sorted(df['Year'].unique().tolist())
             years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+        
+        # Dernière année pour les valeurs par défaut
+        latest_year = available_years[-1] if available_years else None
         
         return html.Div([
             # Titre de section
@@ -142,16 +138,46 @@ def create_indicators_sidebar_content(data):
             
             html.Hr(),
             
-            # Sélection d'année
-            html.Label('Year for analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
-            html.Small("Year for badges (Global) or quarterly data", className='text-muted d-block mb-2'),
-            dcc.Dropdown(
-                id='year-selection-sidebar',
-                options=years_options,
-                value=available_years[-1] if available_years else None,
-                className='mb-3',
-                placeholder="Select a year..."
+            # Sélection du mode d'analyse (Yearly/Quarterly)
+            html.Label('Analysis Mode:', className='mb-2 fw-bold', style={'color': '#021F59'}),
+            dbc.RadioItems(
+                id='analysis-mode-radio',
+                options=[
+                    {'label': ' Yearly', 'value': 'yearly'},
+                    {'label': ' Quarterly', 'value': 'quarterly'}
+                ],
+                value='yearly',
+                inline=True,
+                className='mb-3'
             ),
+            
+            html.Hr(),
+            
+            # Sélection d'année pour Yearly (dropdown - single year)
+            html.Div([
+                html.Label('Year for analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
+                html.Small("Select a year for badges", className='text-muted d-block mb-2'),
+                dcc.Dropdown(
+                    id='year-selection-sidebar',
+                    options=years_options,
+                    value=latest_year,
+                    className='mb-3',
+                    placeholder="Select a year..."
+                )
+            ], id='yearly-controls', style={'display': 'block'}),
+            
+            # Sélection d'année pour Quarterly (radio buttons - single year)
+            html.Div([
+                html.Label('Year for quarterly analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
+                html.Small("Select a year for quarterly breakdown", className='text-muted d-block mb-2'),
+                dbc.RadioItems(
+                    id='years-radio-sidebar',
+                    options=years_options,
+                    value=latest_year,  # Dernière année par défaut
+                    inline=False,
+                    className='mb-3'
+                )
+            ], id='quarterly-controls', style={'display': 'none'}),
             
             html.Hr(),
             
@@ -3712,7 +3738,7 @@ def register_callbacks(app):
     def update_indicator_store(indicator):
         return indicator
     
-    # Callback pour mettre à jour le Store d'année
+    # Callback pour mettre à jour le Store d'année (dropdown)
     @app.callback(
         Output('selected-year-store', 'data'),
         Input('year-selection-sidebar', 'value'),
@@ -3721,17 +3747,41 @@ def register_callbacks(app):
     def update_year_store(year):
         return year
     
-    # Callback principal SANS écoute du trimestre
+    # Callback pour mettre à jour le Store de l'année sélectionnée (radio buttons)
+    @app.callback(
+        Output('selected-years-checklist-store', 'data'),
+        Input('years-radio-sidebar', 'value'),
+        prevent_initial_call=True
+    )
+    def update_years_radio_store(year):
+        return [year] if year else []
+    
+    # Callback pour basculer entre les contrôles Yearly et Quarterly
+    @app.callback(
+        [Output('analysis-mode-store', 'data'),
+         Output('yearly-controls', 'style'),
+         Output('quarterly-controls', 'style')],
+        Input('analysis-mode-radio', 'value'),
+        prevent_initial_call=False
+    )
+    def toggle_analysis_mode(mode):
+        if mode == 'yearly':
+            return mode, {'display': 'block'}, {'display': 'none'}
+        else:
+            return mode, {'display': 'none'}, {'display': 'block'}
+    
+    # Callback principal pour mettre à jour le contenu
     @app.callback(
         Output('indicator-content', 'children'),
         [Input('current-page', 'data'),
          Input('data-store', 'data'),
-         Input('indicators-main-tabs', 'value'),
+         Input('analysis-mode-store', 'data'),
          Input('selected-indicator-store', 'data'),
-         Input('selected-year-store', 'data')],  # SUPPRIMÉ: selected-quarter-store
+         Input('selected-year-store', 'data'),
+         Input('selected-years-checklist-store', 'data')],
         prevent_initial_call=False
     )
-    def update_indicator_content(current_page, data, active_tab, selected_indicator, selected_year):
+    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years):
         
         if current_page != 'Indicators':
             return dash.no_update
@@ -3745,12 +3795,18 @@ def register_callbacks(app):
         try:
             df = pd.DataFrame(data)
             
-            if active_tab == 'global-view':
+            if analysis_mode == 'yearly':
+                # Mode Yearly: utiliser l'année sélectionnée dans le dropdown
                 return create_global_visualization_with_year(df, selected_indicator, selected_year)
-            elif active_tab == 'quarterly-view':
-                return create_quarterly_visualization(df, selected_indicator, selected_year)
+            elif analysis_mode == 'quarterly':
+                # Mode Quarterly: utiliser les années sélectionnées dans la checklist
+                if not selected_years or len(selected_years) == 0:
+                    return dbc.Alert("Please select at least one year for quarterly analysis.", color="warning")
+                # Si une seule année sélectionnée, comportement actuel
+                # Si plusieurs années, créer une vue combinée
+                return create_quarterly_visualization_multi_year(df, selected_indicator, selected_years)
             else:
-                return dbc.Alert("Unknown tab selected", color="warning")
+                return dbc.Alert("Unknown analysis mode selected", color="warning")
                 
         except Exception as e:
             print(f"ERROR in update_indicator_content: {str(e)}")
@@ -3775,10 +3831,12 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('selected-indicator-store', 'data'),
-         Input('year-selection-sidebar', 'value')],
+         Input('analysis-mode-store', 'data'),
+         Input('year-selection-sidebar', 'value'),
+         Input('years-radio-sidebar', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_summary_callback(data, current_page, selected_indicator, selected_year):
+    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years):
         """Gère le tableau de résumé des données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3790,12 +3848,14 @@ def register_callbacks(app):
         try:
             df = pd.DataFrame(data)
             
-            # Filtrer par année si spécifié (single year dropdown)
-            if selected_year and 'Year' in df.columns:
+            # Filtrer selon le mode d'analyse
+            if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
                 df = df[df['Year'] == selected_year]
+            elif analysis_mode == 'quarterly' and selected_years and len(selected_years) > 0 and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
             
             if df.empty:
-                return html.Div('No data for the selected year', className='text-warning text-center')
+                return html.Div('No data for the selected year(s)', className='text-warning text-center')
             
             # Obtenir les variables spécifiques à l'indicateur sélectionné
             columns_to_analyze, indicator_name = get_variables_for_indicator(selected_indicator)
@@ -3853,10 +3913,12 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('selected-indicator-store', 'data'),
-         Input('year-selection-sidebar', 'value')],
+         Input('analysis-mode-store', 'data'),
+         Input('year-selection-sidebar', 'value'),
+         Input('years-checklist-sidebar', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_detail_callback(data, current_page, selected_indicator, selected_year):
+    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3868,12 +3930,14 @@ def register_callbacks(app):
         try:
             df = pd.DataFrame(data)
             
-            # Filtrer par année si spécifié (single year dropdown)
-            if selected_year and 'Year' in df.columns:
+            # Filtrer selon le mode d'analyse
+            if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
                 df = df[df['Year'] == selected_year]
+            elif analysis_mode == 'quarterly' and selected_years and len(selected_years) > 0 and 'Year' in df.columns:
+                df = df[df['Year'].isin(selected_years)]
             
             if df.empty:
-                return html.Div('No data for the selected year', className='text-warning text-center'), True
+                return html.Div('No data for the selected year(s)', className='text-warning text-center'), True
             
             # Obtenir les variables spécifiques à l'indicateur sélectionné
             columns_to_analyze, indicator_name = get_variables_for_indicator(selected_indicator)
@@ -4291,41 +4355,61 @@ def create_gvha_global_visualization(df, analysis_year):
 
 def create_quarterly_visualization(df, indicator, selected_year):
     """
-    Visualisation trimestrielle complète pour tous les indicateurs
+    Visualisation trimestrielle complète pour tous les indicateurs (single year - deprecated, use multi_year version)
+    """
+    # Redirect to multi-year version with single year
+    return create_quarterly_visualization_multi_year(df, indicator, [selected_year] if selected_year else [])
+
+def create_quarterly_visualization_multi_year(df, indicator, selected_years):
+    """
+    Visualisation trimestrielle pour un ou plusieurs années
     """
     try:
-        if not selected_year:
-            return dbc.Alert("Please select a year for quarterly analysis", color="warning")
+        if not selected_years or len(selected_years) == 0:
+            return dbc.Alert("Please select at least one year for quarterly analysis", color="warning")
         
         # Ajouter la colonne trimestre si elle n'existe pas
         df_with_quarters = add_quarter_column(df)
         
-        # Filtrer les données pour l'année sélectionnée
-        year_data = df_with_quarters[df_with_quarters['Year'] == selected_year].copy()
-        
-        if year_data.empty:
-            return dbc.Alert(f"No data available for year {selected_year}", color="warning")
-        
-        # Dispatcher vers la fonction appropriée selon l'indicateur
-        if indicator == 'gvha':
-            return create_gvha_quarterly_visualization(year_data, selected_year)
-        elif indicator == 'TRM':
-            return create_trm_quarterly_visualization(year_data, selected_year)
-        elif indicator == 'survie_globale':
-            return create_survie_quarterly_visualization(year_data, selected_year)
-        elif indicator == 'prise_greffe':
-            return create_prise_greffe_quarterly_visualization(year_data, selected_year)
-        elif indicator == 'sortie_aplasie':
-            return create_sortie_aplasie_quarterly_visualization(year_data, selected_year)
-        elif indicator == 'gvhc':
-            return create_gvhc_quarterly_visualization(year_data, selected_year)
-        elif indicator == 'rechute':
-            return create_rechute_quarterly_visualization(year_data, selected_year)
+        # Si une seule année sélectionnée, utiliser les fonctions existantes
+        if len(selected_years) == 1:
+            selected_year = selected_years[0]
+            year_data = df_with_quarters[df_with_quarters['Year'] == selected_year].copy()
+            
+            if year_data.empty:
+                return dbc.Alert(f"No data available for year {selected_year}", color="warning")
+            
+            # Dispatcher vers la fonction appropriée selon l'indicateur
+            if indicator == 'gvha':
+                return create_gvha_quarterly_visualization(year_data, selected_year)
+            elif indicator == 'TRM':
+                return create_trm_quarterly_visualization(year_data, selected_year)
+            elif indicator == 'survie_globale':
+                return create_survie_quarterly_visualization(year_data, selected_year)
+            elif indicator == 'prise_greffe':
+                return create_prise_greffe_quarterly_visualization(year_data, selected_year)
+            elif indicator == 'sortie_aplasie':
+                return create_sortie_aplasie_quarterly_visualization(year_data, selected_year)
+            elif indicator == 'gvhc':
+                return create_gvhc_quarterly_visualization(year_data, selected_year)
+            elif indicator == 'rechute':
+                return create_rechute_quarterly_visualization(year_data, selected_year)
+            else:
+                return dbc.Alert(f"Quarterly visualization for '{indicator}' not yet implemented", color="info")
         else:
-            return dbc.Alert(f"Quarterly visualization for '{indicator}' not yet implemented", color="info")
+            # Mode multi-années: afficher un message pour l'instant
+            # TODO: Implémenter une vue combinée multi-années si nécessaire
+            return html.Div([
+                dbc.Alert([
+                    html.Strong("Multi-year quarterly analysis"),
+                    html.Br(),
+                    f"Years selected: {', '.join(map(str, sorted(selected_years)))}"
+                ], color="info"),
+                html.P("For now, please select a single year to view quarterly details.", className="text-muted text-center mt-3")
+            ])
             
     except Exception as e:
-        print(f"ERROR in create_quarterly_visualization: {str(e)}")
+        print(f"ERROR in create_quarterly_visualization_multi_year: {str(e)}")
         return dbc.Alert(f"Error creating quarterly visualization: {str(e)}", color="danger")
 
 def add_quarter_column(df):
