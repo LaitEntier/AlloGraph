@@ -62,26 +62,33 @@ def create_hero_animation():
 
 def create_upload_zone():
     """Crée une zone d'upload moderne et attrayante"""
-    return html.Div([
-        # Header de la zone
-        html.Div([
-            html.I(className="bi bi-cloud-upload fs-1", style={'color': '#0D3182', 'marginBottom': '15px'}),
-            html.H4("Upload Your Data", style={'color': '#0D3182', 'fontWeight': '700', 'marginBottom': '10px'}),
-            html.P([
-                "Drag and drop your file here, or ",
-                html.Span("browse", style={'color': '#c0392b', 'fontWeight': '600', 'cursor': 'pointer'})
-            ], style={'color': '#6c757d', 'marginBottom': '0'}),
-            html.P("Supports CSV, Excel (.xlsx, .xls)", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
-        ], style={
-            'border': '3px dashed #0D3182',
-            'borderRadius': '16px',
-            'padding': '40px 30px',
-            'textAlign': 'center',
-            'backgroundColor': '#f8f9fa',
-            'transition': 'all 0.3s ease',
-            'cursor': 'pointer'
-        }, id="upload-zone-hover"),
-    ])
+    return dcc.Upload(
+        id='upload-data',
+        children=html.Div([
+            # Header de la zone
+            html.Div([
+                html.I(className="bi bi-cloud-upload fs-1", style={'color': '#0D3182', 'marginBottom': '15px'}),
+                html.H4("Upload Your Data", style={'color': '#0D3182', 'fontWeight': '700', 'marginBottom': '10px'}),
+                html.P([
+                    "Drag and drop your file here, or ",
+                    html.Span("browse", style={'color': '#c0392b', 'fontWeight': '600', 'cursor': 'pointer'})
+                ], style={'color': '#6c757d', 'marginBottom': '0'}),
+                html.P("Supports CSV, Excel (.xlsx, .xls)", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
+            ], style={
+                'border': '3px dashed #0D3182',
+                'borderRadius': '16px',
+                'padding': '40px 30px',
+                'textAlign': 'center',
+                'backgroundColor': '#f8f9fa',
+                'transition': 'all 0.3s ease',
+                'cursor': 'pointer'
+            }, id="upload-zone-hover"),
+        ]),
+        style={
+            'width': '100%',
+        },
+        multiple=False
+    )
 
 def create_how_to_get_data_section():
     """Crée la section "Comment obtenir vos données" avec l'image EBMT"""
