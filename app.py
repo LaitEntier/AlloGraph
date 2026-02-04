@@ -411,7 +411,10 @@ def process_uploaded_file(contents, filename):
         decoded = base64.b64decode(content_string)
         
         if filename.endswith('.csv'):
-            df_original = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            # Détection automatique du séparateur
+            decoded_content = decoded.decode('utf-8')
+            separator = data_processing.detect_csv_separator(decoded_content, is_file_path=False)
+            df_original = pd.read_csv(io.StringIO(decoded_content), sep=separator)
         elif filename.endswith(('.xlsx', '.xls')):
             df_original = pd.read_excel(io.BytesIO(decoded))
         else:
@@ -568,8 +571,9 @@ def load_test_sample(n_clicks):
                     dbc.Alert('Test sample file not found: data/test_sample.csv', 
                              color='danger'))
         
-        # Charger le fichier CSV
-        df_original = pd.read_csv(test_file_path)
+        # Charger le fichier CSV avec détection automatique du séparateur
+        separator = data_processing.detect_csv_separator(test_file_path, is_file_path=True)
+        df_original = pd.read_csv(test_file_path, sep=separator)
         
         # Stocker les dimensions originales
         original_shape = df_original.shape

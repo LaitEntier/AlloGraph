@@ -70,9 +70,70 @@ def normalize_column_names(df):
     
     return df
 
+def detect_csv_separator(file_path_or_content, is_file_path=True):
+    """
+    Détecte automatiquement le séparateur CSV en testant les séparateurs courants.
+    
+    Args:
+        file_path_or_content: Chemin vers le fichier ou contenu string/bytes
+        is_file_path: True si file_path_or_content est un chemin, False si c'est du contenu
+        
+    Returns:
+        str: Le séparateur détecté (par défaut ',' si aucun n'est clairement meilleur)
+    """
+    common_separators = [',', ';', '\t', '|']
+    
+    try:
+        # Lire un échantillon des données
+        if is_file_path:
+            with open(file_path_or_content, 'r', encoding='utf-8', errors='ignore') as f:
+                sample = f.read(5000)  # Lire les premiers 5000 caractères
+        else:
+            # C'est du contenu (string ou bytes)
+            content = file_path_or_content
+            if isinstance(content, bytes):
+                content = content.decode('utf-8', errors='ignore')
+            sample = content[:5000]
+        
+        best_separator = ','
+        max_cols = 0
+        
+        for sep in common_separators:
+            try:
+                # Compter le nombre de colonnes sur les premières lignes
+                lines = sample.strip().split('\n')[:5]  # Tester sur 5 lignes max
+                if not lines:
+                    continue
+                    
+                col_counts = []
+                for line in lines:
+                    if line.strip():  # Ignorer les lignes vides
+                        col_counts.append(len(line.split(sep)))
+                
+                if col_counts:
+                    # Utiliser le mode (valeur la plus fréquente) pour éviter les lignes malformées
+                    from statistics import mode
+                    try:
+                        most_common_count = mode(col_counts)
+                    except:
+                        most_common_count = max(col_counts)
+                    
+                    # On veut au moins 2 colonnes et le maximum de colonnes cohérent
+                    if most_common_count > max_cols and most_common_count > 1:
+                        max_cols = most_common_count
+                        best_separator = sep
+            except Exception:
+                continue
+        
+        return best_separator
+    except Exception:
+        return ','  # Fallback sur la virgule
+
+
 def load_data(file_path):
     """
     Charge et prépare les données à partir d'un fichier CSV exporté de REDCap.
+    Détecte automatiquement le séparateur utilisé.
 
     Args:
         file_path (str): Chemin vers le fichier CSV
@@ -80,8 +141,11 @@ def load_data(file_path):
     Returns:
         pd.DataFrame: Données nettoyées et formatées
     """
-    # Chargement des données
-    df = pd.read_csv(file_path)
+    # Détection du séparateur
+    separator = detect_csv_separator(file_path, is_file_path=True)
+    
+    # Chargement des données avec le séparateur détecté
+    df = pd.read_csv(file_path, sep=separator)
 
     # Nettoyage et formatage de base
     # df = clean_data(df)
