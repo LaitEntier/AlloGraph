@@ -214,7 +214,8 @@ def get_layout():
 
 def get_main_chart_variable_options(data):
     """
-    Crée les options pour le dropdown de sélection de variable principale
+    Crée les options pour le dropdown de sélection de variable principale.
+    Seules 5 variables spécifiques sont disponibles pour l'analyse d'évolution annuelle.
     
     Args:
         data (list): Liste de dictionnaires (format store Dash) avec les données
@@ -228,11 +229,11 @@ def get_main_chart_variable_options(data):
     # Convertir la liste en DataFrame
     df = pd.DataFrame(data)
     
-    # Variables disponibles pour le graphique principal
+    # Variables disponibles pour le graphique principal (seulement ces 5)
     main_chart_options = []
     
-    # Vérifier les colonnes disponibles (ordre de priorité)
-    possible_columns = {
+    # Colonnes disponibles avec leurs labels d'affichage
+    available_columns = {
         'Donor Type': 'Donor type',
         'Source Stem Cells': 'Source of stem cells', 
         'Match Type': 'Match type',
@@ -240,14 +241,13 @@ def get_main_chart_variable_options(data):
         'Donor Match Category': 'Donor Match Category'
     }
     
-    # Ajouter les colonnes qui existent réellement
-    for col, label in possible_columns.items():
+    # Ajouter uniquement les colonnes qui existent dans les données
+    for col, label in available_columns.items():
         if col in df.columns:
-            # Vérifier qu'il y a des données non nulles dans cette colonne
+            # Vérifier qu'il y a au moins quelques données non nulles
             non_null_count = df[col].notna().sum()
-            unique_values = df[col].nunique()
         
-            if non_null_count > 0 and unique_values > 1:  # Au moins quelques données et de la variabilité
+            if non_null_count > 0:  # Au moins quelques données (même si une seule valeur unique)
                 main_chart_options.append({'label': label, 'value': col})
     
     return main_chart_options

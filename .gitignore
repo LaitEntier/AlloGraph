@@ -59,3 +59,4 @@ app.spec
 structure.txt
 AGENTS.md
 MISSING_DATA_REWORK.md
+data/external.csv

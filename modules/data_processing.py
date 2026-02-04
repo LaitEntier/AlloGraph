@@ -1,6 +1,75 @@
 import pandas as pd
 import numpy as np
 
+# Column name mapping - defines the standard names we expect
+# The processing will accept any case variation of these names
+EXPECTED_COLUMNS = [
+    'Long ID', 'Short ID', 'Promise ID', 'Sex', 'Date Of Birth', 'Blood Group',
+    'Rhesus Factor', 'Initials First Name', 'Initials Last Name', 'Date Diagnosis',
+    'Main Diagnosis', 'Subclass Diagnosis', 'Treatment CIC', 'Treatment Type',
+    'Treatment Date', 'Number HCT', 'Number Allo HCT', 'Performance Status At Treatment Scale',
+    'Performance Status At Treatment Score', 'Disease Status At Treatment', 'CMV Status Donor',
+    'CMV Status Patient', 'Donor Type', 'Source Stem Cells', 'Source Stem Cells 2',
+    'Match Type', 'Conditioning Regimen Type', 'Prep Regimen Bendamustine',
+    'Prep Regimen Busulfan', 'Prep Regimen Cyclophosphamide', 'Prep Regimen Fludarabine',
+    'Prep Regimen Melphalan', 'Prep Regimen Thiotepa', 'Prep Regimen Treosulfan',
+    'Prophylaxis', 'Prophylaxis Drug 1', 'Prophylaxis Drug 2', 'Prophylaxis Drug 3',
+    'Prophylaxis Drug 4', 'Prophylaxis Drug 5', 'Prophylaxis Drug 6', 'TBI', 'TBI Dose Gray',
+    'Date Of Last Follow Up', 'First aGvHD Maximum Score', 'First Agvhd Occurrence',
+    'First Agvhd Occurrence Date', 'First cGvHD Maximum NIH Score', 'First Cgvhd Occurrence',
+    'First Cgvhd Occurrence Date', 'First Relapse', 'First Relapse Date', 'First Best Response',
+    'First Best Response Date', 'Platelet Reconstitution', 'Date Platelet Reconstitution',
+    'Anc Recovery', 'Date Anc Recovery', 'Date Subsequent Treatment',
+    'Performance Scale At Last FU', 'Performance Score At Last FU',
+    'Cgvhd Maximum Nih Score At Last Fu', 'Cgvhd Occurrence At Last Fu',
+    'Status Last Follow Up', 'Death Cause', 'Death Date'
+]
+
+def normalize_column_names(df):
+    """
+    Normalise les noms de colonnes pour accepter n'importe quelle casse
+    et gère les noms de colonnes alternatifs connus.
+    
+    Args:
+        df (pd.DataFrame): DataFrame avec les colonnes originales
+        
+    Returns:
+        pd.DataFrame: DataFrame avec les noms de colonnes normalisés
+    """
+    df = df.copy()
+    
+    # Mapping pour les noms de colonnes alternatifs (synonymes connus)
+    # Clé: nom alternatif en minuscules -> Valeur: nom standard
+    alternate_names = {
+        'match type related donor': 'Match Type',
+    }
+    
+    # Créer un mapping des noms en minuscules vers les noms standards
+    lower_to_standard = {col.lower(): col for col in EXPECTED_COLUMNS}
+    
+    # Renommer les colonnes
+    new_columns = {}
+    for col in df.columns:
+        col_lower = col.lower()
+        
+        # Vérifier d'abord les noms alternatifs
+        if col_lower in alternate_names:
+            standard_name = alternate_names[col_lower]
+            if col != standard_name:
+                new_columns[col] = standard_name
+                print(f"Colonne renommée (synonyme): '{col}' -> '{standard_name}'")
+        # Ensuite vérifier les noms standards (insensible à la casse)
+        elif col_lower in lower_to_standard:
+            standard_name = lower_to_standard[col_lower]
+            if col != standard_name:
+                new_columns[col] = standard_name
+                print(f"Colonne renommée: '{col}' -> '{standard_name}'")
+    
+    if new_columns:
+        df.rename(columns=new_columns, inplace=True)
+    
+    return df
+
 def load_data(file_path):
     """
     Charge et prépare les données à partir d'un fichier CSV exporté de REDCap.
@@ -52,14 +121,15 @@ def rename_conditioning_regimen_values(df):
     df['Conditioning Regimen Type'] = df['Conditioning Regimen Type'].replace(conditioning_mapping)
     
     print("Renommage effectué dans 'Conditioning Regimen Type':")
-    print("  'Reduced intensity conditioning (RIC)' → 'RIC'")
-    print("  'Myeloablative conditioning regimen' → 'MAC'")
+    print("  'Reduced intensity conditioning (RIC)' -> 'RIC'")
+    print("  'Myeloablative conditioning regimen' -> 'MAC'")
     
     return df
 
 def create_hla_compatibility_variable(df):
     """
     Crée une variable 'Donor Match Category' basée sur Donor Type et Match Type.
+    Accepte différents formats de valeurs (avec ou sans 'donor').
     
     Args:
         df (pd.DataFrame): DataFrame avec les colonnes Donor Type et Match Type
@@ -77,32 +147,41 @@ def create_hla_compatibility_variable(df):
     
     # Créer la variable combinée
     def combine_hla_compatibility(row):
-        donor_type = row.get('Donor Type', '')
-        match_type = row.get('Match Type', '')
+        donor_type_raw = row.get('Donor Type', '')
+        match_type_raw = row.get('Match Type', '')
         
         # Nettoyer et standardiser les valeurs
-        if pd.isna(donor_type) or str(donor_type).strip() == '':
+        if pd.isna(donor_type_raw) or str(donor_type_raw).strip() == '':
             donor_type = None
         else:
-            donor_type = str(donor_type).strip()
+            donor_type = str(donor_type_raw).strip()
         
-        if pd.isna(match_type) or str(match_type).strip() == '':
+        if pd.isna(match_type_raw) or str(match_type_raw).strip() == '':
             match_type = None
         else:
-            match_type = str(match_type).strip()
+            match_type = str(match_type_raw).strip()
         
         # Si l'une des deux colonnes est vide/manquante
         if donor_type is None or match_type is None:
             return 'unknown'
         
+        # Normaliser le donor_type (accepter 'Related', 'Related donor', 'Unrelated', 'Unrelated donor')
+        donor_lower = donor_type.lower()
+        if 'related' in donor_lower and 'un' not in donor_lower:
+            donor_normalized = 'Related donor'
+        elif 'unrelated' in donor_lower or ('un' in donor_lower and 'related' in donor_lower):
+            donor_normalized = 'Unrelated donor'
+        else:
+            donor_normalized = donor_type  # Garder la valeur originale si non reconnue
+        
         # Logique de combinaison selon les spécifications
-        if donor_type == 'Related donor' and match_type == 'Match':
+        if donor_normalized == 'Related donor' and match_type == 'Match':
             return 'Genoidentical'
-        elif donor_type == 'Related donor' and match_type == 'Mismatch':
+        elif donor_normalized == 'Related donor' and match_type == 'Mismatch':
             return 'MRD (Haplo)'
-        elif donor_type == 'Unrelated donor' and match_type == 'Match':
+        elif donor_normalized == 'Unrelated donor' and match_type == 'Match':
             return 'MUD'
-        elif donor_type == 'Unrelated donor' and match_type == 'Mismatch':
+        elif donor_normalized == 'Unrelated donor' and match_type == 'Mismatch':
             return 'MMUD'
         else:
             # Pour toute autre combinaison non prévue
@@ -123,6 +202,8 @@ def process_data(df):
     Returns:
         pd.DataFrame: DataFrame avec les données traitées
     """
+    # Normaliser les noms de colonnes (insensible à la casse)
+    df = normalize_column_names(df)
 
     # Créer une colonne 'Year' à partir de 'Date Diagnosis'
     df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
@@ -507,6 +588,6 @@ def transform_gvhc_scores(df):
         
         # Logging pour suivi
         if before_limited > 0 or before_extensive > 0:
-            print(f"Transformation GVHc appliquée: {before_limited} 'Limited' → 'Mild', {before_extensive} 'Extensive' → 'Severe'")
+            print(f"Transformation GVHc appliquée: {before_limited} 'Limited' -> 'Mild', {before_extensive} 'Extensive' -> 'Severe'")
     
     return df_transformed
