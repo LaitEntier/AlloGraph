@@ -71,7 +71,7 @@ def create_upload_zone():
                 html.H4("Upload Your Data", style={'color': '#0D3182', 'fontWeight': '700', 'marginBottom': '10px'}),
                 html.P([
                     "Drag and drop your file here, or ",
-                    html.Span("browse", style={'color': '#c0392b', 'fontWeight': '600', 'cursor': 'pointer'})
+                    html.Span("browse", style={'color': '#d61704', 'fontWeight': '600', 'cursor': 'pointer'})
                 ], style={'color': '#6c757d', 'marginBottom': '0'}),
                 html.P("Supports CSV, Excel (.xlsx, .xls)", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
             ], style={
@@ -305,7 +305,7 @@ def create_welcome_content():
                     # Titre principal
                     html.H1([
                         "Analyze Your ",
-                        html.Span("Transplant Data", style={'color': '#c0392b'})
+                        html.Span("Transplant Data", style={'color': '#d61704'})
                     ], style={
                         'color': '#0D3182', 
                         'fontWeight': '800', 
@@ -324,6 +324,22 @@ def create_welcome_content():
                         'color': '#6c757d', 
                         'fontSize': '1.1rem',
                         'lineHeight': '1.7',
+                        'marginBottom': '15px'
+                    }),
+                    
+                    # Partners
+                    html.P([
+                        "Developed in collaboration with ",
+                        html.Strong("Association Leucémie Espoir 72"), ", ",
+                        html.Strong("SFGM-TC"), ", ",
+                        html.Strong("CHRU de Tours"), 
+                        " and ",
+                        html.Strong("Université de Tours"),
+                        "."
+                    ], style={
+                        'color': '#6c757d',
+                        'fontSize': '0.95rem',
+                        'lineHeight': '1.6',
                         'marginBottom': '30px'
                     }),
                     
@@ -419,7 +435,7 @@ def create_welcome_content():
                         "bi-hospital",
                         "Procedural Insights",
                         "Study donor types, stem cell sources, conditioning regimens, and prophylaxis combinations.",
-                        "#c0392b"
+                        "#d61704"
                     )
                 ], width=4, className="mb-4"),
             ]),
@@ -443,7 +459,10 @@ def create_welcome_content():
                 ], width=4, className="mb-4"),
                 dbc.Col([], width=2),
             ])
-        ])
+        ]),
+        
+        # Bannière
+        create_banner_component()
     ], style={'padding': '20px 10px'})
 
 def register_callbacks(app):

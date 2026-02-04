@@ -18,7 +18,7 @@ def generate_upsetjs_html(data: pd.DataFrame,
                           min_patients: int = 1,
                           height: int = 600,
                           color_main: str = "#0D3182",
-                          color_highlight: str = "#c0392b") -> str:
+                          color_highlight: str = "#d61704") -> str:
     """
     Generate HTML content with an embedded UpSet.js visualization.
     

@@ -2569,7 +2569,7 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     
     # Couleurs cohérentes
     colors_pos_neg = ['#e74c3c', '#2ecc71']  # Rouge pour négatif, vert pour positif
-    colors_combinations = ['#27ae60', '#f39c12', '#e67e22', '#c0392b']  # Vert, orange, orange foncé, rouge
+    colors_combinations = ['#27ae60', '#f39c12', '#e67e22', '#d61704']  # Vert, orange, orange foncé, rouge
     
     # 1. Pie chart Statut Donneur
     donor_counts = df_clean['CMV_Donor_Clean'].value_counts()
@@ -3374,7 +3374,7 @@ def quick_missing_analysis(df, columns_to_check):
     return results
 def create_upset_plot(data, set_columns, title="UpSet Plot - Treatment Combinations",
                       min_subset_size=None, max_subsets=15, sort_by='degree',
-                      height=600, width=None, color_main='#0D3182', color_highlight='#c0392b'):
+                      height=600, width=None, color_main='#0D3182', color_highlight='#d61704'):
     """
     Crée un UpSet plot (intersection plot) pour visualiser les combinaisons de traitements.
     
@@ -3794,7 +3794,7 @@ def create_upset_plot_simple(data, set_columns, title="UpSet Plot - Treatment Co
     )
     
     # 2. Barres du haut: taille des intersections
-    colors_top = ['#c0392b' if len(c.split(',')) == 1 else '#0D3182' 
+    colors_top = ['#d61704' if len(c.split(',')) == 1 else '#0D3182' 
                   for c in combo_counts.index]
     
     fig.add_trace(
@@ -3840,7 +3840,7 @@ def create_upset_plot_simple(data, set_columns, title="UpSet Plot - Treatment Co
                     x=[i],
                     y=[indices[0]],
                     mode='markers',
-                    marker=dict(size=16, color='#c0392b', 
+                    marker=dict(size=16, color='#d61704', 
                                line=dict(color='white', width=2)),
                     showlegend=False,
                     hoverinfo='skip'

@@ -425,7 +425,7 @@ def create_gvha_global_visualization(df):
                         dbc.Col([
                             dbc.Card([
                                 dbc.CardBody([
-                                    html.H3(f"{pct_global_3_4:.1f}%", className="text-center mb-2", style={'color': '#c0392b'}),
+                                    html.H3(f"{pct_global_3_4:.1f}%", className="text-center mb-2", style={'color': '#d61704'}),
                                     html.P("Acute GVH grades 3-4", className="text-center mb-1", style={'fontSize': '14px'}),
                                     html.P(f"({total_gvh_3_4}/{total_patients})", className="text-center text-muted", style={'fontSize': '12px'})
                                 ], className="py-3")
@@ -705,7 +705,7 @@ def create_trm_quarterly_visualization(year_data, selected_year):
         fig = go.Figure()
         
         quarters = ['Q1', 'Q2', 'Q3', 'Q4']
-        colors = ['#e74c3c', '#c0392b', '#a93226', '#922b21']  # Nuances de rouge
+        colors = ['#e74c3c', '#d61704', '#a93226', '#922b21']  # Nuances de rouge
         
         for i, quarter in enumerate(quarters):
             quarter_data = quarterly_long_df[quarterly_long_df['Quarter'] == quarter]
@@ -3138,7 +3138,7 @@ def create_rechute_quarterly_visualization(year_data, selected_year):
         fig = go.Figure()
         
         quarters = ['Q1', 'Q2', 'Q3', 'Q4']
-        colors = ['#e74c3c', '#c0392b', '#a93226', '#922b21']  # Nuances de rouge
+        colors = ['#e74c3c', '#d61704', '#a93226', '#922b21']  # Nuances de rouge
         
         for i, quarter in enumerate(quarters):
             quarter_data = quarterly_long_df[quarterly_long_df['Quarter'] == quarter]
@@ -4242,7 +4242,7 @@ def create_gvha_badges_content(year_data, analysis_year, subtitle=None):
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        html.H3(f"{pct_3_4:.1f}%", className="text-center mb-2", style={'color': '#c0392b'}),
+                        html.H3(f"{pct_3_4:.1f}%", className="text-center mb-2", style={'color': '#d61704'}),
                         html.P("Acute GVH grades 3-4", className="text-center mb-1", style={'fontSize': '14px'}),
                         html.P(f"({nb_3_4}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
                     ], className="py-3")
@@ -4470,7 +4470,7 @@ def create_quarterly_badges_gvha(quarterly_df, selected_quarter, selected_year):
                 dbc.Col([
                     dbc.Card([
                         dbc.CardBody([
-                            html.H3(f"{pct_3_4:.1f}%", className="text-center mb-2", style={'color': '#c0392b'}),
+                            html.H3(f"{pct_3_4:.1f}%", className="text-center mb-2", style={'color': '#d61704'}),
                             html.P("Acute GVH grades 3-4", className="text-center mb-1", style={'fontSize': '14px'}),
                             html.P(f"({int(nb_3_4)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '12px'})
                         ], className="py-3")
@@ -4612,7 +4612,7 @@ def create_quarter_badges_column(quarterly_df, quarter_num, selected_year):
             # Badge GVH 3-4
             dbc.Card([
                 dbc.CardBody([
-                    html.H5(f"{pct_3_4:.1f}%", className="text-center mb-1", style={'color': '#c0392b', 'fontSize': '16px'}),
+                    html.H5(f"{pct_3_4:.1f}%", className="text-center mb-1", style={'color': '#d61704', 'fontSize': '16px'}),
                     html.P("aGVH 3-4", className="text-center mb-1", style={'fontSize': '11px', 'margin': '0'}),
                     html.P(f"({int(nb_3_4)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '9px', 'margin': '0'})
                 ], className="py-2")
