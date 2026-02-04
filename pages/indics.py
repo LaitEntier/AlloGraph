@@ -3851,8 +3851,10 @@ def register_callbacks(app):
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
                 df = df[df['Year'] == selected_year]
-            elif analysis_mode == 'quarterly' and selected_years and len(selected_years) > 0 and 'Year' in df.columns:
-                df = df[df['Year'].isin(selected_years)]
+            elif analysis_mode == 'quarterly' and selected_years and 'Year' in df.columns:
+                # selected_years from RadioItems is a single value, wrap it in a list for isin()
+                year_list = [selected_years] if not isinstance(selected_years, list) else selected_years
+                df = df[df['Year'].isin(year_list)]
             
             if df.empty:
                 return html.Div('No data for the selected year(s)', className='text-warning text-center')
@@ -3915,7 +3917,7 @@ def register_callbacks(app):
          Input('selected-indicator-store', 'data'),
          Input('analysis-mode-store', 'data'),
          Input('year-selection-sidebar', 'value'),
-         Input('years-checklist-sidebar', 'value')],
+         Input('years-radio-sidebar', 'value')],
         prevent_initial_call=False
     )
     def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years):
@@ -3933,8 +3935,10 @@ def register_callbacks(app):
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
                 df = df[df['Year'] == selected_year]
-            elif analysis_mode == 'quarterly' and selected_years and len(selected_years) > 0 and 'Year' in df.columns:
-                df = df[df['Year'].isin(selected_years)]
+            elif analysis_mode == 'quarterly' and selected_years and 'Year' in df.columns:
+                # selected_years from RadioItems is a single value, wrap it in a list for isin()
+                year_list = [selected_years] if not isinstance(selected_years, list) else selected_years
+                df = df[df['Year'].isin(year_list)]
             
             if df.empty:
                 return html.Div('No data for the selected year(s)', className='text-warning text-center'), True
