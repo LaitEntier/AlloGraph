@@ -104,6 +104,7 @@ app.layout = html.Div([
      Output('nav-survival', 'disabled'),         
      Output('nav-indics', 'disabled')],
     [Input('nav-home', 'n_clicks'),
+     Input('nav-home-logo', 'n_clicks'),
      Input('nav-patients', 'n_clicks'),
      Input('nav-hemopathies', 'n_clicks'),
      Input('nav-procedures', 'n_clicks'),
@@ -114,7 +115,7 @@ app.layout = html.Div([
      Input('data-store', 'data')],
     [State('current-page', 'data')]
 )
-def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, data, current_page):
+def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, data, current_page):
     ctx = dash.callback_context
     
     if not ctx.triggered:
@@ -161,6 +162,7 @@ def navigate(acc_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute
     # Navigation normale
     page_map = {
         'nav-home': 'Home',
+        'nav-home-logo': 'Home',
         'nav-patients': 'Patients',
         'nav-hemopathies': 'Indications',
         'nav-procedures': 'Procedures',

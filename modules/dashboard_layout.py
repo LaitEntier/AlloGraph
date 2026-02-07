@@ -10,20 +10,28 @@ def create_header_with_logo():
             html.Div([
                 # Section supérieure : Logo et titre
                 html.Div([
-                    # Logo à gauche
-                    html.A(
-                        html.Img(
-                            src="allograph-app/assets/images/logo.svg",
-                            className="app-logo",
+                    # Logo à gauche (utilise un bouton invisible pour la navigation)
+                    html.Div([
+                        html.Button(
+                            html.Img(
+                                src="allograph-app/assets/images/logo.svg",
+                                className="app-logo",
+                                style={
+                                    'height': '150px',
+                                    'width': 'auto',
+                                    'cursor': 'pointer'
+                                }
+                            ),
+                            id='nav-home-logo',
+                            n_clicks=0,
                             style={
-                                'height': '150px',
-                                'width': 'auto',
-                                'cursor': 'pointer'
+                                'background': 'none',
+                                'border': 'none',
+                                'padding': '0',
+                                'margin': '0'
                             }
-                        ),
-                        href="/",
-                        style={'textDecoration': 'none'}
-                    )
+                        )
+                    ], style={'display': 'inline-block'})
                 ], style={
                     'display': 'flex',
                     'alignItems': 'center',
