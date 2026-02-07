@@ -206,7 +206,7 @@ def create_hla_compatibility_variable(df):
     # Vérifier si les colonnes existent
     if 'Donor Type' not in df.columns or 'Match Type' not in df.columns:
         print("Attention: Colonnes 'Donor Type' ou 'Match Type' manquantes pour créer la variable 'Donor Match Category'")
-        df['Donor Match Category'] = 'unknown'
+        df['Donor Match Category'] = 'Unknown + Unknown'
         return df
     
     # Créer la variable combinée
@@ -225,9 +225,24 @@ def create_hla_compatibility_variable(df):
         else:
             match_type = str(match_type_raw).strip()
         
-        # Si l'une des deux colonnes est vide/manquante
-        if donor_type is None or match_type is None:
-            return 'unknown'
+        # Cas où les deux colonnes sont vides/manquantes
+        if donor_type is None and match_type is None:
+            return 'Unknown + Unknown'
+        
+        # Cas où seulement Donor Type est vide/manquant
+        if donor_type is None:
+            return f'Unknown + {match_type}'
+        
+        # Cas où seulement Match Type est vide/manquant
+        if match_type is None:
+            # Extraire le type de base (Related ou Unrelated) pour un affichage plus propre
+            donor_lower = donor_type.lower()
+            if 'related' in donor_lower and 'un' not in donor_lower:
+                return 'Related + Unknown'
+            elif 'unrelated' in donor_lower or ('un' in donor_lower and 'related' in donor_lower):
+                return 'Unrelated + Unknown'
+            else:
+                return f'{donor_type} + Unknown'
         
         # Normaliser le donor_type (accepter 'Related', 'Related donor', 'Unrelated', 'Unrelated donor')
         donor_lower = donor_type.lower()
@@ -248,8 +263,8 @@ def create_hla_compatibility_variable(df):
         elif donor_normalized == 'Unrelated donor' and match_type == 'Mismatch':
             return 'MMUD'
         else:
-            # Pour toute autre combinaison non prévue
-            return 'unknown'
+            # Pour toute autre combinaison non prévue (valeurs inattendues)
+            return f'{donor_normalized} + {match_type}'
     
     df['Donor Match Category'] = df.apply(combine_hla_compatibility, axis=1)
     
