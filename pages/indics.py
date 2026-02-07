@@ -3808,7 +3808,7 @@ def register_callbacks(app):
     @app.callback(
         Output('selected-years-checklist-store', 'data'),
         Input('years-radio-sidebar', 'value'),
-        prevent_initial_call=True
+        prevent_initial_call=False
     )
     def update_years_radio_store(year):
         return [year] if year else []
