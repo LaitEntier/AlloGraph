@@ -2567,19 +2567,27 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
         horizontal_spacing=0.05
     )
     
-    # Couleurs cohérentes
-    colors_pos_neg = ['#e74c3c', '#2ecc71']  # Rouge pour négatif, vert pour positif
-    colors_combinations = ['#27ae60', '#f39c12', '#e67e22', '#d61704']  # Vert, orange, orange foncé, rouge
+    # Couleurs cohérentes - Positive=vert, Negative=rouge
+    colors_pos_neg = {'Positive': '#27ae60', 'Negative': '#e74c3c'}
+    # Couleurs pour les combinaisons: Pos/Pos=vert, Neg/Neg=rouge, mixtes=orange/jaune
+    colors_combinations = {
+        'Positive/Positive': '#27ae60',  # Vert (même que Positif)
+        'Negative/Negative': '#e74c3c',  # Rouge (même que Négatif)
+        'Positive/Negative': '#f39c12',  # Orange (mixte)
+        'Negative/Positive': '#f1c40f'   # Jaune-orange (mixte)
+    }
     
     # 1. Pie chart Statut Donneur
     donor_counts = df_clean['CMV_Donor_Clean'].value_counts()
     if len(donor_counts) > 0:
+        # Assigner les couleurs selon le label (Positive=vert, Negative=rouge)
+        donor_colors = [colors_pos_neg.get(label, '#95a5a6') for label in donor_counts.index]
         fig.add_trace(
             go.Pie(
                 labels=donor_counts.index,
                 values=donor_counts.values,
                 name="Donor",
-                marker_colors=colors_pos_neg,
+                marker_colors=donor_colors,
                 textinfo='label+percent+value',
                 texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
                 hovertemplate='<b>Donor CMV Status: %{label}</b><br>' +
@@ -2593,12 +2601,14 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     # 2. Pie chart Statut Patient
     patient_counts = df_clean['CMV_Patient_Clean'].value_counts()
     if len(patient_counts) > 0:
+        # Assigner les couleurs selon le label (Positive=vert, Negative=rouge)
+        patient_colors = [colors_pos_neg.get(label, '#95a5a6') for label in patient_counts.index]
         fig.add_trace(
             go.Pie(
                 labels=patient_counts.index,
                 values=patient_counts.values,
                 name="Patient",
-                marker_colors=colors_pos_neg,
+                marker_colors=patient_colors,
                 textinfo='label+percent+value',
                 texttemplate='<b>%{label}</b><br>%{percent}<br>(%{value})',
                 hovertemplate='<b>Recipient CMV Status: %{label}</b><br>' +
@@ -2620,11 +2630,11 @@ def create_cmv_status_pie_charts(data, title="Analyse du statut CMV", height=400
     ordered_values = []
     ordered_colors = []
     
-    for i, combo in enumerate(preferred_order):
+    for combo in preferred_order:
         if combo in combination_counts:
             ordered_combinations.append(combo)
             ordered_values.append(combination_counts[combo])
-            ordered_colors.append(colors_combinations[i])
+            ordered_colors.append(colors_combinations.get(combo, '#95a5a6'))
     
     # Ajouter les combinaisons restantes si il y en a
     for combo in combination_counts.index:
