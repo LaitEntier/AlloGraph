@@ -608,8 +608,8 @@ def create_trm_quarterly_visualization(year_data, selected_year):
         # Calculer Follow_up_days si nécessaire pour les données trimestrielles
         if 'Follow_up_days' not in year_data.columns:
             year_data = year_data.copy()
-            year_data['Treatment Date'] = pd.to_datetime(year_data['Treatment Date'])
-            year_data['Date Of Last Follow Up'] = pd.to_datetime(year_data['Date Of Last Follow Up'])
+            year_data['Treatment Date'] = pd.to_datetime(year_data['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
+            year_data['Date Of Last Follow Up'] = pd.to_datetime(year_data['Date Of Last Follow Up'], dayfirst=True, format='mixed', errors='coerce')
             year_data['Follow_up_days'] = (year_data['Date Of Last Follow Up'] - year_data['Treatment Date']).dt.days
         
         quarterly_stats = []
@@ -788,8 +788,8 @@ def process_trm_data(df):
     # Calculer Follow_up_days si nécessaire
     if 'Follow_up_days' not in df.columns:
         df = df.copy()
-        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'])
-        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'])
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
+        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], dayfirst=True, format='mixed', errors='coerce')
         df['Follow_up_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
     
     # Compter le nombre de greffes par année
@@ -1211,8 +1211,8 @@ def create_survie_quarterly_visualization(year_data, selected_year):
         # Calculer Follow_up_days si nécessaire pour les données trimestrielles
         if 'Follow_up_days' not in year_data.columns:
             year_data = year_data.copy()
-            year_data['Treatment Date'] = pd.to_datetime(year_data['Treatment Date'])
-            year_data['Date Of Last Follow Up'] = pd.to_datetime(year_data['Date Of Last Follow Up'])
+            year_data['Treatment Date'] = pd.to_datetime(year_data['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
+            year_data['Date Of Last Follow Up'] = pd.to_datetime(year_data['Date Of Last Follow Up'], dayfirst=True, format='mixed', errors='coerce')
             year_data['Follow_up_days'] = (year_data['Date Of Last Follow Up'] - year_data['Treatment Date']).dt.days
         
         quarterly_stats = []
@@ -1382,8 +1382,8 @@ def process_survie_data(df):
     # Calculer Follow_up_days si nécessaire
     if 'Follow_up_days' not in df.columns:
         df = df.copy()
-        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'])
-        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'])
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
+        df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], dayfirst=True, format='mixed', errors='coerce')
         df['Follow_up_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
     
     required_cols = ['Year', 'Status Last Follow Up', 'Follow_up_days']
@@ -1845,8 +1845,8 @@ def create_prise_greffe_quarterly_visualization(year_data, selected_year):
             if not quarter_data.empty:
                 # Appliquer la même logique que la fonction globale
                 quarter_data = quarter_data.copy()
-                quarter_data['Date Platelet Reconstitution'] = pd.to_datetime(quarter_data['Date Platelet Reconstitution'], errors='coerce')
-                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], errors='coerce')
+                quarter_data['Date Platelet Reconstitution'] = pd.to_datetime(quarter_data['Date Platelet Reconstitution'], dayfirst=True, format='mixed', errors='coerce')
+                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
                 quarter_data['duree_prise_de_greffe'] = (quarter_data['Date Platelet Reconstitution'] - quarter_data['Treatment Date']).dt.days
                 
                 # Filtrer les données valides
@@ -1953,8 +1953,8 @@ def process_prise_greffe_data(df):
         raise ValueError(f"Colonnes manquantes pour l'analyse Prise de greffe: {missing_cols}")
     
     # Convertir les colonnes de dates en datetime
-    df['Date Platelet Reconstitution'] = pd.to_datetime(df['Date Platelet Reconstitution'], errors='coerce')
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['Date Platelet Reconstitution'] = pd.to_datetime(df['Date Platelet Reconstitution'], dayfirst=True, format='mixed', errors='coerce')
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
     
     # Calculer la durée de prise de greffe
     df['duree_prise_de_greffe'] = (df['Date Platelet Reconstitution'] - df['Treatment Date']).dt.days
@@ -2230,8 +2230,8 @@ def create_sortie_aplasie_quarterly_visualization(year_data, selected_year):
             if not quarter_data.empty:
                 # Appliquer la même logique que la fonction globale
                 quarter_data = quarter_data.copy()
-                quarter_data['Date Anc Recovery'] = pd.to_datetime(quarter_data['Date Anc Recovery'], errors='coerce')
-                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], errors='coerce')
+                quarter_data['Date Anc Recovery'] = pd.to_datetime(quarter_data['Date Anc Recovery'], dayfirst=True, format='mixed', errors='coerce')
+                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
                 quarter_data['duree_aplasie'] = (quarter_data['Date Anc Recovery'] - quarter_data['Treatment Date']).dt.days
                 
                 # Filtrer les données valides
@@ -2337,8 +2337,8 @@ def process_sortie_aplasie_data(df):
         raise ValueError(f"Colonnes manquantes pour l'analyse Sortie d'aplasie: {missing_cols}")
     
     # Convertir les colonnes de dates en datetime
-    df['Date Anc Recovery'] = pd.to_datetime(df['Date Anc Recovery'], errors='coerce')
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['Date Anc Recovery'] = pd.to_datetime(df['Date Anc Recovery'], dayfirst=True, format='mixed', errors='coerce')
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
     
     # Créer une colonne Duree_aplasie
     df['duree_aplasie'] = (df['Date Anc Recovery'] - df['Treatment Date']).dt.days
@@ -2621,8 +2621,8 @@ def create_gvhc_quarterly_visualization(year_data, selected_year):
                 # Appliquer la transformation GVHc AVANT tout traitement
                 quarter_data = data_processing.transform_gvhc_scores(quarter_data)
                 
-                quarter_data['First Cgvhd Occurrence Date'] = pd.to_datetime(quarter_data['First Cgvhd Occurrence Date'], errors='coerce')
-                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], errors='coerce')
+                quarter_data['First Cgvhd Occurrence Date'] = pd.to_datetime(quarter_data['First Cgvhd Occurrence Date'], dayfirst=True, format='mixed', errors='coerce')
+                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
                 quarter_data['delai_gvh_chronique'] = (quarter_data['First Cgvhd Occurrence Date'] - quarter_data['Treatment Date']).dt.days
                 
                 # Filtrer SEULEMENT pour les calculs de GVHc (pas pour le total des patients)
@@ -2746,8 +2746,8 @@ def process_gvhc_data(df):
     df = data_processing.transform_gvhc_scores(df)
     
     # Convertir les dates
-    df['First Cgvhd Occurrence Date'] = pd.to_datetime(df['First Cgvhd Occurrence Date'], errors='coerce')
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['First Cgvhd Occurrence Date'] = pd.to_datetime(df['First Cgvhd Occurrence Date'], dayfirst=True, format='mixed', errors='coerce')
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
     
     # Calculer le délai GVH chronique
     df['delai_gvh_chronique'] = (df['First Cgvhd Occurrence Date'] - df['Treatment Date']).dt.days
@@ -3064,8 +3064,8 @@ def create_rechute_quarterly_visualization(year_data, selected_year):
             if not quarter_data.empty:
                 # Appliquer la même logique que la fonction globale
                 quarter_data = quarter_data.copy()
-                quarter_data['First Relapse Date'] = pd.to_datetime(quarter_data['First Relapse Date'], errors='coerce')
-                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], errors='coerce')
+                quarter_data['First Relapse Date'] = pd.to_datetime(quarter_data['First Relapse Date'], dayfirst=True, format='mixed', errors='coerce')
+                quarter_data['Treatment Date'] = pd.to_datetime(quarter_data['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
                 quarter_data['delai_rechute'] = (quarter_data['First Relapse Date'] - quarter_data['Treatment Date']).dt.days
                 
                 # Filtrer les données valides
@@ -3222,8 +3222,8 @@ def process_rechute_data(df):
     df = df.copy()
     
     # Créer une colonne delai_rechute
-    df['First Relapse Date'] = pd.to_datetime(df['First Relapse Date'], errors='coerce')
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['First Relapse Date'] = pd.to_datetime(df['First Relapse Date'], dayfirst=True, format='mixed', errors='coerce')
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
     df['delai_rechute'] = (df['First Relapse Date'] - df['Treatment Date']).dt.days
     
     # Calcul du nombre de greffes par année
@@ -4103,8 +4103,8 @@ def process_gvha_data(df):
     df = df.copy()
     
     # Convertir les dates
-    df['First Agvhd Occurrence Date'] = pd.to_datetime(df['First Agvhd Occurrence Date'], errors='coerce')
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+    df['First Agvhd Occurrence Date'] = pd.to_datetime(df['First Agvhd Occurrence Date'], dayfirst=True, format='mixed', errors='coerce')
+    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
     
     # Calculer le délai GVH aiguë
     df['delai_gvh_aigue'] = (df['First Agvhd Occurrence Date'] - df['Treatment Date']).dt.days
@@ -4481,7 +4481,7 @@ def add_quarter_column(df):
     
     if 'Treatment Date' in df.columns:
         # Convertir en datetime
-        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], errors='coerce')
+        df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
         # Extraire le trimestre
         df['Quarter'] = df['Treatment Date'].dt.quarter
     else:
