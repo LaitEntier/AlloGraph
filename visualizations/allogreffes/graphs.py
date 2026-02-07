@@ -2796,7 +2796,12 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
             
             if col == 'First Agvhd Occurrence':
                 # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
-                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                # ET patient n'a PAS de date de suivi (si date de suivi existe = pas de GvH)
+                missing_condition = (
+                    (analysis_df[col].isna()) & 
+                    (~died_during_cond) & 
+                    (analysis_df['Date Of Last Follow Up'].isna())
+                )
                 missing_count = missing_condition.sum()
                 
             elif col == 'First aGvHD Maximum Score':
@@ -2829,7 +2834,12 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
                     
             elif col == 'First Cgvhd Occurrence':
                 # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
-                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                # ET patient n'a PAS de date de suivi (si date de suivi existe = pas de GvH)
+                missing_condition = (
+                    (analysis_df[col].isna()) & 
+                    (~died_during_cond) & 
+                    (analysis_df['Date Of Last Follow Up'].isna())
+                )
                 missing_count = missing_condition.sum()
                 
             elif col == 'First cGvHD Maximum NIH Score':
@@ -2900,7 +2910,12 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
                     
             elif col == 'First Relapse':
                 # Manquant si: vide ET patient n'est PAS décédé pendant conditionnement
-                missing_condition = (analysis_df[col].isna()) & (~died_during_cond)
+                # ET patient n'a PAS de date de suivi (si date de suivi existe = pas de rechute)
+                missing_condition = (
+                    (analysis_df[col].isna()) & 
+                    (~died_during_cond) & 
+                    (analysis_df['Date Of Last Follow Up'].isna())
+                )
                 missing_count = missing_condition.sum()
                 
             elif col == 'First Relapse Date':
@@ -3055,7 +3070,10 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
                 # (avec logiques additionnelles spécifiques)
                 
                 if col == 'First Agvhd Occurrence':
-                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    # Manquant seulement si: vide ET pas décédé pendant conditionnement 
+                    # ET pas de date de suivi (si date de suivi = pas de GvH)
+                    has_followup = pd.notna(row.get('Date Of Last Follow Up'))
+                    is_missing = pd.isna(row[col]) and not died_during_cond and not has_followup
                     
                 elif col == 'First aGvHD Maximum Score':
                     is_missing = (
@@ -3072,7 +3090,10 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
                     )
                     
                 elif col == 'First Cgvhd Occurrence':
-                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    # Manquant seulement si: vide ET pas décédé pendant conditionnement 
+                    # ET pas de date de suivi (si date de suivi = pas de GvH)
+                    has_followup = pd.notna(row.get('Date Of Last Follow Up'))
+                    is_missing = pd.isna(row[col]) and not died_during_cond and not has_followup
                     
                 elif col == 'First cGvHD Maximum NIH Score':
                     is_missing = (
@@ -3095,7 +3116,10 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
                     is_missing = pd.isna(row[col]) and not died_during_cond
                     
                 elif col == 'First Relapse':
-                    is_missing = pd.isna(row[col]) and not died_during_cond
+                    # Manquant seulement si: vide ET pas décédé pendant conditionnement 
+                    # ET pas de date de suivi (si date de suivi = pas de rechute)
+                    has_followup = pd.notna(row.get('Date Of Last Follow Up'))
+                    is_missing = pd.isna(row[col]) and not died_during_cond and not has_followup
                     
                 elif col == 'First Relapse Date':
                     is_missing = (

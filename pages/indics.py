@@ -3676,6 +3676,10 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     """
     Analyse les données manquantes pour les colonnes spécifiées
     
+    Cette fonction prend en compte les cas où les données ne sont pas véritablement
+    manquantes mais plutôt non applicables:
+    - Pour GvH: si Date Of Last Follow Up existe = pas de GvH (pas manquant)
+    
     Args:
         df (pd.DataFrame): Dataset des patients
         columns_to_check (list): Liste des colonnes à analyser
@@ -3690,14 +3694,50 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     if not existing_columns:
         return pd.DataFrame(), pd.DataFrame()
     
-    analysis_df = df[existing_columns + [patient_id_col]].copy()
+    # Ajouter les colonnes nécessaires pour les calculs conditionnels
+    required_cols_for_analysis = existing_columns + [patient_id_col]
+    
+    # Colonnes conditionnelles pour la logique GvH
+    conditional_cols = ['Date Of Last Follow Up']
+    for cond_col in conditional_cols:
+        if cond_col in df.columns and cond_col not in required_cols_for_analysis:
+            required_cols_for_analysis.append(cond_col)
+    
+    analysis_df = df[required_cols_for_analysis].copy()
     
     # Résumé par colonne
     missing_summary = []
     total_patients = len(analysis_df)
     
     for col in existing_columns:
-        missing_count = analysis_df[col].isna().sum()
+        # Logique conditionnelle pour GvH Occurrence et Relapse
+        if col == 'First Agvhd Occurrence' and 'Date Of Last Follow Up' in analysis_df.columns:
+            # Manquant seulement si: vide ET pas de date de suivi 
+            # (si date de suivi existe = pas de GvH, donc pas manquant)
+            missing_condition = (
+                (analysis_df[col].isna()) & 
+                (analysis_df['Date Of Last Follow Up'].isna())
+            )
+            missing_count = missing_condition.sum()
+        elif col == 'First Cgvhd Occurrence' and 'Date Of Last Follow Up' in analysis_df.columns:
+            # Même logique pour GvH chronique
+            missing_condition = (
+                (analysis_df[col].isna()) & 
+                (analysis_df['Date Of Last Follow Up'].isna())
+            )
+            missing_count = missing_condition.sum()
+        elif col == 'First Relapse' and 'Date Of Last Follow Up' in analysis_df.columns:
+            # Même logique pour Relapse
+            # Manquant seulement si: vide ET pas de date de suivi
+            # (si date de suivi existe = pas de rechute, donc pas manquant)
+            missing_condition = (
+                (analysis_df[col].isna()) & 
+                (analysis_df['Date Of Last Follow Up'].isna())
+            )
+            missing_count = missing_condition.sum()
+        else:
+            missing_count = analysis_df[col].isna().sum()
+        
         missing_percentage = (missing_count / total_patients) * 100
         
         missing_summary.append({
@@ -3715,7 +3755,24 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
         missing_columns = []
         
         for col in existing_columns:
-            if pd.isna(row[col]):
+            is_missing = False
+            
+            if col == 'First Agvhd Occurrence' and 'Date Of Last Follow Up' in analysis_df.columns:
+                # Manquant seulement si: vide ET pas de date de suivi
+                has_followup = pd.notna(row.get('Date Of Last Follow Up'))
+                is_missing = pd.isna(row[col]) and not has_followup
+            elif col == 'First Cgvhd Occurrence' and 'Date Of Last Follow Up' in analysis_df.columns:
+                # Même logique pour GvH chronique
+                has_followup = pd.notna(row.get('Date Of Last Follow Up'))
+                is_missing = pd.isna(row[col]) and not has_followup
+            elif col == 'First Relapse' and 'Date Of Last Follow Up' in analysis_df.columns:
+                # Même logique pour Relapse
+                has_followup = pd.notna(row.get('Date Of Last Follow Up'))
+                is_missing = pd.isna(row[col]) and not has_followup
+            else:
+                is_missing = pd.isna(row[col])
+            
+            if is_missing:
                 missing_columns.append(col)
         
         if missing_columns:
