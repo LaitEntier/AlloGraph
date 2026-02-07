@@ -66,7 +66,39 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
-        # Troisième graphique - Traitements Prophylactiques (avec onglets)
+        # Troisième graphique - Traitements de Préparation (avec onglets)
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5('Conditioning regimen')),
+                    dbc.CardBody([
+                        dcc.Tabs(
+                            id='procedures-treatment-tabs',
+                            value='tab-barplot',
+                            children=[
+                                dcc.Tab(label='Treatment proportions', value='tab-barplot'),
+                                dcc.Tab(label='Combination analysis', value='tab-upset')
+                            ]
+                        ),
+                        html.Div(
+                            style={'marginTop': '15px', 'minHeight': '580px'},
+                            children=[
+                                dcc.Loading(
+                                    id="loading-procedures-treatment",
+                                    type="circle",
+                                    children=html.Div(
+                                        id='procedures-treatment-content',
+                                        style={'width': '100%', 'overflow': 'auto'}
+                                    )
+                                )
+                            ]
+                        )
+                    ], className='p-3')
+                ])
+            ], width=12)
+        ], className='mb-4'),
+        
+        # Quatrième graphique - Traitements Prophylactiques (avec onglets)
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -90,38 +122,6 @@ def get_layout():
                                     type="circle",
                                     children=html.Div(
                                         id='procedures-prophylaxis-content',
-                                        style={'width': '100%', 'overflow': 'auto'}
-                                    )
-                                )
-                            ]
-                        )
-                    ], className='p-3')
-                ])
-            ], width=12)
-        ], className='mb-4'),
-        
-        # Quatrième graphique - Traitements de Préparation (avec onglets)
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader(html.H5('Conditioning regimen')),
-                    dbc.CardBody([
-                        dcc.Tabs(
-                            id='procedures-treatment-tabs',
-                            value='tab-barplot',
-                            children=[
-                                dcc.Tab(label='Treatment proportions', value='tab-barplot'),
-                                dcc.Tab(label='Combination analysis', value='tab-upset')
-                            ]
-                        ),
-                        html.Div(
-                            style={'marginTop': '15px', 'minHeight': '580px'},
-                            children=[
-                                dcc.Loading(
-                                    id="loading-procedures-treatment",
-                                    type="circle",
-                                    children=html.Div(
-                                        id='procedures-treatment-content',
                                         style={'width': '100%', 'overflow': 'auto'}
                                     )
                                 )
