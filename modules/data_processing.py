@@ -462,10 +462,10 @@ def process_prophylaxis_drugs(df):
     
     # Dictionnaire de mapping pour les transformations spéciales
     drug_mapping = {
-        'lymphocyte immune globulin': 'Sérum Anti-Lymphocytaire - ATG',
-        'anti-thymocyte globulin': 'Sérum Anti-Lymphocytaire - ATG',
-        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'Sérum Anti-Lymphocytaire - ALTG',
-        'antilymphocyte immunoglobulin': 'Sérum Anti-Lymphocytaire - ALTG'
+        'lymphocyte immune globulin': 'ATG',
+        'anti-thymocyte globulin': 'ATG',
+        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'ALTG',
+        'antilymphocyte immunoglobulin': 'ALTG'
     }
     
     # Collecter tous les traitements uniques
@@ -555,10 +555,10 @@ def process_upset_plot(df):
     
     # Dictionnaire de mapping pour les transformations spéciales
     drug_mapping = {
-        'lymphocyte immune globulin': 'Sérum Anti-Lymphocytaire - ATG',
-        'anti-thymocyte globulin': 'Sérum Anti-Lymphocytaire - ATG',
-        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'Sérum Anti-Lymphocytaire - ALTG',
-        'antilymphocyte immunoglobulin': 'Sérum Anti-Lymphocytaire - ALTG'
+        'lymphocyte immune globulin': 'ATG',
+        'anti-thymocyte globulin': 'ATG',
+        'Drug Anti-Thymocyte Globulin or Anti-Lymphocyte Globulin': 'ALTG',
+        'antilymphocyte immunoglobulin': 'ALTG'
     }
     
     # Collecter tous les traitements uniques
