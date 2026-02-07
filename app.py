@@ -461,7 +461,7 @@ def process_uploaded_file(contents, filename):
     Output('main-content', 'children'),
     [Input('current-page', 'data'),
      Input('data-store', 'data')],
-     prevent_initial_call=False
+     prevent_initial_call=True
 )
 def update_main_content(current_page, data):
 
