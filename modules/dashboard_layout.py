@@ -93,7 +93,9 @@ def create_base_layout():
         dcc.Store(id='data-store-gvh'),       # GvH analysis columns only
         dcc.Store(id='data-store-viz'),       # Visualization columns (charts/tables)
         
+        # Page tracking stores
         dcc.Store(id='current-page', data='Home'),
+        dcc.Store(id='last-rendered-page', data=None),  # Track to prevent double renders
 
         dcc.Store(id='user-session-start', data=None),  # Timestamp de début de session
         dcc.Store(id='survey-shown', data=False),       # Flag pour savoir si déjà montré

@@ -555,38 +555,46 @@ def update_slim_stores(data):
 
 
 @app.callback(
-    Output('main-content', 'children'),
-    [Input('current-page', 'data'),
-     Input('data-store', 'data')],
-     prevent_initial_call=True
+    [Output('main-content', 'children'),
+     Output('last-rendered-page', 'data')],
+    Input('current-page', 'data'),
+    State('last-rendered-page', 'data')
+    # Note: No prevent_initial_call - must render initial page
 )
-def update_main_content(current_page, data):
-
+def update_main_content(current_page, last_rendered_page):
+    """Update main content based on page navigation only (not data changes)"""
+    # On initial load (no trigger), always render
+    if not dash.callback_context.triggered:
+        pass  # Continue to render
+    # Prevent double render on data load - if we're already on this page, don't reload
+    elif current_page == last_rendered_page:
+        return dash.no_update, dash.no_update
+    
     if current_page == 'Home':
-        return home_page.get_layout()
+        return home_page.get_layout(), current_page
 
     elif current_page == 'Patients':
-            return patients_page.get_layout()
+            return patients_page.get_layout(), current_page
 
     elif current_page == 'Indications':
-            return hemopathies_page.get_layout()
+            return hemopathies_page.get_layout(), current_page
 
     elif current_page == 'Procedures':
-            return procedures_page.get_layout()
+            return procedures_page.get_layout(), current_page
     
     elif current_page == 'GvH':  
-            return gvh_page.get_layout()
+            return gvh_page.get_layout(), current_page
             
     elif current_page == 'Relapse':
-            return relapse_page.get_layout()
+            return relapse_page.get_layout(), current_page
 
     elif current_page == 'Survival':  
-            return survival_page.get_layout()
+            return survival_page.get_layout(), current_page
 
     elif current_page == 'Indicators':
-            return indic_page.get_layout()
+            return indic_page.get_layout(), current_page
 
-    return html.Div()
+    return html.Div(), current_page
 
 def create_fallback_home():
     """Fallback simple si home.py n'est pas disponible"""
