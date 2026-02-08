@@ -84,8 +84,15 @@ def create_header_with_logo():
 def create_base_layout():
     """Crée la structure de base du dashboard avec toutes les pages"""
     return dbc.Container([
-        # Store pour les données
+        # Store pour les données - full dataset (kept minimal)
         dcc.Store(id='data-store'),
+        
+        # Optimized slim stores for specific analyses (reduce VM network transfer)
+        # These contain subsets of columns for faster callbacks
+        dcc.Store(id='data-store-survival'),  # Survival analysis columns only
+        dcc.Store(id='data-store-gvh'),       # GvH analysis columns only
+        dcc.Store(id='data-store-viz'),       # Visualization columns (charts/tables)
+        
         dcc.Store(id='current-page', data='Home'),
 
         dcc.Store(id='user-session-start', data=None),  # Timestamp de début de session

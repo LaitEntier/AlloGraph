@@ -197,11 +197,12 @@ def register_callbacks(app):
     
     @app.callback(
         Output('patients-normalized-chart', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-viz', 'data'),  # Use slim store for faster transfer
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years):
         """Graphique 1: Barplot normalisé à 100%"""
@@ -284,11 +285,12 @@ def register_callbacks(app):
 
     @app.callback(
         Output('patients-distribution-chart', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-viz', 'data'),  # Use slim store
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years):
         """Graphique 2: Barplot distribution"""
@@ -372,11 +374,12 @@ def register_callbacks(app):
 
     @app.callback(
         Output('patients-boxplot-chart', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-viz', 'data'),  # Use slim store
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_boxplot_chart(data, current_page, x_axis, stack_var, selected_years):
         """Graphique 3: Boxplot Age At Diagnosis par variable de stratification"""
@@ -699,9 +702,10 @@ def register_callbacks(app):
         
     @app.callback(
         Output('patients-performance-scores-boxplot', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-viz', 'data'),  # Use slim store
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_patients_performance_scores_boxplot(data, current_page, selected_years):
         """Boxplot des Performance Scores par Age Groups avec boutons pour switcher entre les échelles"""

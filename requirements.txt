@@ -16,3 +16,6 @@ lifelines==0.27.7
 
 # Web server for Heroku
 gunicorn==21.2.0
+
+# Performance optimization for VM deployments
+flask-compress==1.17  # gzip compression for JSON responses (reduces VM network transfer)

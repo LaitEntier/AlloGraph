@@ -836,12 +836,47 @@ def register_callbacks(app):
     Enregistre tous les callbacks spécifiques à la page Survie
     """
     
+    # Import caching utility
+    from modules.cache_utils import cache_survival_result
+    
+    # Create cached versions of expensive lifelines calculations
+    @cache_survival_result
+    def _cached_prepare_survival_data(data_json_str, max_duration, selected_years_tuple):
+        """Cached version of survival data preparation + curve generation"""
+        import json
+        # Convert JSON string back to DataFrame
+        data_list = json.loads(data_json_str)
+        df = pd.DataFrame(data_list)
+        
+        print(f"DEBUG _cached_prepare_survival_data: Columns in cached df: {list(df.columns)}")
+        
+        # Filtrer par années
+        if selected_years_tuple and 'Year' in df.columns:
+            df = df[df['Year'].isin(list(selected_years_tuple))]
+        
+        if df.empty:
+            return None
+        
+        processed_data = prepare_survival_data(df)
+        if len(processed_data) == 0:
+            return None
+            
+        max_years = 10 if max_duration == 'limited' else None
+        
+        fig = create_interactive_single_km_curve(
+            processed_data,
+            max_years=max_years,
+            title=f"Kaplan-Meier overall survival curve (N={len(processed_data)})"
+        )
+        return fig
+    
     @app.callback(
         Output('survival-global-curve', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-survival', 'data'),  # Use slim store
          Input('current-page', 'data'),
-         Input('survival-max-duration', 'value'),  # Changé de 'survival-max-days'
+         Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_global_survival_curve(data, current_page, max_duration, selected_years):
         """Met à jour la courbe de survie globale"""
@@ -856,31 +891,17 @@ def register_callbacks(app):
                 html.P("Restart the application.", className="mb-0")
             ], color="warning")
         
-        df = pd.DataFrame(data)
-        
-        # Filtrer par années sélectionnées
-        if selected_years and 'Year' in df.columns:
-            df = df[df['Year'].isin(selected_years)]
-        
-        if df.empty:
-            return dbc.Alert('No data available with the selected filters', color='warning')
-        
         try:
-            # Préparer les données pour l'analyse de survie
-            processed_data = prepare_survival_data(df)
+            # Use cached calculation for better VM performance
+            import json
+            # Convert data to JSON string for caching (preserves structure)
+            data_json = json.dumps(data) if isinstance(data, list) else '[]'
+            years_tuple = tuple(selected_years) if selected_years else tuple()
             
-            if len(processed_data) == 0:
+            fig = _cached_prepare_survival_data(data_json, max_duration, years_tuple)
+            
+            if fig is None:
                 return dbc.Alert('No valid data for survival analysis', color='warning')
-            
-            # Déterminer la limite maximale
-            max_years = 10 if max_duration == 'limited' else None
-            
-            # Créer la courbe de survie globale
-            fig = create_interactive_single_km_curve(
-                processed_data,
-                max_years=max_years,
-                title=f"Kaplan-Meier overall survival curve (N={len(processed_data)})"
-            )
             
             return dcc.Graph(
                 figure=fig,
@@ -889,15 +910,47 @@ def register_callbacks(app):
             )
         
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return dbc.Alert(f'Error during survival curve creation: {str(e)}', color='danger')
+    
+    # Cached version for multi-year survival curves
+    @cache_survival_result
+    def _cached_survival_by_year(data_json_str, max_duration, selected_years_tuple):
+        """Cached version of multi-year survival calculation"""
+        import json
+        # Convert JSON string back to DataFrame
+        data_list = json.loads(data_json_str)
+        df = pd.DataFrame(data_list)
+        
+        if selected_years_tuple and 'Year' in df.columns:
+            df = df[df['Year'].isin(list(selected_years_tuple))]
+        
+        if df.empty:
+            return None, None
+        
+        processed_data = prepare_survival_data(df)
+        if len(processed_data) == 0:
+            return None, None
+        
+        max_years = 10 if max_duration == 'limited' else None
+        
+        fig, stats_df = create_interactive_km_curves_by_year(
+            processed_data,
+            max_years=max_years
+        )
+        
+        # Convert fig to dict for caching
+        return fig.to_dict() if fig else None, stats_df.to_dict('records') if not stats_df.empty else []
     
     @app.callback(
         [Output('survival-curves-by-year', 'children'),
          Output('survival-stats-table', 'children')],
-        [Input('data-store', 'data'),
+        [Input('data-store-survival', 'data'),  # Use slim store
          Input('current-page', 'data'),
-         Input('survival-max-duration', 'value'),  # Changé de 'survival-max-days'
+         Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_survival_curves_by_year(data, current_page, max_duration, selected_years):
         """Met à jour les courbes de survie par année et le tableau des statistiques"""
@@ -913,63 +966,29 @@ def register_callbacks(app):
             ], color="warning")
             return warning_alert, warning_alert
         
-        df = pd.DataFrame(data)
-        
-        # Filtrer par années sélectionnées
-        if selected_years and 'Year' in df.columns:
-            df = df[df['Year'].isin(selected_years)]
-        
-        if df.empty:
-            empty_alert = dbc.Alert('No data available with the selected filters', color='warning')
-            return empty_alert, empty_alert
-        
         try:
-            # Préparer les données pour l'analyse de survie
-            processed_data = prepare_survival_data(df)
+            # Use cached calculation for better VM performance
+            import json
+            data_json = json.dumps(data) if isinstance(data, list) else '[]'
+            years_tuple = tuple(selected_years) if selected_years else tuple()
             
-            if len(processed_data) == 0:
+            fig_dict, stats_records = _cached_survival_by_year(data_json, max_duration, years_tuple)
+            
+            if fig_dict is None:
                 no_data_alert = dbc.Alert('No valid data for survival analysis', color='warning')
                 return no_data_alert, no_data_alert
             
-            # Vérifier qu'on a plusieurs années
-            if 'Year' not in processed_data.columns:
-                single_year_alert = dbc.Alert(
-                    'At least 2 years of data are necessary for the comparison by year', 
-                    color='info'
-                )
-                return single_year_alert, single_year_alert
+            # Reconstruct figure from dict
+            import plotly.graph_objects as go
+            fig = go.Figure(fig_dict)
+            stats_df = pd.DataFrame(stats_records) if stats_records else pd.DataFrame()
             
-            # Limiter le nombre d'années affichées si trop nombreuses
-            years = sorted(processed_data['Year'].unique(), reverse=True)  # Descending order
-            year_limit_warning = None
-            if len(years) > 20:
-                # Garder seulement les 15 dernières années
-                recent_years = years[:15]
-                processed_data = processed_data[processed_data['Year'].isin(recent_years)]
-                year_limit_warning = dbc.Alert(
-                    f"Too many years selected. Showing only the 15 most recent years.",
-                    color='info',
-                    className='mb-3'
-                )
-            
-            # Déterminer la limite maximale
-            max_years = 10 if max_duration == 'limited' else None
-            
-            # Créer les courbes de survie par année
-            fig, stats_df = create_interactive_km_curves_by_year(
-                processed_data,
-                max_years=max_years
-            )
-            
-            # Graphique (avec avertissement si années limitées)
-            graph_children = [dcc.Graph(
+            # Graphique
+            graph_component = html.Div([dcc.Graph(
                 figure=fig,
                 style={'height': '100%'},
                 config={'responsive': True}
-            )]
-            if year_limit_warning:
-                graph_children.insert(0, year_limit_warning)
-            graph_component = html.Div(graph_children)
+            )])
             
             # Tableau des statistiques
             if not stats_df.empty:

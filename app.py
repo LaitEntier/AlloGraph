@@ -7,9 +7,18 @@ import io
 import os
 import sys
 import plotly
+
 # Import des modules
 import modules.data_processing as data_processing
 import modules.dashboard_layout as layouts
+
+# Performance optimization: Response compression for VM deployments (optional)
+try:
+    from flask_compress import Compress
+    _compress_available = True
+except ImportError:
+    _compress_available = False
+    print("Note: flask-compress not installed. Install with: pip install flask-compress")
 
 # Import des pages
 import pages.home as home_page
@@ -54,8 +63,18 @@ app = dash.Dash(
     suppress_callback_exceptions=True,
     assets_folder='assets',
     assets_url_path='allograph-app/assets',
+    # Note: compress=True requires flask-compress, we handle it separately below
 )
 app.title = "AlloGraph"
+
+# Enable Flask-Compress for better compression (GDPR compliant - no persistence)
+# This is optional - app works without it, but VM performance is better with it
+if _compress_available:
+    try:
+        Compress(app.server)
+        print("Flask-Compress enabled for better VM performance")
+    except Exception as e:
+        print(f"Note: Could not enable Flask-Compress: {e}")
 
 # Custom index string with SVG favicon
 app.index_string = '''
@@ -457,6 +476,84 @@ def process_uploaded_file(contents, filename):
     except Exception as e:
         return dash.no_update, dash.no_update, dbc.Alert(f'Error during loading: {str(e)}', color='danger')
 
+
+# Helper function to create slim data stores (reduces VM network transfer)
+def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
+    """
+    Create optimized slim data stores for specific analyses.
+    Reduces network payload for VM deployments.
+    """
+    print(f"DEBUG _create_slim_stores: Input columns: {list(df_full.columns)}")
+    
+    # Core columns that should always be included if they exist
+    core_cols = ['Long ID', 'Year', 'Patient ID', 'ID']
+    core_cols = [c for c in core_cols if c in df_full.columns]
+    print(f"DEBUG _create_slim_stores: Core cols found: {core_cols}")
+    
+    # Survival analysis columns - base columns needed for survival calculations
+    survival_needed = ['Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up']
+    survival_cols = core_cols + survival_needed
+    survival_cols = [c for c in survival_cols if c in df_full.columns]
+    print(f"DEBUG _create_slim_stores: Survival cols found: {survival_cols}")
+    df_survival = df_full[survival_cols] if survival_cols else df_full[core_cols] if core_cols else df_full.iloc[:, :5]
+    
+    # GvH analysis columns - base columns needed for GvH calculations
+    gvh_needed = [
+        'Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up',
+        'First Agvhd Occurrence', 'First Agvhd Occurrence Date', 'First aGvHD Maximum Score',
+        'First Cgvhd Occurrence', 'First Cgvhd Occurrence Date', 'First cGvHD Maximum NIH Score'
+    ]
+    gvh_cols = core_cols + gvh_needed
+    gvh_cols = [c for c in gvh_cols if c in df_full.columns]
+    print(f"DEBUG _create_slim_stores: GvH cols found: {gvh_cols}")
+    df_gvh = df_full[gvh_cols] if gvh_cols else df_full[core_cols] if core_cols else df_full.iloc[:, :5]
+    
+    # Visualization columns - demographic and clinical data for charts
+    viz_needed = [
+        'Age At Diagnosis', 'Age Groups', 'Sex',
+        'Main Diagnosis', 'Subclass Diagnosis', 'Donor Type', 
+        'Source Stem Cells', 'Greffes', 'Blood + Rh', 'Donor Match Category',
+        'Conditioning Regimen Type', 'Match Type', 'Performance Status At Treatment Scale',
+        'Performance Status At Treatment Score', 'CMV Status Donor', 'CMV Status Patient'
+    ]
+    viz_cols = core_cols + viz_needed
+    viz_cols = [c for c in viz_cols if c in df_full.columns]
+    print(f"DEBUG _create_slim_stores: Viz cols found: {viz_cols}")
+    df_viz = df_full[viz_cols] if viz_cols else df_full[core_cols] if core_cols else df_full.iloc[:, :5]
+    
+    return df_survival.to_dict('records'), df_gvh.to_dict('records'), df_viz.to_dict('records')
+
+
+@app.callback(
+    [Output('data-store-survival', 'data'),
+     Output('data-store-gvh', 'data'),
+     Output('data-store-viz', 'data')],
+    Input('data-store', 'data')
+    # NOTE: No prevent_initial_call - this MUST run when data is first loaded
+)
+def update_slim_stores(data):
+    """
+    Update slim data stores when main data changes.
+    Reduces network transfer for VM deployments.
+    """
+    if data is None:
+        print("DEBUG: Slim stores - data is None")
+        return None, None, None
+    
+    try:
+        df = pd.DataFrame(data)
+        print(f"DEBUG: Creating slim stores from DataFrame with columns: {list(df.columns)}")
+        survival_data, gvh_data, viz_data = _create_slim_stores(df)
+        print(f"DEBUG: Slim stores created - survival: {len(survival_data) if survival_data else 0} rows, "
+              f"gvh: {len(gvh_data) if gvh_data else 0} rows, viz: {len(viz_data) if viz_data else 0} rows")
+        return survival_data, gvh_data, viz_data
+    except Exception as e:
+        print(f"Error creating slim stores: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None, None
+
+
 @app.callback(
     Output('main-content', 'children'),
     [Input('current-page', 'data'),
@@ -528,17 +625,20 @@ def toggle_purge_modal(purge_clicks, cancel_clicks, confirm_clicks, is_open):
 # Callback pour effectuer la purge des données
 @app.callback(
     [Output('data-store', 'data', allow_duplicate=True),
-     Output('metadata-store', 'data', allow_duplicate=True)],
+     Output('metadata-store', 'data', allow_duplicate=True),
+     Output('data-store-survival', 'data', allow_duplicate=True),
+     Output('data-store-gvh', 'data', allow_duplicate=True),
+     Output('data-store-viz', 'data', allow_duplicate=True)],
     Input('confirm-purge', 'n_clicks'),
     prevent_initial_call=True
 )
 def purge_data(confirm_clicks):
     """Purge les données du cache quand la purge est confirmée"""
     if confirm_clicks and confirm_clicks > 0:
-        # Vider les stores de données
-        return None, None
+        # Vider tous les stores de données (GDPR compliant - no persistence)
+        return None, None, None, None, None
     
-    return dash.no_update, dash.no_update
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
   
 @app.callback(
     Output("purge-data-button", "style"),

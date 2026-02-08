@@ -151,6 +151,54 @@ def register_callbacks(app):
     """
     Enregistre les callbacks pour la page GvH
     """
+    # Import caching utility
+    from modules.cache_utils import cache_gvh_result
+    
+    # Cached version of competing risks calculation
+    @cache_gvh_result
+    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple):
+        """Cached version of GvH competing risks calculation"""
+        import json
+        # Convert JSON string back to DataFrame
+        data_list = json.loads(data_json_str)
+        df = pd.DataFrame(data_list)
+        
+        print(f"DEBUG _cached_competing_risks: Columns in df: {list(df.columns)}")
+        
+        # Apply GVHc transformation for chronic
+        if gvh_type == 'chronic':
+            df = data_processing.transform_gvhc_scores(df)
+        
+        # Filter by years
+        if selected_years_tuple and 'Year' in df.columns:
+            df = df[df['Year'].isin(list(selected_years_tuple))]
+        
+        if df.empty:
+            return None
+        
+        # Filter by grades
+        if gvh_type == 'acute':
+            column_name = 'First aGvHD Maximum Score'
+            occurrence_col = 'First Agvhd Occurrence'
+        else:
+            column_name = 'First cGvHD Maximum NIH Score'
+            occurrence_col = 'First Cgvhd Occurrence'
+        
+        if column_name in df.columns and selected_grades_tuple:
+            patients_sans_gvh = df[df[occurrence_col] != 'Yes']
+            patients_avec_gvh_filtre = df[
+                (df[occurrence_col] == 'Yes') & 
+                (df[column_name].isin(list(selected_grades_tuple)))
+            ]
+            df = pd.concat([patients_sans_gvh, patients_avec_gvh_filtre], ignore_index=True)
+        
+        if df.empty:
+            return None
+        
+        # Create the competing risks figure
+        import visualizations.allogreffes.graphs as gr
+        fig = gr.create_competing_risks_analysis(df, gvh_type)
+        return fig.to_dict() if fig else None
     
     # Callback pour mettre à jour les filtres de grade/score selon le type de GvH
     @app.callback(
@@ -248,9 +296,9 @@ def register_callbacks(app):
         [Input('gvh-type-selection', 'value'),
          Input('gvh-year-filter', 'value'),
          Input('gvh-grade-filter', 'value'),
-         Input('data-store', 'data'),
-         Input('current-page', 'data')],
-        prevent_initial_call=False
+         Input('data-store-gvh', 'data'),  # Use slim store
+         Input('current-page', 'data')]
+        # Note: No prevent_initial_call - must run when page loads with data
     )
     def update_gvh_main_graph(gvh_type, selected_years, selected_grades, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs"""
@@ -261,67 +309,30 @@ def register_callbacks(app):
         if data is None:
             return dbc.Alert("No data available", color="warning")
         
-        df = pd.DataFrame(data)
-        
-        # NOUVEAU : Appliquer la transformation GVHc si c'est une analyse chronique
-        if gvh_type == 'chronic':
-            df = data_processing.transform_gvhc_scores(df)
-        
-        print(f"Dataset initial: {len(df)} patients")
-        
-        # Filtrer les données par années sélectionnées
-        if selected_years and 'Year' in df.columns:
-            df = df[df['Year'].isin(selected_years)]
-            print(f"After year filter: {len(df)} patients")
-        
-        # Filtrer par grade/score SEULEMENT pour les patients avec GvH
-        if gvh_type == 'acute':
-            column_name = 'First aGvHD Maximum Score'
-            occurrence_col = 'First Agvhd Occurrence'
-        else:
-            column_name = 'First cGvHD Maximum NIH Score'
-            occurrence_col = 'First Cgvhd Occurrence'
-        
-        # Appliquer le filtre de grade/score UNIQUEMENT aux patients avec GvH = "Yes"
-        if column_name in df.columns and selected_grades:
-            # Garder tous les patients SANS GvH (occurrence != "Yes") 
-            # + les patients AVEC GvH qui ont le bon grade/score
-            patients_sans_gvh = df[df[occurrence_col] != 'Yes']
-            patients_avec_gvh_filtre = df[
-                (df[occurrence_col] == 'Yes') & 
-                (df[column_name].isin(selected_grades))
-            ]
-            
-            # Combiner les deux groupes
-            df = pd.concat([patients_sans_gvh, patients_avec_gvh_filtre], ignore_index=True)
-            print(f"After grade/score filter: {len(df)} patients")
-            print(f"  - Patients without GvH: {len(patients_sans_gvh)}")
-            print(f"  - Patients with GvH and selected grade: {len(patients_avec_gvh_filtre)}")
-            
-        elif column_name in df.columns and not selected_grades:
-            # Si aucun grade n'est sélectionné, garder seulement les patients sans GvH
-            df = df[df[occurrence_col] != 'Yes']
-            print(f"No grade selected - kept only patients without GvH: {len(df)} patients")
-            
-            if len(df) == 0:
-                return dbc.Alert(
-                    f"No {'grade' if gvh_type == 'acute' else 'score'} selected for analysis", 
-                    color="info"
-                )
-        
-        if df.empty:
-            return dbc.Alert("No data available with selected filters", color="warning")
-        
-        print(f"Final dataset for analysis: {len(df)} patients")
-        
         try:
-            fig = gr.create_competing_risks_analysis(df, gvh_type)
+            # Use cached calculation for better VM performance
+            import json
+            data_json = json.dumps(data) if isinstance(data, list) else '[]'
+            years_tuple = tuple(selected_years) if selected_years else tuple()
+            grades_tuple = tuple(selected_grades) if selected_grades else tuple()
+            
+            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple)
+            
+            if fig_dict is None:
+                return dbc.Alert("No data available with selected filters", color="warning")
+            
+            # Reconstruct figure from dict
+            import plotly.graph_objects as go
+            fig = go.Figure(fig_dict)
+            
             return dcc.Graph(
                 figure=fig, 
                 style={'height': '100%', 'width': '100%'},
                 config={'responsive': True}
             )
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
     
     @app.callback(
