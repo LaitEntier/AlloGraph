@@ -5,10 +5,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap');
 
 /* Global styles - Clean white background */
+html {
+    min-width: 1280px;
+}
+
 body {
     font-family: 'Roboto', sans-serif;
     background-color: #ffffff;
     color: #021F59;
+    min-width: 1280px;
+    overflow-x: auto;
 }
 
 /* Header container - blends with white background */
@@ -414,20 +420,6 @@ a:hover {
     color: #021F59 !important;
 }
 
-/* Hero section responsive adjustments */
-@media (max-width: 991px) {
-    .hero-title {
-        font-size: 2.2rem !important;
-    }
-}
-
-@media (max-width: 768px) {
-    .hero-title {
-        font-size: 1.8rem !important;
-        text-align: center;
-    }
-}
-
 /* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 8px;
@@ -446,61 +438,4 @@ a:hover {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #F21905;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .header-container {
-        padding: 15px !important;
-        border-radius: 0;
-    }
-    
-    .app-logo {
-        height: 120px !important;
-    }
-    
-    .nav-button {
-        margin-bottom: 8px;
-        margin-right: 5px !important;
-        font-size: 12px;
-        padding: 6px 12px;
-    }
-    
-    .header-container > div:first-child {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        margin-bottom: 10px !important;
-    }
-    
-    .header-container nav {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        width: 100% !important;
-    }
-    
-    .purge-button-navbar {
-        margin-top: 10px;
-        margin-left: 0 !important;
-    }
-    
-    .survey-toast {
-        max-width: 320px !important;
-        right: 10px !important;
-        left: 10px !important;
-        margin: 0 auto !important;
-    }
-    
-    .survey-toast .toast-header {
-        padding: 12px 14px !important;
-        font-size: 13px !important;
-    }
-    
-    .survey-toast .toast-body {
-        padding: 14px !important;
-    }
-    
-    .survey-toast .btn {
-        font-size: 12px !important;
-        padding: 6px 12px !important;
-    }
 }

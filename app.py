@@ -83,7 +83,7 @@ app.index_string = '''
 <html>
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=1280, initial-scale=1">
+        <meta name="viewport" content="width=1280">
         <title>{%title%}</title>
         <link rel="icon" type="image/svg+xml" href="/allograph-app/assets/images/ico.svg">
         {%css%}
