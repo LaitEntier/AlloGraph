@@ -77,11 +77,13 @@ if _compress_available:
         print(f"Note: Could not enable Flask-Compress: {e}")
 
 # Custom index string with SVG favicon
+# Viewport forces desktop layout on mobile devices
 app.index_string = '''
 <!DOCTYPE html>
 <html>
     <head>
-        {%metas%}
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=1280, initial-scale=1">
         <title>{%title%}</title>
         <link rel="icon" type="image/svg+xml" href="/allograph-app/assets/images/ico.svg">
         {%css%}
