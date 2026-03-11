@@ -73,7 +73,7 @@ def create_upload_zone():
                     "Drag and drop your file here, or ",
                     html.Span("browse", style={'color': '#d61704', 'fontWeight': '600', 'cursor': 'pointer'})
                 ], style={'color': '#6c757d', 'marginBottom': '0'}),
-                html.P("Supports CSV, Excel (.xlsx, .xls)", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
+                html.P("Supports CSV from EBMT Treatment Overview Report", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
             ], style={
                 'border': '3px dashed #0D3182',
                 'borderRadius': '16px',

@@ -227,7 +227,8 @@ def create_base_layout():
         dbc.Row([
             dbc.Col([
                 html.Hr(style={'borderColor': '#021F59', 'borderWidth': '2px'}),
-                html.P('© 2025 - CHRU de Tours - All rights reserved', className='text-center', style={'color': '#021F59'})
+                html.P('© 2026 - CHRU de Tours - All rights reserved', className='text-center', style={'color': '#021F59', 'marginBottom': '4px'}),
+                html.P('IDDN.FR.001.090021.000.S.P.2026.000.31230', className='text-center', style={'color': '#6c757d', 'fontSize': '11px'})
             ])
         ])
     ], fluid=True, className='p-4')
