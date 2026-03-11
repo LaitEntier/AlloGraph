@@ -116,6 +116,11 @@ def create_relapse_sidebar_content(data):
         
         html.Hr(),
         
+        # Filtres par tranche d'âge
+        layouts.create_age_filter_component(component_id='relapse-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
         # Informations sur les données
         html.Div([
             html.H6("📊 Information", className="mb-2"),
@@ -316,10 +321,11 @@ def register_callbacks(app):
     @app.callback(
         Output('relapse-main-graph', 'children'),
         [Input('relapse-year-filter', 'value'),
+         Input('relapse-age-filter', 'value'),
          Input('data-store', 'data'),
          Input('current-page', 'data')]  # Ajouter current-page comme input
     )
-    def update_relapse_main_graph(selected_years, data, current_page):
+    def update_relapse_main_graph(selected_years, selected_age_groups, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs pour les rechutes"""
         
         # Ne rien afficher si on n'est pas sur la page Rechute
@@ -335,6 +341,10 @@ def register_callbacks(app):
         if selected_years and 'Year' in df.columns:
             df = df[df['Year'].isin(selected_years)]
         
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        
         try:
             fig = create_relapse_analysis(df)
             return dcc.Graph(figure=fig, style={'height': '100%', 'width': '100%'})
@@ -345,10 +355,11 @@ def register_callbacks(app):
         Output('relapse-missing-summary-table', 'children'),
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('relapse-year-filter', 'value')],
+         Input('relapse-year-filter', 'value'),
+         Input('relapse-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_summary_callback(data, current_page, selected_years):
+    def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau de résumé des données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -360,6 +371,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -447,10 +462,11 @@ def register_callbacks(app):
          Output('export-missing-relapse-button', 'disabled')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('relapse-year-filter', 'value')],
+         Input('relapse-year-filter', 'value'),
+         Input('relapse-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_detail_callback(data, current_page, selected_years):
+    def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -462,6 +478,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

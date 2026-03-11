@@ -181,6 +181,11 @@ def create_indicators_sidebar_content(data):
             
             html.Hr(),
             
+            # Filtres par tranche d'âge
+            layouts.create_age_filter_component(component_id='indicators-age-filter', title='Age groups'),
+            
+            html.Hr(),
+            
             # Informations sur le dataset
             html.H6("Dataset Information", className='mb-2 text-primary'),
             dbc.Card([
@@ -3835,10 +3840,11 @@ def register_callbacks(app):
          Input('analysis-mode-store', 'data'),
          Input('selected-indicator-store', 'data'),
          Input('selected-year-store', 'data'),
-         Input('selected-years-checklist-store', 'data')],
+         Input('selected-years-checklist-store', 'data'),
+         Input('indicators-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years):
+    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years, selected_age_groups):
         
         if current_page != 'Indicators':
             return dash.no_update
@@ -3851,6 +3857,10 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if analysis_mode == 'yearly':
                 # Mode Yearly: utiliser l'année sélectionnée dans le dropdown
@@ -3890,10 +3900,11 @@ def register_callbacks(app):
          Input('selected-indicator-store', 'data'),
          Input('analysis-mode-store', 'data'),
          Input('year-selection-sidebar', 'value'),
-         Input('years-radio-sidebar', 'value')],
+         Input('years-radio-sidebar', 'value'),
+         Input('indicators-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years):
+    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups):
         """Gère le tableau de résumé des données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3904,6 +3915,10 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
@@ -3974,10 +3989,11 @@ def register_callbacks(app):
          Input('selected-indicator-store', 'data'),
          Input('analysis-mode-store', 'data'),
          Input('year-selection-sidebar', 'value'),
-         Input('years-radio-sidebar', 'value')],
+         Input('years-radio-sidebar', 'value'),
+         Input('indicators-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years):
+    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3988,6 +4004,10 @@ def register_callbacks(app):
         
         try:
             df = pd.DataFrame(data)
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:

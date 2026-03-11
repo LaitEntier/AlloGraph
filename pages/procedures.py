@@ -294,9 +294,10 @@ def register_callbacks(app):
         [Input('data-store', 'data'),
         Input('current-page', 'data'),
         Input('procedures-main-variable-integrated', 'value'),  
-        Input('procedures-year-filter', 'value')]
+        Input('procedures-year-filter', 'value'),
+        Input('procedures-age-filter', 'value')]
     )
-    def update_main_chart(data, current_page, main_variable, selected_years):
+    def update_main_chart(data, current_page, main_variable, selected_years, selected_age_groups):
         """Met à jour le graphique principal avec effectifs cumulés par catégorie"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -320,10 +321,13 @@ def register_callbacks(app):
             return html.Div('Selected variable not available', className='text-warning text-center')
         
         # Filtrer par années
+        filtered_df = df
         if selected_years:
-            filtered_df = df[df['Year'].isin(selected_years)]
-        else:
-            filtered_df = df
+            filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
+        
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
         
         if filtered_df.empty:
             return html.Div('No data for the selected years', className='text-warning text-center')
@@ -367,9 +371,10 @@ def register_callbacks(app):
         Output('procedures-cmv-charts', 'children'),
         [Input('data-store', 'data'),
          Input('current-page', 'data'),
-         Input('procedures-year-filter', 'value')]
+         Input('procedures-year-filter', 'value'),
+         Input('procedures-age-filter', 'value')]
     )
-    def update_cmv_charts(data, current_page, selected_years):
+    def update_cmv_charts(data, current_page, selected_years, selected_age_groups):
         """Met à jour les pie charts d'analyse du statut CMV"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -377,10 +382,13 @@ def register_callbacks(app):
         df = pd.DataFrame(data)
         
         # Filtrer par années si spécifié
+        filtered_df = df
         if selected_years and 'Year' in df.columns:
-            filtered_df = df[df['Year'].isin(selected_years)]
-        else:
-            filtered_df = df
+            filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
+        
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
         
         if filtered_df.empty:
             return html.Div('No data for the selected years', className='text-warning text-center')
@@ -407,9 +415,10 @@ def register_callbacks(app):
         [Input('procedures-aplasia-tabs', 'value'),
         Input('data-store', 'data'),
         Input('current-page', 'data'),
-        Input('procedures-year-filter', 'value')]
+        Input('procedures-year-filter', 'value'),
+        Input('procedures-age-filter', 'value')]
     )
-    def update_aplasia_tab_content(active_tab, data, current_page, selected_years):
+    def update_aplasia_tab_content(active_tab, data, current_page, selected_years, selected_age_groups):
         """Met à jour le contenu de l'onglet sélectionné pour l'analyse d'aplasie et thrombopénie"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -417,10 +426,13 @@ def register_callbacks(app):
         df = pd.DataFrame(data)
         
         # Filtrer par années si spécifié
+        filtered_df = df
         if selected_years and 'Year' in df.columns:
-            filtered_df = df[df['Year'].isin(selected_years)]
-        else:
-            filtered_df = df
+            filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
+        
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
         
         if filtered_df.empty:
             return html.Div('No data for the selected years', className='text-warning text-center')
@@ -601,9 +613,10 @@ def register_callbacks(app):
         [Input('procedures-treatment-tabs', 'value'),
          Input('data-store', 'data'),
          Input('current-page', 'data'),
-         Input('procedures-year-filter', 'value')]
+         Input('procedures-year-filter', 'value'),
+         Input('procedures-age-filter', 'value')]
     )
-    def update_treatment_chart(active_tab, data, current_page, selected_years):
+    def update_treatment_chart(active_tab, data, current_page, selected_years, selected_age_groups):
         """Met à jour le contenu des onglets de traitement de préparation (barplot ou UpSet)"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -637,10 +650,13 @@ def register_callbacks(app):
             ])
         
         # Filtrer par années
+        filtered_df = df
         if selected_years:
-            filtered_df = df[df['Year'].isin(selected_years)]
-        else:
-            filtered_df = df
+            filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
+        
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
         
         if filtered_df.empty:
             return html.Div('No data for the selected years', className='text-warning text-center')
@@ -699,9 +715,10 @@ def register_callbacks(app):
         [Input('procedures-prophylaxis-tabs', 'value'),
          Input('data-store', 'data'),
          Input('current-page', 'data'),
-         Input('procedures-year-filter', 'value')]
+         Input('procedures-year-filter', 'value'),
+         Input('procedures-age-filter', 'value')]
     )
-    def update_prophylaxis_chart(active_tab, data, current_page, selected_years):
+    def update_prophylaxis_chart(active_tab, data, current_page, selected_years, selected_age_groups):
         """Met à jour le contenu des onglets de prophylaxie (barplot ou UpSet)"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -735,10 +752,13 @@ def register_callbacks(app):
             ])
         
         # Filtrer par années
+        filtered_df = df
         if selected_years:
-            filtered_df = df[df['Year'].isin(selected_years)]
-        else:
-            filtered_df = df
+            filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
+        
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
         
         if filtered_df.empty:
             return html.Div('No data for the selected years', className='text-warning text-center')
@@ -788,10 +808,11 @@ def register_callbacks(app):
         Output('procedures-missing-summary-table', 'children'),
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('procedures-year-filter', 'value')],
+         Input('procedures-year-filter', 'value'),
+         Input('procedures-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def procedures_missing_summary_callback(data, current_page, selected_years):
+    def procedures_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau de résumé des données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
@@ -803,6 +824,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -893,10 +918,11 @@ def register_callbacks(app):
          Output('export-missing-procedures-button', 'disabled')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('procedures-year-filter', 'value')],
+         Input('procedures-year-filter', 'value'),
+         Input('procedures-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def procedures_missing_detail_callback(data, current_page, selected_years):
+    def procedures_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau détaillé des patients avec données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
@@ -908,6 +934,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

@@ -297,6 +297,20 @@ def process_data(df):
     df['Age Groups'] = pd.cut(df['Age At Diagnosis'], bins=[-1, 17, 39, 64, 74, np.inf], labels=['18-', '18-39', '40-64', '65-74', '75+'], right=True)
     # order the categories for display in barplot
     df['Age Groups'] = pd.Categorical(df['Age Groups'], categories=['18-', '18-39', '40-64', '65-74', '75+'], ordered=True)
+    
+    # Créer une colonne Age Group Detailed avec des tranches pédiatriques détaillées
+    df['Age Group Detailed'] = pd.cut(
+        df['Age At Diagnosis'], 
+        bins=[-1, 1, 5, 10, 15, 18, np.inf], 
+        labels=['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years', '>18 years'], 
+        right=False
+    )
+    # Définir l'ordre des catégories
+    df['Age Group Detailed'] = pd.Categorical(
+        df['Age Group Detailed'], 
+        categories=['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years', '>18 years'], 
+        ordered=True
+    )
 
     # Nouvelle variable : Greffes (combinaison de type de donneur et source des cellules souches)
     df = create_greffes_variable(df)

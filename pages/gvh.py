@@ -135,6 +135,11 @@ def create_gvh_sidebar_content(data):
         
         html.Hr(),
         
+        # Filtres par tranche d'âge
+        layouts.create_age_filter_component(component_id='gvh-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
         # Informations sur les données
         html.Div([
             html.H6("📊 Information", className="mb-2"),
@@ -156,7 +161,7 @@ def register_callbacks(app):
     
     # Cached version of competing risks calculation
     @cache_gvh_result
-    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple):
+    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple):
         """Cached version of GvH competing risks calculation"""
         import json
         # Convert JSON string back to DataFrame
@@ -172,6 +177,13 @@ def register_callbacks(app):
         # Filter by years
         if selected_years_tuple and 'Year' in df.columns:
             df = df[df['Year'].isin(list(selected_years_tuple))]
+        
+        if df.empty:
+            return None
+        
+        # Filter by age groups
+        if selected_age_groups_tuple and 'Age Group Detailed' in df.columns:
+            df = df[df['Age Group Detailed'].isin(list(selected_age_groups_tuple))]
         
         if df.empty:
             return None
@@ -296,11 +308,12 @@ def register_callbacks(app):
         [Input('gvh-type-selection', 'value'),
          Input('gvh-year-filter', 'value'),
          Input('gvh-grade-filter', 'value'),
+         Input('gvh-age-filter', 'value'),
          Input('data-store-gvh', 'data'),  # Use slim store
          Input('current-page', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, data, current_page):
+    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs"""
         # Ne rien afficher si on n'est pas sur la page GvH
         if current_page != 'GvH':
@@ -315,8 +328,9 @@ def register_callbacks(app):
             data_json = json.dumps(data) if isinstance(data, list) else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
             grades_tuple = tuple(selected_grades) if selected_grades else tuple()
+            age_groups_tuple = tuple(selected_age_groups) if selected_age_groups else tuple()
             
-            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple)
+            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple, age_groups_tuple)
             
             if fig_dict is None:
                 return dbc.Alert("No data available with selected filters", color="warning")
@@ -339,10 +353,11 @@ def register_callbacks(app):
         Output('gvh-missing-summary-table', 'children'),
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('gvh-year-filter', 'value')],
+         Input('gvh-year-filter', 'value'),
+         Input('gvh-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_summary_callback(data, current_page, selected_years):
+    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau de résumé des données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
@@ -354,6 +369,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -448,10 +467,11 @@ def register_callbacks(app):
          Output('export-missing-gvh-button', 'disabled')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('gvh-year-filter', 'value')],
+         Input('gvh-year-filter', 'value'),
+         Input('gvh-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_detail_callback(data, current_page, selected_years):
+    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
@@ -463,6 +483,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

@@ -170,6 +170,11 @@ def create_survival_sidebar_content(data):
         
         html.Hr(),
         
+        # Filtres par tranche d'âge
+        layouts.create_age_filter_component(component_id='survival-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
         # Informations sur les données
         html.Div([
             html.H6("📊 Information", className="mb-2"),
@@ -875,10 +880,11 @@ def register_callbacks(app):
         [Input('data-store-survival', 'data'),  # Use slim store
          Input('current-page', 'data'),
          Input('survival-max-duration', 'value'),
-         Input('survival-year-filter', 'value')]
+         Input('survival-year-filter', 'value'),
+         Input('survival-age-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_global_survival_curve(data, current_page, max_duration, selected_years):
+    def update_global_survival_curve(data, current_page, max_duration, selected_years, selected_age_groups):
         """Met à jour la courbe de survie globale"""
         if current_page != 'Survival' or data is None:
             return html.Div()
@@ -892,10 +898,14 @@ def register_callbacks(app):
             ], color="warning")
         
         try:
-            # Use cached calculation for better VM performance
+            # Filtrer les données par âge avant de les passer au cache
             import json
+            df = pd.DataFrame(data)
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
             # Convert data to JSON string for caching (preserves structure)
-            data_json = json.dumps(data) if isinstance(data, list) else '[]'
+            data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
             
             fig = _cached_prepare_survival_data(data_json, max_duration, years_tuple)
@@ -949,10 +959,11 @@ def register_callbacks(app):
         [Input('data-store-survival', 'data'),  # Use slim store
          Input('current-page', 'data'),
          Input('survival-max-duration', 'value'),
-         Input('survival-year-filter', 'value')]
+         Input('survival-year-filter', 'value'),
+         Input('survival-age-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_survival_curves_by_year(data, current_page, max_duration, selected_years):
+    def update_survival_curves_by_year(data, current_page, max_duration, selected_years, selected_age_groups):
         """Met à jour les courbes de survie par année et le tableau des statistiques"""
         if current_page != 'Survival' or data is None:
             return html.Div(), html.Div()
@@ -967,9 +978,13 @@ def register_callbacks(app):
             return warning_alert, warning_alert
         
         try:
-            # Use cached calculation for better VM performance
+            # Filtrer les données par âge avant de les passer au cache
             import json
-            data_json = json.dumps(data) if isinstance(data, list) else '[]'
+            df = pd.DataFrame(data)
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
             
             fig_dict, stats_records = _cached_survival_by_year(data_json, max_duration, years_tuple)
@@ -1045,10 +1060,11 @@ def register_callbacks(app):
         Output('survival-missing-summary-table', 'children'),
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('survival-year-filter', 'value')],
+         Input('survival-year-filter', 'value'),
+         Input('survival-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_summary_callback(data, current_page, selected_years):
+    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -1060,6 +1076,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -1126,10 +1146,11 @@ def register_callbacks(app):
          Output('export-missing-survival-button', 'disabled')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
-         Input('survival-year-filter', 'value')],
+         Input('survival-year-filter', 'value'),
+         Input('survival-age-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_detail_callback(data, current_page, selected_years):
+    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -1141,6 +1162,10 @@ def register_callbacks(app):
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
+            
+            # Filtrer par tranches d'âge
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

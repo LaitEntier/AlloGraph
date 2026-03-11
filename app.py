@@ -493,7 +493,7 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     print(f"DEBUG _create_slim_stores: Core cols found: {core_cols}")
     
     # Survival analysis columns - base columns needed for survival calculations
-    survival_needed = ['Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up']
+    survival_needed = ['Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up', 'Age Group Detailed']
     survival_cols = core_cols + survival_needed
     survival_cols = [c for c in survival_cols if c in df_full.columns]
     print(f"DEBUG _create_slim_stores: Survival cols found: {survival_cols}")
@@ -503,7 +503,8 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     gvh_needed = [
         'Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up',
         'First Agvhd Occurrence', 'First Agvhd Occurrence Date', 'First aGvHD Maximum Score',
-        'First Cgvhd Occurrence', 'First Cgvhd Occurrence Date', 'First cGvHD Maximum NIH Score'
+        'First Cgvhd Occurrence', 'First Cgvhd Occurrence Date', 'First cGvHD Maximum NIH Score',
+        'Age Group Detailed'
     ]
     gvh_cols = core_cols + gvh_needed
     gvh_cols = [c for c in gvh_cols if c in df_full.columns]
@@ -512,7 +513,7 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     
     # Visualization columns - demographic and clinical data for charts
     viz_needed = [
-        'Age At Diagnosis', 'Age Groups', 'Sex',
+        'Age At Diagnosis', 'Age Groups', 'Age Group Detailed', 'Sex',
         'Main Diagnosis', 'Subclass Diagnosis', 'Donor Type', 
         'Source Stem Cells', 'Greffes', 'Blood + Rh', 'Donor Match Category',
         'Conditioning Regimen Type', 'Match Type', 'Performance Status At Treatment Scale',

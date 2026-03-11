@@ -376,7 +376,12 @@ def create_filter_controls(categorical_columns, years_options):
             value=[year['value'] for year in years_options],
             inline=False,
             className='mb-3'
-        )
+        ),
+        
+        html.Hr(),
+        
+        # Filtres par tranche d'âge
+        create_age_filter_component(component_id='patients-age-filter', title='Age groups')
     ])
 
 def create_hemopathies_filter_controls(categorical_columns, years_options):
@@ -430,6 +435,43 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
             value=[year['value'] for year in years_options],
             inline=False,
             className='mb-3'
+        ),
+        
+        html.Hr(),
+        
+        # Filtres par tranche d'âge
+        create_age_filter_component(component_id='hemopathies-age-filter', title='Age groups')
+    ])
+
+
+def create_age_filter_component(component_id='age-filter-checklist', title='Age groups'):
+    """
+    Crée un composant de filtrage par tranches d'âge détaillées.
+    
+    Args:
+        component_id (str): ID du composant dcc.Checklist
+        title (str): Titre affiché pour la section
+        
+    Returns:
+        html.Div: Composant contenant le filtre d'âge
+    """
+    age_options = [
+        {'label': '<1 year', 'value': '<1 year'},
+        {'label': '1-5 years', 'value': '1-5 years'},
+        {'label': '6-10 years', 'value': '6-10 years'},
+        {'label': '11-15 years', 'value': '11-15 years'},
+        {'label': '16-18 years', 'value': '16-18 years'},
+        {'label': '>18 years', 'value': '>18 years'}
+    ]
+    
+    return html.Div([
+        html.H5(title, className='mb-2'),
+        dcc.Checklist(
+            id=component_id,
+            options=age_options,
+            value=[opt['value'] for opt in age_options],  # Toutes les tranches sélectionnées par défaut
+            inline=False,
+            className='mb-3'
         )
     ])
 
@@ -469,6 +511,11 @@ def create_procedures_sidebar_content(data):
             inline=False,
             className='mb-3'
         ),
+        
+        html.Hr(),
+        
+        # Filtres par tranche d'âge
+        create_age_filter_component(component_id='procedures-age-filter', title='Age groups'),
         
         html.Hr(),
         
