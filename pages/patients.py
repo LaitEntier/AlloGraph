@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 
 # Import des modules communs
 import modules.dashboard_layout as layouts
+from modules.dashboard_layout import apply_malignancy_filter
 import visualizations.allogreffes.graphs as gr
 
 def get_layout():
@@ -202,10 +203,11 @@ def register_callbacks(app):
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value'),
-         Input('patients-age-filter', 'value')]
+         Input('patients-age-filter', 'value'),
+         Input('patients-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups):
+    def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter):
         """Graphique 1: Barplot normalisé à 100%"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -227,6 +229,9 @@ def register_callbacks(app):
         # Filtrer par tranches d'âge
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
         
         if filtered_df.empty:
             return dbc.Alert('No data available with the selected filters', color='warning')
@@ -294,10 +299,11 @@ def register_callbacks(app):
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value'),
-         Input('patients-age-filter', 'value')]
+         Input('patients-age-filter', 'value'),
+         Input('patients-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups):
+    def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter):
         """Graphique 2: Barplot distribution"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -319,6 +325,9 @@ def register_callbacks(app):
         # Filtrer par tranches d'âge
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
         
         if filtered_df.empty:
             return html.Div('No data available', className='text-warning text-center')
@@ -387,10 +396,11 @@ def register_callbacks(app):
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value'),
-         Input('patients-age-filter', 'value')]
+         Input('patients-age-filter', 'value'),
+         Input('patients-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_boxplot_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups):
+    def update_boxplot_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter):
         """Graphique 3: Boxplot Age At Diagnosis par variable de stratification"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -419,6 +429,9 @@ def register_callbacks(app):
         # Filtrer par tranches d'âge
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
         
         if filtered_df.empty:
             return html.Div('No data available', className='text-warning text-center')
@@ -464,9 +477,10 @@ def register_callbacks(app):
         [Input('data-store', 'data'),
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
-        Input('patients-age-filter', 'value')]
+        Input('patients-age-filter', 'value'),
+        Input('patients-malignancy-filter', 'value')]
     )
-    def update_datatable(data, current_page, selected_years, selected_age_groups):
+    def update_datatable(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Graphique 4: DataTable avec statistiques par année incluant la répartition par sexe"""
         if current_page != 'Patients' or data is None:
             return html.Div(), True
@@ -479,6 +493,9 @@ def register_callbacks(app):
         
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        df = apply_malignancy_filter(df, malignancy_filter)
         
         # Créer la table de statistiques par année
         required_cols = ['Year', 'Age At Diagnosis', 'Sex']
@@ -722,10 +739,11 @@ def register_callbacks(app):
         [Input('data-store-viz', 'data'),  # Use slim store
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
-        Input('patients-age-filter', 'value')]
+        Input('patients-age-filter', 'value'),
+        Input('patients-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_patients_performance_scores_boxplot(data, current_page, selected_years, selected_age_groups):
+    def update_patients_performance_scores_boxplot(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Boxplot des Performance Scores par Age Groups avec boutons pour switcher entre les échelles"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -740,6 +758,9 @@ def register_callbacks(app):
         # Filtrer par tranches d'âge
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
         
         # Vérifier que la colonne Age Groups existe
         if 'Age Groups' not in filtered_df.columns:
@@ -906,10 +927,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
-         Input('patients-age-filter', 'value')],
+         Input('patients-age-filter', 'value'),
+         Input('patients-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def patients_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
+    def patients_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
@@ -925,6 +947,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -991,10 +1016,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
-         Input('patients-age-filter', 'value')],
+         Input('patients-age-filter', 'value'),
+         Input('patients-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def patients_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
+    def patients_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
@@ -1010,6 +1036,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

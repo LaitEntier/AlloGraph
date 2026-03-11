@@ -12,6 +12,7 @@ import traceback
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
+from modules.dashboard_layout import apply_malignancy_filter
 import visualizations.allogreffes.graphs as gr
 
 # Imports pour les analyses de survie
@@ -172,6 +173,11 @@ def create_survival_sidebar_content(data):
         
         # Filtres par tranche d'âge
         layouts.create_age_filter_component(component_id='survival-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
+        # Filtres par type de diagnostic
+        layouts.create_malignancy_filter_component(component_id='survival-malignancy-filter', title='Diagnosis type'),
         
         html.Hr(),
         
@@ -881,10 +887,11 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value')]
+         Input('survival-age-filter', 'value'),
+         Input('survival-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_global_survival_curve(data, current_page, max_duration, selected_years, selected_age_groups):
+    def update_global_survival_curve(data, current_page, max_duration, selected_years, selected_age_groups, malignancy_filter):
         """Met à jour la courbe de survie globale"""
         if current_page != 'Survival' or data is None:
             return html.Div()
@@ -898,11 +905,14 @@ def register_callbacks(app):
             ], color="warning")
         
         try:
-            # Filtrer les données par âge avant de les passer au cache
+            # Filtrer les données par âge et malignité avant de les passer au cache
             import json
             df = pd.DataFrame(data)
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             # Convert data to JSON string for caching (preserves structure)
             data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
@@ -960,10 +970,11 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value')]
+         Input('survival-age-filter', 'value'),
+         Input('survival-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_survival_curves_by_year(data, current_page, max_duration, selected_years, selected_age_groups):
+    def update_survival_curves_by_year(data, current_page, max_duration, selected_years, selected_age_groups, malignancy_filter):
         """Met à jour les courbes de survie par année et le tableau des statistiques"""
         if current_page != 'Survival' or data is None:
             return html.Div(), html.Div()
@@ -978,11 +989,14 @@ def register_callbacks(app):
             return warning_alert, warning_alert
         
         try:
-            # Filtrer les données par âge avant de les passer au cache
+            # Filtrer les données par âge et malignité avant de les passer au cache
             import json
             df = pd.DataFrame(data)
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
@@ -1081,6 +1095,9 @@ def register_callbacks(app):
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
             
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
+            
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
             
@@ -1166,6 +1183,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

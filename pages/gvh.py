@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
+from modules.dashboard_layout import apply_malignancy_filter
 import visualizations.allogreffes.graphs as gr
 import modules.data_processing as data_processing
 
@@ -140,6 +141,11 @@ def create_gvh_sidebar_content(data):
         
         html.Hr(),
         
+        # Filtres par type de diagnostic
+        layouts.create_malignancy_filter_component(component_id='gvh-malignancy-filter', title='Diagnosis type'),
+        
+        html.Hr(),
+        
         # Informations sur les données
         html.Div([
             html.H6("📊 Information", className="mb-2"),
@@ -161,7 +167,7 @@ def register_callbacks(app):
     
     # Cached version of competing risks calculation
     @cache_gvh_result
-    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple):
+    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple, malignancy_filter):
         """Cached version of GvH competing risks calculation"""
         import json
         # Convert JSON string back to DataFrame
@@ -187,6 +193,9 @@ def register_callbacks(app):
         
         if df.empty:
             return None
+        
+        # Filter by diagnosis category
+        df = apply_malignancy_filter(df, malignancy_filter)
         
         # Filter by grades
         if gvh_type == 'acute':
@@ -309,11 +318,12 @@ def register_callbacks(app):
          Input('gvh-year-filter', 'value'),
          Input('gvh-grade-filter', 'value'),
          Input('gvh-age-filter', 'value'),
+         Input('gvh-malignancy-filter', 'value'),
          Input('data-store-gvh', 'data'),  # Use slim store
          Input('current-page', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, data, current_page):
+    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, malignancy_filter, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs"""
         # Ne rien afficher si on n'est pas sur la page GvH
         if current_page != 'GvH':
@@ -330,7 +340,7 @@ def register_callbacks(app):
             grades_tuple = tuple(selected_grades) if selected_grades else tuple()
             age_groups_tuple = tuple(selected_age_groups) if selected_age_groups else tuple()
             
-            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple, age_groups_tuple)
+            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple, age_groups_tuple, malignancy_filter)
             
             if fig_dict is None:
                 return dbc.Alert("No data available with selected filters", color="warning")
@@ -373,6 +383,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -487,6 +500,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

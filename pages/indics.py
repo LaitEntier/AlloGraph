@@ -10,6 +10,7 @@ import plotly.express as px
 
 # Import des modules communs (à adapter selon votre structure)
 import modules.dashboard_layout as layouts
+from modules.dashboard_layout import apply_malignancy_filter
 import modules.data_processing as data_processing
 import visualizations.allogreffes.graphs as gr
 
@@ -183,6 +184,11 @@ def create_indicators_sidebar_content(data):
             
             # Filtres par tranche d'âge
             layouts.create_age_filter_component(component_id='indicators-age-filter', title='Age groups'),
+            
+            html.Hr(),
+            
+            # Filtres par type de diagnostic
+            layouts.create_malignancy_filter_component(component_id='indicators-malignancy-filter', title='Diagnosis type'),
             
             html.Hr(),
             
@@ -3841,10 +3847,11 @@ def register_callbacks(app):
          Input('selected-indicator-store', 'data'),
          Input('selected-year-store', 'data'),
          Input('selected-years-checklist-store', 'data'),
-         Input('indicators-age-filter', 'value')],
+         Input('indicators-age-filter', 'value'),
+         Input('indicators-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years, selected_age_groups):
+    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years, selected_age_groups, malignancy_filter):
         
         if current_page != 'Indicators':
             return dash.no_update
@@ -3861,6 +3868,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if analysis_mode == 'yearly':
                 # Mode Yearly: utiliser l'année sélectionnée dans le dropdown
@@ -3901,10 +3911,11 @@ def register_callbacks(app):
          Input('analysis-mode-store', 'data'),
          Input('year-selection-sidebar', 'value'),
          Input('years-radio-sidebar', 'value'),
-         Input('indicators-age-filter', 'value')],
+         Input('indicators-age-filter', 'value'),
+         Input('indicators-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups):
+    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -3919,6 +3930,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
@@ -3990,10 +4004,11 @@ def register_callbacks(app):
          Input('analysis-mode-store', 'data'),
          Input('year-selection-sidebar', 'value'),
          Input('years-radio-sidebar', 'value'),
-         Input('indicators-age-filter', 'value')],
+         Input('indicators-age-filter', 'value'),
+         Input('indicators-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups):
+    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -4008,6 +4023,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:

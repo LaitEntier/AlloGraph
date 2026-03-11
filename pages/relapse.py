@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
+from modules.dashboard_layout import apply_malignancy_filter
 import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
@@ -118,6 +119,11 @@ def create_relapse_sidebar_content(data):
         
         # Filtres par tranche d'âge
         layouts.create_age_filter_component(component_id='relapse-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
+        # Filtres par type de diagnostic
+        layouts.create_malignancy_filter_component(component_id='relapse-malignancy-filter', title='Diagnosis type'),
         
         html.Hr(),
         
@@ -322,10 +328,11 @@ def register_callbacks(app):
         Output('relapse-main-graph', 'children'),
         [Input('relapse-year-filter', 'value'),
          Input('relapse-age-filter', 'value'),
+         Input('relapse-malignancy-filter', 'value'),
          Input('data-store', 'data'),
          Input('current-page', 'data')]  # Ajouter current-page comme input
     )
-    def update_relapse_main_graph(selected_years, selected_age_groups, data, current_page):
+    def update_relapse_main_graph(selected_years, selected_age_groups, malignancy_filter, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs pour les rechutes"""
         
         # Ne rien afficher si on n'est pas sur la page Rechute
@@ -344,6 +351,9 @@ def register_callbacks(app):
         # Filtrer par tranches d'âge
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        df = apply_malignancy_filter(df, malignancy_filter)
         
         try:
             fig = create_relapse_analysis(df)
@@ -375,6 +385,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
@@ -482,6 +495,9 @@ def register_callbacks(app):
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            # Filtrer par type de diagnostic
+            df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True

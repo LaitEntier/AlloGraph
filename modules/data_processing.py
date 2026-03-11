@@ -311,6 +311,9 @@ def process_data(df):
         categories=['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years', '>18 years'], 
         ordered=True
     )
+    
+    # Créer une colonne Diagnosis Category (Malignant / Non-malignant)
+    df = create_diagnosis_category(df)
 
     # Nouvelle variable : Greffes (combinaison de type de donneur et source des cellules souches)
     df = create_greffes_variable(df)
@@ -653,6 +656,48 @@ def process_upset_plot(df):
     df.reset_index(drop=True, inplace=True)
 
     return df
+
+def create_diagnosis_category(df):
+    """
+    Crée une variable 'Diagnosis Category' basée sur Main Diagnosis.
+    Catégorise les pathologies en 'Malignant' ou 'Non-malignant'.
+    
+    Args:
+        df (pd.DataFrame): DataFrame avec la colonne 'Main Diagnosis'
+        
+    Returns:
+        pd.DataFrame: DataFrame avec la nouvelle colonne 'Diagnosis Category'
+    """
+    df = df.copy()
+    
+    # Mapping des Main Diagnosis vers leur catégorie
+    malignancy_mapping = {
+        # Malignant
+        'Acute leukemia': 'Malignant',
+        'Chronic leukemia': 'Malignant',
+        'Lymphoma': 'Malignant',
+        'Myelodysplastic syndrome': 'Malignant',
+        'Myelodysplastic/myeloproliferative disease': 'Malignant',
+        'Myeloproliferative disorder': 'Malignant',
+        'Plasma cell neoplasm': 'Malignant',
+        'Solid tumor configuration': 'Malignant',
+        # Non-malignant
+        'Autoimmune disease': 'Non-malignant',
+        'Bone Marrow Failure incl. Aplastic Anemia': 'Non-malignant',
+        'Hemoglobinopathy': 'Non-malignant',
+        'Inborn Errors': 'Non-malignant',
+        'Other Diagnosis': 'Non-malignant'
+    }
+    
+    if 'Main Diagnosis' in df.columns:
+        df['Diagnosis Category'] = df['Main Diagnosis'].map(malignancy_mapping)
+        # Pour les diagnostics non reconnus, mettre 'Unknown'
+        df['Diagnosis Category'] = df['Diagnosis Category'].fillna('Unknown')
+    else:
+        df['Diagnosis Category'] = 'Unknown'
+    
+    return df
+
 
 def transform_gvhc_scores(df):
     """

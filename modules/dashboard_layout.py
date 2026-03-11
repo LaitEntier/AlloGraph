@@ -381,7 +381,12 @@ def create_filter_controls(categorical_columns, years_options):
         html.Hr(),
         
         # Filtres par tranche d'âge
-        create_age_filter_component(component_id='patients-age-filter', title='Age groups')
+        create_age_filter_component(component_id='patients-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
+        # Filtres par type de diagnostic
+        create_malignancy_filter_component(component_id='patients-malignancy-filter', title='Diagnosis type')
     ])
 
 def create_hemopathies_filter_controls(categorical_columns, years_options):
@@ -440,7 +445,12 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
         html.Hr(),
         
         # Filtres par tranche d'âge
-        create_age_filter_component(component_id='hemopathies-age-filter', title='Age groups')
+        create_age_filter_component(component_id='hemopathies-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
+        # Filtres par type de diagnostic
+        create_malignancy_filter_component(component_id='hemopathies-malignancy-filter', title='Diagnosis type')
     ])
 
 
@@ -474,6 +484,55 @@ def create_age_filter_component(component_id='age-filter-checklist', title='Age 
             className='mb-3'
         )
     ])
+
+
+def create_malignancy_filter_component(component_id='malignancy-filter', title='Diagnosis type'):
+    """
+    Crée un composant de filtrage par type de diagnostic (Malignant / Non-malignant).
+    Utilise des RadioItems avec 3 options pour empêcher la désélection totale.
+    
+    Args:
+        component_id (str): ID du composant dcc.RadioItems
+        title (str): Titre affiché pour la section
+        
+    Returns:
+        html.Div: Composant contenant le filtre de malignité
+    """
+    return html.Div([
+        html.H5(title, className='mb-2'),
+        dcc.RadioItems(
+            id=component_id,
+            options=[
+                {'label': ' Both', 'value': 'both'},
+                {'label': ' Malignant', 'value': 'Malignant'},
+                {'label': ' Non-malignant', 'value': 'Non-malignant'}
+            ],
+            value='both',  # Par défaut : les deux
+            inline=False,
+            className='mb-3',
+            labelStyle={'display': 'block', 'marginBottom': '5px'}
+        )
+    ])
+
+
+def apply_malignancy_filter(df, malignancy_filter_value):
+    """
+    Applique le filtre de malignité sur un DataFrame.
+    
+    Args:
+        df (pd.DataFrame): DataFrame à filtrer
+        malignancy_filter_value (str): Valeur du filtre ('both', 'Malignant', ou 'Non-malignant')
+        
+    Returns:
+        pd.DataFrame: DataFrame filtré
+    """
+    if malignancy_filter_value is None or malignancy_filter_value == 'both':
+        return df
+    
+    if 'Diagnosis Category' in df.columns:
+        return df[df['Diagnosis Category'] == malignancy_filter_value]
+    
+    return df
 
 
 def create_procedures_sidebar_content(data):
@@ -516,6 +575,11 @@ def create_procedures_sidebar_content(data):
         
         # Filtres par tranche d'âge
         create_age_filter_component(component_id='procedures-age-filter', title='Age groups'),
+        
+        html.Hr(),
+        
+        # Filtres par type de diagnostic
+        create_malignancy_filter_component(component_id='procedures-malignancy-filter', title='Diagnosis type'),
         
         html.Hr(),
         
