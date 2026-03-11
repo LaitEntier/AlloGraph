@@ -420,22 +420,52 @@ a:hover {
     color: #021F59 !important;
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - Global */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+    background: transparent;
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #021F59;
-    border-radius: 4px;
+    background: rgba(2, 31, 89, 0.3);
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #F21905;
+    background: rgba(2, 31, 89, 0.5);
+}
+
+/* Sidebar scrollbar - Ultra discrete */
+.sidebar-card ::-webkit-scrollbar,
+#sidebar-content ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+}
+
+.sidebar-card ::-webkit-scrollbar-track,
+#sidebar-content ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 2px;
+}
+
+.sidebar-card ::-webkit-scrollbar-thumb,
+#sidebar-content ::-webkit-scrollbar-thumb {
+    background: rgba(2, 31, 89, 0.25);
+    border-radius: 2px;
+}
+
+.sidebar-card ::-webkit-scrollbar-thumb:hover,
+#sidebar-content ::-webkit-scrollbar-thumb:hover {
+    background: rgba(2, 31, 89, 0.4);
+}
+
+/* Firefox scrollbar support */
+.sidebar-card, #sidebar-content {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(2, 31, 89, 0.25) transparent;
 }
