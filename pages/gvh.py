@@ -364,10 +364,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
-         Input('gvh-age-filter', 'value')],
+         Input('gvh-age-filter', 'value'),
+         Input('gvh-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
+    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
@@ -481,10 +482,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
-         Input('gvh-age-filter', 'value')],
+         Input('gvh-age-filter', 'value'),
+         Input('gvh-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
+    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:

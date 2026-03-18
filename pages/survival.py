@@ -1075,10 +1075,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value')],
+         Input('survival-age-filter', 'value'),
+         Input('survival-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
+    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -1164,10 +1165,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value')],
+         Input('survival-age-filter', 'value'),
+         Input('survival-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
+    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:

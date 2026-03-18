@@ -366,10 +366,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value')],
+         Input('relapse-age-filter', 'value'),
+         Input('relapse-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups):
+    def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -476,10 +477,11 @@ def register_callbacks(app):
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value')],
+         Input('relapse-age-filter', 'value'),
+         Input('relapse-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups):
+    def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
