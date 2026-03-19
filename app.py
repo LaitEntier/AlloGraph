@@ -29,6 +29,7 @@ import pages.gvh as gvh_page
 import pages.relapse as relapse_page
 import pages.survival as survival_page
 import pages.indics as indic_page
+import pages.sandbox as sandbox_page
 
 
 def get_asset_path(filename):
@@ -117,13 +118,15 @@ app.layout = html.Div([
      Output('nav-relapse', 'className'),
      Output('nav-survival', 'className'),        
      Output('nav-indics', 'className'),
+     Output('nav-sandbox', 'className'),
      Output('nav-patients', 'disabled'),
      Output('nav-hemopathies', 'disabled'),
      Output('nav-procedures', 'disabled'),
      Output('nav-gvh', 'disabled'),
      Output('nav-relapse', 'disabled'),
      Output('nav-survival', 'disabled'),         
-     Output('nav-indics', 'disabled')],
+     Output('nav-indics', 'disabled'),
+     Output('nav-sandbox', 'disabled')],
     [Input('nav-home', 'n_clicks'),
      Input('nav-home-logo', 'n_clicks'),
      Input('nav-patients', 'n_clicks'),
@@ -133,10 +136,11 @@ app.layout = html.Div([
      Input('nav-relapse', 'n_clicks'),
      Input('nav-survival', 'n_clicks'),          
      Input('nav-indics', 'n_clicks'),
+     Input('nav-sandbox', 'n_clicks'),
      Input('data-store', 'data')],
     [State('current-page', 'data')]
 )
-def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, data, current_page):
+def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, sandbox_clicks, data, current_page):
     ctx = dash.callback_context
     
     if not ctx.triggered:
@@ -152,12 +156,14 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
             'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
             'Relapse': 'btn btn-primary me-2 nav-button' if current_page == 'Relapse' else 'btn btn-secondary me-2 nav-button',
             'Survival': 'btn btn-primary me-2 nav-button' if current_page == 'Survival' else 'btn btn-secondary me-2 nav-button',
-            'Indicators': 'btn btn-primary me-2 nav-button' if current_page == 'Indicators' else 'btn btn-secondary me-2 nav-button'
+            'Indicators': 'btn btn-primary me-2 nav-button' if current_page == 'Indicators' else 'btn btn-secondary me-2 nav-button',
+            'Sandbox': 'btn btn-primary me-2 nav-button' if current_page == 'Sandbox' else 'btn btn-secondary me-2 nav-button'
         }
 
         return (current_page, styles['Home'], styles['Patients'],
                 styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
-                disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+                styles['Sandbox'],
+                disabled, disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
@@ -173,12 +179,14 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
             'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
             'Relapse': 'btn btn-primary me-2 nav-button' if current_page == 'Relapse' else 'btn btn-secondary me-2 nav-button',
             'Survival': 'btn btn-primary me-2 nav-button' if current_page == 'Survival' else 'btn btn-secondary me-2 nav-button',
-            'Indicators': 'btn btn-primary me-2 nav-button' if current_page == 'Indicators' else 'btn btn-secondary me-2 nav-button'
+            'Indicators': 'btn btn-primary me-2 nav-button' if current_page == 'Indicators' else 'btn btn-secondary me-2 nav-button',
+            'Sandbox': 'btn btn-primary me-2 nav-button' if current_page == 'Sandbox' else 'btn btn-secondary me-2 nav-button'
         }
 
         return (current_page, styles['Home'], styles['Patients'],
                 styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
-                disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+                styles['Sandbox'],
+                disabled, disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     # Navigation normale
     page_map = {
@@ -190,7 +198,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
         'nav-gvh': 'GvH',
         'nav-relapse': 'Relapse',
         'nav-survival': 'Survival',               
-        'nav-indics': 'Indicators'
+        'nav-indics': 'Indicators',
+        'nav-sandbox': 'Sandbox'
     }
     new_page = page_map.get(button_id, current_page or 'Home')
     
@@ -202,7 +211,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
         'GvH': 'nav-gvh',
         'Relapse': 'nav-relapse',
         'Survival': 'nav-survival',               
-        'Indicators': 'nav-indics'
+        'Indicators': 'nav-indics',
+        'Sandbox': 'nav-sandbox'
     }
     
     styles = {}
@@ -213,7 +223,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
 
     return (new_page, styles['nav-home'], styles['nav-patients'],
             styles['nav-hemopathies'], styles['nav-procedures'], styles['nav-gvh'], styles['nav-relapse'], styles['nav-survival'], styles['nav-indics'],
-            disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+            styles['nav-sandbox'],
+            disabled, disabled, disabled, disabled, disabled, disabled, disabled, disabled)
 
 @app.callback(
     Output('sidebar-content', 'children'),
@@ -381,6 +392,11 @@ def update_sidebar(current_page, data, metadata):
     elif current_page == 'Indicators' and data is not None:
         content = indic_page.create_indicators_sidebar_content(data)
         return layouts.create_sidebar_layout('Indicators', content)
+    
+    elif current_page == 'Sandbox' and data is not None:
+        # Sidebar spécifique pour la page Sandbox
+        content = sandbox_page.create_sandbox_sidebar_content(data)
+        return layouts.create_sidebar_layout('Sandbox Filters', content)
 
     else:
         # Sidebar par défaut
@@ -596,6 +612,9 @@ def update_main_content(current_page, last_rendered_page):
 
     elif current_page == 'Indicators':
             return indic_page.get_layout(), current_page
+    
+    elif current_page == 'Sandbox':
+            return sandbox_page.get_layout(), current_page
 
     return html.Div(), current_page
 
@@ -802,6 +821,7 @@ gvh_page.register_callbacks(app)
 relapse_page.register_callbacks(app)
 survival_page.register_callbacks(app)
 indic_page.register_callbacks(app)
+sandbox_page.register_callbacks(app)
 
 if __name__ == '__main__':
     app.run_server(

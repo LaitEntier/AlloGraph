@@ -51,6 +51,7 @@ def create_header_with_logo():
                         html.Button('Relapse', id='nav-relapse', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Survival', id='nav-survival', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Indicators', id='nav-indics', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Sandbox', id='nav-sandbox', className='btn btn-secondary me-2 nav-button', disabled=True),
                     ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'gap': '8px'}),
                     
                     # Bouton Purge data à droite
