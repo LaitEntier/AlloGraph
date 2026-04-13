@@ -15,6 +15,7 @@ def get_layout():
         dcc.Loading(
             id="loading-home-main",
             type="circle",
+            delay_show=500,
             children=html.Div(id='home-main-content')
         )
     ])
