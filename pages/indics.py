@@ -23,6 +23,9 @@ def get_layout():
         dcc.Store(id='selected-years-checklist-store', data=[]),
         dcc.Store(id='analysis-mode-store', data='yearly'),  # 'yearly' ou 'quarterly'
         
+        dcc.Store(id='indicators-missing-store'),
+        dcc.Store(id='indicators-name-store'),
+        
         # Zone principale
         dbc.Row([
             dbc.Col([
@@ -3997,7 +4000,9 @@ def register_callbacks(app):
         
     @app.callback(
         [Output('indicators-missing-detail-table', 'children'),
-         Output('export-missing-indicators-button', 'disabled')],
+         Output('export-missing-indicators-button', 'disabled'),
+         Output('indicators-missing-store', 'data'),
+         Output('indicators-name-store', 'data')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('selected-indicator-store', 'data'),
@@ -4012,10 +4017,10 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
-            return html.Div("Waiting...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True, None, None
         
         if not selected_indicator:
-            return dbc.Alert("Select an indicator to analyze missing data", color='info'), True
+            return dbc.Alert("Select an indicator to analyze missing data", color='info'), True, None, None
         
         try:
             df = pd.DataFrame(data)
@@ -4036,7 +4041,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(year_list)]
             
             if df.empty:
-                return html.Div('No data for the selected year(s)', className='text-warning text-center'), True
+                return html.Div('No data for the selected year(s)', className='text-warning text-center'), True, None, None
             
             # Obtenir les variables spécifiques à l'indicateur sélectionné
             columns_to_analyze, indicator_name = get_variables_for_indicator(selected_indicator)
@@ -4044,13 +4049,13 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert(f"No variables found for {indicator_name}", color='warning'), True
+                return dbc.Alert(f"No variables found for {indicator_name}", color='warning'), True, None, None
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("No missing data found !", color='success'), True
+                return dbc.Alert("No missing data found !", color='success'), True, None, None
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
@@ -4061,10 +4066,6 @@ def register_callbacks(app):
                     'Nb missing': row['Nb missing'],
                     'Indicator': indicator_name  # Ajouter l'indicateur pour l'export
                 })
-            
-            # Sauvegarder les données pour l'export
-            app.server.missing_indicators_data = detailed_data
-            app.server.current_indicator_name = indicator_name
             
             table_content = html.Div([
                 dash_table.DataTable(
@@ -4085,28 +4086,30 @@ def register_callbacks(app):
                 )
             ])
             
-            return table_content, False  # Activer le bouton d'export
+            return table_content, False, detailed_data, indicator_name  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None, None
     
     @app.callback(
         Output("download-missing-indicators-excel", "data"),
         Input("export-missing-indicators-button", "n_clicks"),
+        State('indicators-missing-store', 'data'),
+        State('indicators-name-store', 'data'),
         prevent_initial_call=True
     )
-    def export_missing_indicators_excel(n_clicks):
+    def export_missing_indicators_excel(n_clicks, missing_data, indicator_name):
         """Gère l'export csv des patients avec données manquantes pour Indicators"""
         if n_clicks is None:
             return dash.no_update
         
         try:
             # Récupérer les données stockées
-            if hasattr(app.server, 'missing_indicators_data') and app.server.missing_indicators_data:
-                missing_df = pd.DataFrame(app.server.missing_indicators_data)
+            if missing_data:
+                missing_df = pd.DataFrame(missing_data)
                 
                 # Récupérer le nom de l'indicateur
-                indicator_name = getattr(app.server, 'current_indicator_name', 'unknown_indicator')
+                indicator_name = indicator_name or 'unknown_indicator'
                 indicator_slug = indicator_name.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('-', '_')
                 
                 # Générer un nom de fichier avec la date et l'indicateur
