@@ -60,3 +60,9 @@ structure.txt
 AGENTS.md
 MISSING_DATA_REWORK.md
 data/external.csv
+
+# Audit / generated reports
+DATA_AUDIT_REPORT.md
+audit_data_privacy.py
+generate_audit_pdf.py
+AlloGraph_Data_Audit_Report.pdf
