@@ -28,6 +28,8 @@ def get_layout():
     Retourne le layout de la page Survie avec graphiques empilés verticalement
     """
     return dbc.Container([
+        dcc.Store(id='survival-missing-store'),
+        
         # Premier graphique - Courbe de survie globale
         dbc.Row([
             dbc.Col([
@@ -1161,7 +1163,8 @@ def register_callbacks(app):
 
     @app.callback(
         [Output('survival-missing-detail-table', 'children'),
-         Output('export-missing-survival-button', 'disabled')],
+         Output('export-missing-survival-button', 'disabled'),
+         Output('survival-missing-store', 'data')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
@@ -1173,7 +1176,7 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
-            return html.Div("Waiting...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
             df = pd.DataFrame(data)
@@ -1190,7 +1193,7 @@ def register_callbacks(app):
             df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
-                return html.Div('No data for the selected years', className='text-warning text-center'), True
+                return html.Div('No data for the selected years', className='text-warning text-center'), True, None
             
             # Variables spécifiques à analyser pour Survie
             columns_to_analyze = [
@@ -1205,13 +1208,13 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("No survival variable found", color='warning'), True
+                return dbc.Alert("No survival variable found", color='warning'), True, None
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("No missing data found !", color='success'), True
+                return dbc.Alert("No missing data found !", color='success'), True, None
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
@@ -1222,9 +1225,6 @@ def register_callbacks(app):
                     'Nb missing': row['Nb missing']
                 })
 
-            # Sauvegarder les données pour l'export
-            app.server.missing_survival_data = detailed_data
-            
             table_content = html.Div([
                 dash_table.DataTable(
                     data=detailed_data,
@@ -1243,25 +1243,26 @@ def register_callbacks(app):
                 )
             ])
             
-            return table_content, False  # Activer le bouton d'export
+            return table_content, False, detailed_data  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
 
     @app.callback(
         Output("download-missing-survival-excel", "data"),
         Input("export-missing-survival-button", "n_clicks"),
+        State('survival-missing-store', 'data'),
         prevent_initial_call=True
     )
-    def export_missing_survival_excel(n_clicks):
+    def export_missing_survival_excel(n_clicks, missing_data):
         """Gère l'export Excel des patients avec données manquantes pour Survie"""
         if n_clicks is None:
             return dash.no_update
         
         try:
             # Récupérer les données stockées
-            if hasattr(app.server, 'missing_survival_data') and app.server.missing_survival_data:
-                missing_df = pd.DataFrame(app.server.missing_survival_data)
+            if missing_data:
+                missing_df = pd.DataFrame(missing_data)
                 
                 # Générer un nom de fichier avec la date
                 from datetime import datetime

@@ -15,6 +15,7 @@ def get_layout():
     Retourne le layout de la page GvH avec uniquement le graphique de risques compétitifs
     """
     return dbc.Container([
+        dcc.Store(id='gvh-missing-store'),
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -478,7 +479,8 @@ def register_callbacks(app):
 
     @app.callback(
         [Output('gvh-missing-detail-table', 'children'),
-         Output('export-missing-gvh-button', 'disabled')],
+         Output('export-missing-gvh-button', 'disabled'),
+         Output('gvh-missing-store', 'data')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
@@ -490,7 +492,7 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
-            return html.Div("Waiting...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
             df = pd.DataFrame(data)
@@ -507,7 +509,7 @@ def register_callbacks(app):
             df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
-                return html.Div('No data for the selected years', className='text-warning text-center'), True
+                return html.Div('No data for the selected years', className='text-warning text-center'), True, None
             
             # Variables spécifiques à analyser pour GvH
             columns_to_analyze = [
@@ -528,13 +530,13 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("No GvH variable found", color='warning'), True
+                return dbc.Alert("No GvH variable found", color='warning'), True, None
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("🎉 No missing data found !", color='success'), True
+                return dbc.Alert("🎉 No missing data found !", color='success'), True, None
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
@@ -544,9 +546,6 @@ def register_callbacks(app):
                     'Missing columns': row['Missing columns'],  # ← Corrigé
                     'Nb missing': row['Nb missing']  # ← Corrigé
                 })
-            
-            # Sauvegarder les données pour l'export
-            app.server.missing_gvh_data = detailed_data
             
             table_content = html.Div([
                 dash_table.DataTable(
@@ -566,25 +565,26 @@ def register_callbacks(app):
                 )
             ])
             
-            return table_content, False  # Activer le bouton d'export
+            return table_content, False, detailed_data  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
 
     @app.callback(
         Output("download-missing-gvh-excel", "data"),  # ← ID changé
         Input("export-missing-gvh-button", "n_clicks"),
+        State('gvh-missing-store', 'data'),
         prevent_initial_call=True
     )
-    def export_missing_gvh_excel(n_clicks):  # ← Nom de fonction changé
+    def export_missing_gvh_excel(n_clicks, missing_data):  # ← Nom de fonction changé
         """Gère l'export csv des patients avec données manquantes pour GvH"""
         if n_clicks is None:
             return dash.no_update
         
         try:
             # Récupérer les données stockées
-            if hasattr(app.server, 'missing_gvh_data') and app.server.missing_gvh_data:
-                missing_df = pd.DataFrame(app.server.missing_gvh_data)
+            if missing_data:
+                missing_df = pd.DataFrame(missing_data)
                 
                 # Générer un nom de fichier avec la date
                 from datetime import datetime

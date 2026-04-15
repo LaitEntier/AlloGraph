@@ -14,6 +14,10 @@ import visualizations.allogreffes.graphs as gr
 def get_layout():
     """Retourne le layout de la page Patients avec graphiques empilés verticalement"""
     return dbc.Container([
+        # Stores pour les données d'export (remplacent app.server)
+        dcc.Store(id='patients-stats-store'),
+        dcc.Store(id='patients-missing-store'),
+        
         # Graphique 1: Barplot normalisé à 100%
         dbc.Row([
             dbc.Col([
@@ -473,7 +477,8 @@ def register_callbacks(app):
 
     @app.callback(
         [Output('patients-datatable', 'children'),
-        Output('export-csv-button', 'disabled')],
+        Output('export-csv-button', 'disabled'),
+        Output('patients-stats-store', 'data')],
         [Input('data-store', 'data'),
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
@@ -483,7 +488,7 @@ def register_callbacks(app):
     def update_datatable(data, current_page, selected_years, selected_age_groups, malignancy_filter):
         """Graphique 4: DataTable avec statistiques par année incluant la répartition par sexe"""
         if current_page != 'Patients' or data is None:
-            return html.Div(), True
+            return html.Div(), True, None
         
         df = pd.DataFrame(data)
         
@@ -502,7 +507,7 @@ def register_callbacks(app):
         missing_cols = [col for col in required_cols if col not in df.columns]
         
         if missing_cols:
-            return dbc.Alert(f'Missing columns: {", ".join(missing_cols)}', color='warning')
+            return dbc.Alert(f'Missing columns: {", ".join(missing_cols)}', color='warning'), dash.no_update, None
         
         # Calculer les statistiques par année
         stats_by_year = []
@@ -605,7 +610,7 @@ def register_callbacks(app):
                 stats_by_year.append(total_row)
         
         if not stats_by_year:
-            return dbc.Alert('No data available for the selected years', color='info')
+            return dbc.Alert('No data available for the selected years', color='info'), dash.no_update, None
         
         # Déterminer les colonnes selon la présence de données inconnues
         has_unknown = any('Unknown (n)' in row for row in stats_by_year)
@@ -633,8 +638,6 @@ def register_callbacks(app):
                 {"name": "Unknown (%)", "id": "Unknown (%)", "type": "numeric", "format": {"specifier": ".1f"}}
             ])
         
-        app.server.stats_data = stats_by_year
-
         # Créer la DataTable
         return html.Div([
             dash_table.DataTable(
@@ -694,23 +697,24 @@ def register_callbacks(app):
             ),
             html.P(f'{len(stats_by_year)-1} years displayed (+ total line)', 
                 className='text-info mt-2', style={'fontSize': '12px'})
-        ]), False
+        ]), False, stats_by_year
     
     @app.callback(
         Output("download-csv", "data"),
         Input("export-csv-button", "n_clicks"),
         State('year-filter-checklist', 'value'),
+        State('patients-stats-store', 'data'),
         prevent_initial_call=True
     )
-    def export_csv(n_clicks, selected_years):
+    def export_csv(n_clicks, selected_years, stats_data):
         """Gère l'export CSV des statistiques"""
         if n_clicks is None:
             return dash.no_update
         
         try:
             # Récupérer les données stockées
-            if hasattr(app.server, 'stats_data') and app.server.stats_data:
-                stats_df = pd.DataFrame(app.server.stats_data)
+            if stats_data:
+                stats_df = pd.DataFrame(stats_data)
                 
                 # Générer un nom de fichier avec la date et les années sélectionnées
                 from datetime import datetime
@@ -1012,7 +1016,8 @@ def register_callbacks(app):
         
     @callback(
         [Output('patients-missing-detail-table', 'children'),
-         Output('export-missing-patients-button', 'disabled')],
+         Output('export-missing-patients-button', 'disabled'),
+         Output('patients-missing-store', 'data')],
         [Input('data-store', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
@@ -1024,7 +1029,7 @@ def register_callbacks(app):
         """Gère le tableau détaillé des patients avec données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
-            return html.Div("Waiting...", className='text-muted'), True
+            return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
             df = pd.DataFrame(data)
@@ -1041,7 +1046,7 @@ def register_callbacks(app):
             df = apply_malignancy_filter(df, malignancy_filter)
             
             if df.empty:
-                return html.Div('No data for the selected years', className='text-warning text-center'), True
+                return html.Div('No data for the selected years', className='text-warning text-center'), True, None
             
             # Variables spécifiques à analyser pour Patients
             columns_to_analyze = [
@@ -1057,13 +1062,13 @@ def register_callbacks(app):
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
-                return dbc.Alert("No Patients variable found", color='warning'), True
+                return dbc.Alert("No Patients variable found", color='warning'), True, None
             
             # Utiliser la fonction existante de graphs.py
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
             
             if detailed_missing.empty:
-                return dbc.Alert("No missing data found !", color='success'), True
+                return dbc.Alert("No missing data found !", color='success'), True, None
             
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
@@ -1073,9 +1078,6 @@ def register_callbacks(app):
                     'Missing columns': row['Missing columns'],
                     'Nb missing': row['Nb missing']
                 })
-            
-            # Sauvegarder les données pour l'export
-            app.server.missing_patients_data = detailed_data
             
             table_content = html.Div([
                 dash_table.DataTable(
@@ -1095,25 +1097,26 @@ def register_callbacks(app):
                 )
             ])
             
-            return table_content, False  # Activer le bouton d'export
+            return table_content, False, detailed_data  # Activer le bouton d'export
             
         except Exception as e:
-            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True
+            return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
         
     @callback(
         Output("download-missing-patients-excel", "data"),
         Input("export-missing-patients-button", "n_clicks"),
+        State('patients-missing-store', 'data'),
         prevent_initial_call=True
     )
-    def export_missing_patients_excel(n_clicks):
+    def export_missing_patients_excel(n_clicks, missing_data):
         """Gère l'export csv des patients avec données manquantes pour Patients"""
         if n_clicks is None:
             return dash.no_update
         
         try:
             # Récupérer les données stockées
-            if hasattr(app.server, 'missing_patients_data') and app.server.missing_patients_data:
-                missing_df = pd.DataFrame(app.server.missing_patients_data)
+            if missing_data:
+                missing_df = pd.DataFrame(missing_data)
                 
                 # Générer un nom de fichier avec la date
                 from datetime import datetime

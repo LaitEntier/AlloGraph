@@ -15,6 +15,7 @@ def get_layout():
         dcc.Loading(
             id="loading-home-main",
             type="circle",
+            delay_show=500,
             children=html.Div(id='home-main-content')
         )
     ])
@@ -393,7 +394,7 @@ def create_welcome_content():
             html.P([
                 html.I(className="bi bi-shield-check me-2", style={'color': '#28a745'}),
                 "Your data exists only for this analysis session, clears when you leave, ",
-                html.Strong("and is never uploaded to any server."),
+                html.Strong("and is never stored on any server."),
             ], style={
                 'textAlign': 'center',
                 'color': '#6c757d',
