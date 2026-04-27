@@ -119,12 +119,13 @@ def get_layout():
 
     ], fluid=True)
 
-def create_survival_sidebar_content(data):
+def create_survival_sidebar_content(data, pediatric_view=False):
     """
     Crée le contenu de la sidebar spécifique à la page Survie.
     
     Args:
         data (list): Liste de dictionnaires (format store Dash) avec les données
+        pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
         
     Returns:
         html.Div: Contenu de la sidebar
@@ -145,7 +146,9 @@ def create_survival_sidebar_content(data):
         # Select only the last 3 years by default
         default_years = [year['value'] for year in years_options[:3]] if len(years_options) >= 3 else [year['value'] for year in years_options]
     
-    return html.Div([
+    controls = [
+        layouts.create_pediatric_switch_component(pediatric_view),
+        
         # Paramètres d'analyse - RadioItems pour la durée
         html.Label('Maximum analysis duration:', className='mb-2', style={'color': '#021F59'}),
         dcc.RadioItems(
@@ -172,9 +175,13 @@ def create_survival_sidebar_content(data):
         ),
         
         html.Hr(),
-        
-        # Filtres par tranche d'âge
-        layouts.create_age_filter_component(component_id='survival-age-filter', title='Age groups'),
+        # Filtre d'âge toujours présent dans le DOM mais caché en vue normale
+        layouts.create_age_filter_component(
+            component_id='survival-age-filter',
+            title='Age groups',
+            pediatric_only=pediatric_view,
+            hidden=not pediatric_view
+        ),
         
         html.Hr(),
         
@@ -193,7 +200,9 @@ def create_survival_sidebar_content(data):
                 "Years: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
-    ])
+    ]
+    
+    return html.Div(controls)
 
 def prepare_survival_data(df):
     """

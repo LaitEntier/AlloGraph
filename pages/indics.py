@@ -97,7 +97,7 @@ def get_layout():
         ])
     ], fluid=True)
 
-def create_indicators_sidebar_content(data):
+def create_indicators_sidebar_content(data, pediatric_view=False):
     """Sidebar avec sélection Yearly/Quarterly et contrôles d'années dynamiques"""
     if data is None or len(data) == 0:
         return html.Div([
@@ -119,7 +119,9 @@ def create_indicators_sidebar_content(data):
         # Dernière année pour les valeurs par défaut
         latest_year = available_years[-1] if available_years else None
         
-        return html.Div([
+        controls = [
+            layouts.create_pediatric_switch_component(pediatric_view),
+            
             # Titre de section
             html.H6("Analysis Parameters", className='mb-3', style={'color': '#021F59'}),
             
@@ -184,10 +186,16 @@ def create_indicators_sidebar_content(data):
             ], id='quarterly-controls', style={'display': 'none'}),
             
             html.Hr(),
-            
-            # Filtres par tranche d'âge
-            layouts.create_age_filter_component(component_id='indicators-age-filter', title='Age groups'),
-            
+            # Filtre d'âge toujours présent dans le DOM mais caché en vue normale
+            layouts.create_age_filter_component(
+                component_id='indicators-age-filter',
+                title='Age groups',
+                pediatric_only=pediatric_view,
+                hidden=not pediatric_view
+            )
+        ]
+        
+        controls.extend([
             html.Hr(),
             
             # Filtres par type de diagnostic
@@ -210,6 +218,8 @@ def create_indicators_sidebar_content(data):
                 ], className="py-2")
             ], color="light", outline=True)
         ])
+        
+        return html.Div(controls)
         
     except Exception as e:
         print(f"ERROR in create_indicators_sidebar_content: {str(e)}")

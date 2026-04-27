@@ -29,6 +29,9 @@ import pages.gvh as gvh_page
 import pages.relapse as relapse_page
 import pages.survival as survival_page
 import pages.indics as indic_page
+import pages.legal as legal_page
+import pages.privacy as privacy_page
+import pages.cookies as cookies_page
 
 
 def get_asset_path(filename):
@@ -102,7 +105,8 @@ app.index_string = '''
 # Layout de base avec navigation mise à jour
 app.layout = html.Div([
     layouts.create_base_layout(),
-    dcc.Store(id='metadata-store')
+    dcc.Store(id='metadata-store'),
+    dcc.Store(id='pediatric-view', data=False)
 ])
 
 # ========== CALLBACKS GLOBAUX UNIQUEMENT ==========
@@ -133,10 +137,13 @@ app.layout = html.Div([
      Input('nav-relapse', 'n_clicks'),
      Input('nav-survival', 'n_clicks'),          
      Input('nav-indics', 'n_clicks'),
+     Input('footer-nav-legal', 'n_clicks'),
+     Input('footer-nav-privacy', 'n_clicks'),
+     Input('footer-nav-cookies', 'n_clicks'),
      Input('data-store', 'data')],
     [State('current-page', 'data')]
 )
-def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, data, current_page):
+def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, legal_clicks, privacy_clicks, cookies_clicks, data, current_page):
     ctx = dash.callback_context
     
     if not ctx.triggered:
@@ -190,7 +197,10 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
         'nav-gvh': 'GvH',
         'nav-relapse': 'Relapse',
         'nav-survival': 'Survival',               
-        'nav-indics': 'Indicators'
+        'nav-indics': 'Indicators',
+        'footer-nav-legal': 'Legal',
+        'footer-nav-privacy': 'Privacy',
+        'footer-nav-cookies': 'Cookies'
     }
     new_page = page_map.get(button_id, current_page or 'Home')
     
@@ -219,10 +229,17 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
     Output('sidebar-content', 'children'),
     [Input('current-page', 'data'),
      Input('data-store', 'data'),
-     Input('metadata-store', 'data')]
+     Input('metadata-store', 'data'),
+     Input('pediatric-view', 'data')]
 )
-def update_sidebar(current_page, data, metadata):
+def update_sidebar(current_page, data, metadata, pediatric_view):
     """Gère la sidebar selon la page active"""
+    if current_page in ('Legal', 'Privacy', 'Cookies'):
+        content = html.Div([
+            html.P('Legal and privacy information.', className='text-muted')
+        ])
+        return layouts.create_sidebar_layout('Information', content)
+
     if current_page == 'Home':
         # Sidebar pour l'upload sur la page d'accueil
         if data is None:
@@ -324,7 +341,7 @@ def update_sidebar(current_page, data, metadata):
             available_years = sorted(df['Year'].unique().tolist())
             years_options = [{'label': f'{year}', 'value': year} for year in available_years]
         
-        content = layouts.create_filter_controls(categorical_columns, years_options)
+        content = layouts.create_filter_controls(categorical_columns, years_options, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
 
     elif current_page == 'Patients' and data is not None:
@@ -339,7 +356,7 @@ def update_sidebar(current_page, data, metadata):
             available_years = sorted(df['Year'].unique().tolist())
             years_options = [{'label': f'{year}', 'value': year} for year in available_years]
         
-        content = layouts.create_filter_controls(categorical_columns, years_options)
+        content = layouts.create_filter_controls(categorical_columns, years_options, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
     
     elif current_page == 'Indications' and data is not None:
@@ -356,30 +373,30 @@ def update_sidebar(current_page, data, metadata):
             available_years = sorted(df['Year'].unique().tolist())
             years_options = [{'label': f'{year}', 'value': year} for year in available_years]
         
-        content = layouts.create_hemopathies_filter_controls(categorical_columns, years_options)
+        content = layouts.create_hemopathies_filter_controls(categorical_columns, years_options, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
     
     elif current_page == 'Procedures' and data is not None:
-        content = layouts.create_procedures_sidebar_content(data)
+        content = layouts.create_procedures_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
 
     elif current_page == 'GvH' and data is not None:  
         # Sidebar spécifique pour la page GvH
-        content = gvh_page.create_gvh_sidebar_content(data)
+        content = gvh_page.create_gvh_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Parameters GvH', content)
     
     elif current_page == 'Relapse' and data is not None:
         # Sidebar spécifique pour la page Rechute
-        content = relapse_page.create_relapse_sidebar_content(data)
+        content = relapse_page.create_relapse_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Relapse', content)
 
     elif current_page == 'Survival' and data is not None:  
         # Sidebar spécifique pour la page Survie
-        content = survival_page.create_survival_sidebar_content(data)
+        content = survival_page.create_survival_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Survival', content)
     
     elif current_page == 'Indicators' and data is not None:
-        content = indic_page.create_indicators_sidebar_content(data)
+        content = indic_page.create_indicators_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Indicators', content)
 
     else:
@@ -393,6 +410,16 @@ def update_sidebar(current_page, data, metadata):
                 html.P('Data loaded. Use the navigation buttons to explore your data.', className='text-success')
             ])
         return layouts.create_sidebar_layout('Information', content)
+
+
+@app.callback(
+    Output('pediatric-view', 'data'),
+    Input('pediatric-view-switch', 'value'),
+    prevent_initial_call=True
+)
+def update_pediatric_view(is_pediatric):
+    """Synchronise le store pediatric-view avec le switch"""
+    return bool(is_pediatric)
 
 
 @app.callback(
@@ -596,6 +623,15 @@ def update_main_content(current_page, last_rendered_page):
 
     elif current_page == 'Indicators':
             return indic_page.get_layout(), current_page
+
+    elif current_page == 'Legal':
+            return legal_page.get_layout(), current_page
+
+    elif current_page == 'Privacy':
+            return privacy_page.get_layout(), current_page
+
+    elif current_page == 'Cookies':
+            return cookies_page.get_layout(), current_page
 
     return html.Div(), current_page
 
@@ -802,6 +838,9 @@ gvh_page.register_callbacks(app)
 relapse_page.register_callbacks(app)
 survival_page.register_callbacks(app)
 indic_page.register_callbacks(app)
+legal_page.register_callbacks(app)
+privacy_page.register_callbacks(app)
+cookies_page.register_callbacks(app)
 
 if __name__ == '__main__':
     app.run_server(

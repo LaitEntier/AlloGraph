@@ -208,10 +208,11 @@ def register_callbacks(app):
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
-         Input('patients-malignancy-filter', 'value')]
+         Input('patients-malignancy-filter', 'value'),
+         Input('pediatric-view', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter):
+    def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view):
         """Graphique 1: Barplot normalisé à 100%"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -246,14 +247,21 @@ def register_callbacks(app):
             
             stack_col = None if stack_var == 'None' else stack_var
             
-            # Choisir la fonction appropriée selon la variable de stratification
-            if stack_col is None or stack_col not in filtered_df.columns:
-                # Pas de stratification : barplot simple normalisé à 100%
+            # Adapter pour la vue pédiatrique
+            if pediatric_view and x_axis == 'Age Groups':
+                x_axis = 'Age Group Detailed'
+                pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+                filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
+                order = pediatric_categories
+            else:
                 # Définir l'ordre personnalisé pour Age Groups
                 order = None
                 if x_axis == 'Age Groups':
                     order = ['18-', '18-39', '40-64', '65-74', '75+']
-                
+            
+            # Choisir la fonction appropriée selon la variable de stratification
+            if stack_col is None or stack_col not in filtered_df.columns:
+                # Pas de stratification : barplot simple normalisé à 100%
                 fig = gr.create_simple_normalized_barplot(
                     data=filtered_df,
                     x_column=x_axis,
@@ -266,11 +274,6 @@ def register_callbacks(app):
                 )
             else:
                 # Avec stratification : barplot stacké normalisé
-                # Définir l'ordre personnalisé pour Age Groups
-                order = None
-                if x_axis == 'Age Groups':
-                    order = ['18-', '18-39', '40-64', '65-74', '75+']
-                
                 # Créer un mapping de couleurs cohérent
                 color_map = create_color_map(filtered_df, stack_col)
                 
@@ -304,10 +307,11 @@ def register_callbacks(app):
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
-         Input('patients-malignancy-filter', 'value')]
+         Input('patients-malignancy-filter', 'value'),
+         Input('pediatric-view', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter):
+    def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view):
         """Graphique 2: Barplot distribution"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -342,14 +346,21 @@ def register_callbacks(app):
             
             stack_col = None if stack_var == 'None' else stack_var
             
-            # Choisir la fonction appropriée selon la variable de stratification
-            if stack_col is None or stack_col not in filtered_df.columns:
-                # Pas de stratification : barplot simple
+            # Adapter pour la vue pédiatrique
+            if pediatric_view and x_axis == 'Age Groups':
+                x_axis = 'Age Group Detailed'
+                pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+                filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
+                order = pediatric_categories
+            else:
                 # Définir l'ordre personnalisé pour Age Groups
                 order = None
                 if x_axis == 'Age Groups':
                     order = ['18-', '18-39', '40-64', '65-74', '75+']
-                
+            
+            # Choisir la fonction appropriée selon la variable de stratification
+            if stack_col is None or stack_col not in filtered_df.columns:
+                # Pas de stratification : barplot simple
                 fig = gr.create_simple_barplot(
                     data=filtered_df,
                     x_column=x_axis,
@@ -362,11 +373,6 @@ def register_callbacks(app):
                 )
             else:
                 # Avec stratification : barplot stacké
-                # Définir l'ordre personnalisé pour Age Groups
-                order = None
-                if x_axis == 'Age Groups':
-                    order = ['18-', '18-39', '40-64', '65-74', '75+']
-                
                 # Créer un mapping de couleurs cohérent
                 color_map = create_color_map(filtered_df, stack_col)
                 
@@ -744,10 +750,11 @@ def register_callbacks(app):
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
         Input('patients-age-filter', 'value'),
-        Input('patients-malignancy-filter', 'value')]
+        Input('patients-malignancy-filter', 'value'),
+        Input('pediatric-view', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_patients_performance_scores_boxplot(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def update_patients_performance_scores_boxplot(data, current_page, selected_years, selected_age_groups, malignancy_filter, pediatric_view):
         """Boxplot des Performance Scores par Age Groups avec boutons pour switcher entre les échelles"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -766,9 +773,20 @@ def register_callbacks(app):
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
         
+        # Adapter pour la vue pédiatrique
+        if pediatric_view:
+            age_col = 'Age Group Detailed'
+            age_order = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+            # Filtrer pour ne garder que les groupes pédiatriques
+            pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
+        else:
+            age_col = 'Age Groups'
+            age_order = ['18-', '18-39', '40-64', '65-74', '75+']
+        
         # Vérifier que la colonne Age Groups existe
-        if 'Age Groups' not in filtered_df.columns:
-            return html.Div('Age Groups column not available', className='text-warning text-center')
+        if age_col not in filtered_df.columns:
+            return html.Div(f'{age_col} column not available', className='text-warning text-center')
         
         # Vérifier que les colonnes Performance Status existent
         scale_col = 'Performance Status At Treatment Scale'
@@ -779,7 +797,7 @@ def register_callbacks(app):
         
         try:
             # Nettoyer les données
-            clean_df = filtered_df.dropna(subset=['Age Groups', scale_col, score_col])
+            clean_df = filtered_df.dropna(subset=[age_col, scale_col, score_col])
             
             # Obtenir les échelles uniques disponibles
             available_scales = clean_df[scale_col].dropna().unique()
@@ -799,9 +817,6 @@ def register_callbacks(app):
                 except (ValueError, TypeError):
                     return None
             
-            # Ordre des groupes d'âge
-            age_order = ['18-', '18-39', '40-64', '65-74', '75+']
-            
             # Créer les traces pour chaque échelle
             for i, scale in enumerate(available_scales):
                 # Filtrer les données pour cette échelle
@@ -810,13 +825,13 @@ def register_callbacks(app):
                 scale_df = scale_df.dropna(subset=['numeric_score'])
                 
                 # S'assurer que les groupes d'âge sont dans le bon ordre
-                scale_df['Age Groups'] = pd.Categorical(scale_df['Age Groups'], categories=age_order, ordered=True)
-                scale_df = scale_df.sort_values('Age Groups')
+                scale_df[age_col] = pd.Categorical(scale_df[age_col], categories=age_order, ordered=True)
+                scale_df = scale_df.sort_values(age_col)
                 
                 # Créer un boxplot pour chaque groupe d'âge
                 for age_group in age_order:
-                    if age_group in scale_df['Age Groups'].values:
-                        group_data = scale_df[scale_df['Age Groups'] == age_group]['numeric_score']
+                    if age_group in scale_df[age_col].values:
+                        group_data = scale_df[scale_df[age_col] == age_group]['numeric_score']
                         
                         fig.add_trace(go.Box(
                             y=group_data,
@@ -848,7 +863,7 @@ def register_callbacks(app):
                 for j in range(len(available_scales)):
                     # Compter combien de groupes d'âge ont des données pour cette échelle
                     scale_df_check = clean_df[clean_df[scale_col] == available_scales[j]]
-                    n_age_groups = len([ag for ag in age_order if ag in scale_df_check['Age Groups'].values])
+                    n_age_groups = len([ag for ag in age_order if ag in scale_df_check[age_col].values])
                     if j == i:
                         visibility.extend([True] * n_age_groups)
                     else:

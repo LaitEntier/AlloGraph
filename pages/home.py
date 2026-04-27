@@ -322,7 +322,7 @@ def create_welcome_content():
                         " data. Visualize trends, perform survival analysis, and generate ",
                         "clinical indicators that conform to the EBMT registry data model."
                     ], style={
-                        'color': '#6c757d', 
+                        'color': '#6c757d',
                         'fontSize': '1.1rem',
                         'lineHeight': '1.7',
                         'marginBottom': '15px'

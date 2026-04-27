@@ -227,7 +227,27 @@ def create_base_layout():
         dbc.Row([
             dbc.Col([
                 html.Hr(style={'borderColor': '#021F59', 'borderWidth': '2px'}),
-                html.P('© 2026 - CHRU de Tours - All rights reserved', className='text-center', style={'color': '#021F59', 'marginBottom': '4px'}),
+                html.P([
+                    '© 2026 - CHRU de Tours - All rights reserved',
+                    html.Span(' | ', style={'margin': '0 8px'}),
+                    html.Button('Legal Notices', id='footer-nav-legal', n_clicks=0, style={
+                        'background': 'none', 'border': 'none', 'padding': '0', 'margin': '0',
+                        'color': '#021F59', 'textDecoration': 'underline', 'cursor': 'pointer',
+                        'fontSize': '13px'
+                    }),
+                    html.Span(' | ', style={'margin': '0 8px'}),
+                    html.Button('Privacy Notice', id='footer-nav-privacy', n_clicks=0, style={
+                        'background': 'none', 'border': 'none', 'padding': '0', 'margin': '0',
+                        'color': '#021F59', 'textDecoration': 'underline', 'cursor': 'pointer',
+                        'fontSize': '13px'
+                    }),
+                    html.Span(' | ', style={'margin': '0 8px'}),
+                    html.Button('Cookie Policy', id='footer-nav-cookies', n_clicks=0, style={
+                        'background': 'none', 'border': 'none', 'padding': '0', 'margin': '0',
+                        'color': '#021F59', 'textDecoration': 'underline', 'cursor': 'pointer',
+                        'fontSize': '13px'
+                    })
+                ], className='text-center', style={'color': '#021F59', 'marginBottom': '4px'}),
                 html.P('IDDN.FR.001.090021.000.S.P.2026.000.31230', className='text-center', style={'color': '#6c757d', 'fontSize': '11px'})
             ])
         ])
@@ -324,7 +344,27 @@ def create_upload_component():
         multiple=False
     )
 
-def create_filter_controls(categorical_columns, years_options):
+def create_pediatric_switch_component(pediatric_view=False):
+    """
+    Crée le switch pour basculer entre la vue normale et la vue pédiatrique.
+    
+    Args:
+        pediatric_view (bool): État initial du switch
+        
+    Returns:
+        html.Div: Composant contenant le switch
+    """
+    return html.Div([
+        dbc.Switch(
+            id='pediatric-view-switch',
+            label='Pediatric view',
+            value=pediatric_view,
+            className='mb-3'
+        )
+    ])
+
+
+def create_filter_controls(categorical_columns, years_options, pediatric_view=False):
     """
     Crée les contrôles de filtrage pour la sidebar de la page Patients.
     Limite les variables de stratification aux variables importantes uniquement.
@@ -332,6 +372,7 @@ def create_filter_controls(categorical_columns, years_options):
     Args:
         categorical_columns (list): Liste des colonnes catégorielles disponibles (non utilisée maintenant)
         years_options (list): Options pour le filtre des années
+        pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
         
     Returns:
         html.Div: Composant contenant les contrôles de filtrage
@@ -349,7 +390,9 @@ def create_filter_controls(categorical_columns, years_options):
     stratification_options = [{'label': 'None', 'value': 'None'}]
     stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
     
-    return html.Div([
+    controls = [
+        create_pediatric_switch_component(pediatric_view),
+        
         html.Label('X-axis:', className='mb-2', style={'color': '#021F59'}),
         dcc.Dropdown(
             id='x-axis-dropdown',
@@ -380,17 +423,21 @@ def create_filter_controls(categorical_columns, years_options):
         ),
         
         html.Hr(),
-        
-        # Filtres par tranche d'âge
-        create_age_filter_component(component_id='patients-age-filter', title='Age groups'),
+        # Filtre d'âge toujours présent dans le DOM mais caché en vue normale
+        create_age_filter_component(
+            component_id='patients-age-filter',
+            title='Age groups',
+            pediatric_only=pediatric_view,
+            hidden=not pediatric_view
+        ),
         
         html.Hr(),
-        
-        # Filtres par type de diagnostic
         create_malignancy_filter_component(component_id='patients-malignancy-filter', title='Diagnosis type')
-    ])
+    ]
+    
+    return html.Div(controls)
 
-def create_hemopathies_filter_controls(categorical_columns, years_options):
+def create_hemopathies_filter_controls(categorical_columns, years_options, pediatric_view=False):
     """
     Crée les contrôles de filtrage spécifiques pour la page Hemopathies.
     Limite les variables de stratification aux variables importantes uniquement.
@@ -398,6 +445,7 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
     Args:
         categorical_columns (list): Liste des colonnes catégorielles disponibles (non utilisée maintenant)
         years_options (list): Options pour le filtre des années
+        pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
         
     Returns:
         html.Div: Composant contenant les contrôles de filtrage
@@ -413,7 +461,9 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
     stratification_options = [{'label': 'None', 'value': 'None'}]
     stratification_options.extend([{'label': var, 'value': var} for var in stratification_variables])
     
-    return html.Div([
+    controls = [
+        create_pediatric_switch_component(pediatric_view),
+        
         html.Label('X-axis:', className='mb-2', style={'color': '#021F59'}),
         dcc.Dropdown(
             id='x-axis-dropdown',
@@ -444,36 +494,55 @@ def create_hemopathies_filter_controls(categorical_columns, years_options):
         ),
         
         html.Hr(),
-        
-        # Filtres par tranche d'âge
-        create_age_filter_component(component_id='hemopathies-age-filter', title='Age groups'),
+        # Filtre d'âge toujours présent dans le DOM mais caché en vue normale
+        create_age_filter_component(
+            component_id='hemopathies-age-filter',
+            title='Age groups',
+            pediatric_only=pediatric_view,
+            hidden=not pediatric_view
+        ),
         
         html.Hr(),
-        
-        # Filtres par type de diagnostic
         create_malignancy_filter_component(component_id='hemopathies-malignancy-filter', title='Diagnosis type')
-    ])
+    ]
+    
+    return html.Div(controls)
 
 
-def create_age_filter_component(component_id='age-filter-checklist', title='Age groups'):
+def create_age_filter_component(component_id='age-filter-checklist', title='Age groups', pediatric_only=False, hidden=False):
     """
     Crée un composant de filtrage par tranches d'âge détaillées.
     
     Args:
         component_id (str): ID du composant dcc.Checklist
         title (str): Titre affiché pour la section
+        pediatric_only (bool): Si True, limite aux tranches pédiatriques uniquement (<1 à 16-18)
+        hidden (bool): Si True, cache le composant dans le DOM (style display: none)
         
     Returns:
         html.Div: Composant contenant le filtre d'âge
     """
-    age_options = [
-        {'label': '<1 year', 'value': '<1 year'},
-        {'label': '1-5 years', 'value': '1-5 years'},
-        {'label': '6-10 years', 'value': '6-10 years'},
-        {'label': '11-15 years', 'value': '11-15 years'},
-        {'label': '16-18 years', 'value': '16-18 years'},
-        {'label': '>18 years', 'value': '>18 years'}
-    ]
+    if pediatric_only:
+        age_options = [
+            {'label': '<1 year', 'value': '<1 year'},
+            {'label': '1-5 years', 'value': '1-5 years'},
+            {'label': '6-10 years', 'value': '6-10 years'},
+            {'label': '11-15 years', 'value': '11-15 years'},
+            {'label': '16-18 years', 'value': '16-18 years'}
+        ]
+    else:
+        age_options = [
+            {'label': '<1 year', 'value': '<1 year'},
+            {'label': '1-5 years', 'value': '1-5 years'},
+            {'label': '6-10 years', 'value': '6-10 years'},
+            {'label': '11-15 years', 'value': '11-15 years'},
+            {'label': '16-18 years', 'value': '16-18 years'},
+            {'label': '>18 years', 'value': '>18 years'}
+        ]
+    
+    container_style = {}
+    if hidden:
+        container_style['display'] = 'none'
     
     return html.Div([
         html.H5(title, className='mb-2'),
@@ -484,7 +553,7 @@ def create_age_filter_component(component_id='age-filter-checklist', title='Age 
             inline=False,
             className='mb-3'
         )
-    ])
+    ], style=container_style)
 
 
 def create_malignancy_filter_component(component_id='malignancy-filter', title='Diagnosis type'):
@@ -536,13 +605,14 @@ def apply_malignancy_filter(df, malignancy_filter_value):
     return df
 
 
-def create_procedures_sidebar_content(data):
+def create_procedures_sidebar_content(data, pediatric_view=False):
     """
     Crée le contenu de la sidebar spécifique à la page Procedures.
     Simplifié car le sélecteur de variable principale est maintenant intégré dans l'interface.
     
     Args:
         data (list): Liste de dictionnaires (format store Dash) avec les données
+        pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
         
     Returns:
         html.Div: Contenu de la sidebar
@@ -561,7 +631,9 @@ def create_procedures_sidebar_content(data):
         available_years = sorted(df['Year'].unique().tolist())
         years_options = [{'label': f'{year}', 'value': year} for year in available_years]
     
-    return html.Div([
+    controls = [
+        create_pediatric_switch_component(pediatric_view),
+        
         # Filtres par année
         html.H5('Filtres par année', className='mb-2'),
         dcc.Checklist(
@@ -573,15 +645,16 @@ def create_procedures_sidebar_content(data):
         ),
         
         html.Hr(),
-        
-        # Filtres par tranche d'âge
-        create_age_filter_component(component_id='procedures-age-filter', title='Age groups'),
+        # Filtre d'âge toujours présent dans le DOM mais caché en vue normale
+        create_age_filter_component(
+            component_id='procedures-age-filter',
+            title='Age groups',
+            pediatric_only=pediatric_view,
+            hidden=not pediatric_view
+        ),
         
         html.Hr(),
-        
-        # Filtres par type de diagnostic
         create_malignancy_filter_component(component_id='procedures-malignancy-filter', title='Diagnosis type'),
-        
         html.Hr(),
         
         # Informations sur les données
@@ -594,4 +667,6 @@ def create_procedures_sidebar_content(data):
                 "Années: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
-    ])
+    ]
+    
+    return html.Div(controls)
