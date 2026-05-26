@@ -181,7 +181,7 @@ def create_base_layout():
         dbc.Modal([
             dbc.ModalHeader(dbc.ModalTitle("Confirmer la purge")),
             dbc.ModalBody([
-                html.P("Are you sure you want to delete all the uploaded data?"),
+                html.P("Are you sure you want to erase all the loaded data ?"),
                 html.P("This action is irreversible.", className="text-muted small")
             ]),
             dbc.ModalFooter([

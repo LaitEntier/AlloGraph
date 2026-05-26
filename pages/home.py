@@ -69,12 +69,12 @@ def create_upload_zone():
             # Header de la zone
             html.Div([
                 html.I(className="bi bi-cloud-upload fs-1", style={'color': '#0D3182', 'marginBottom': '15px'}),
-                html.H4("Upload Your Data", style={'color': '#0D3182', 'fontWeight': '700', 'marginBottom': '10px'}),
+                html.H4("Load Your Data", style={'color': '#0D3182', 'fontWeight': '700', 'marginBottom': '10px'}),
                 html.P([
                     "Drag and drop your file here, or ",
                     html.Span("browse", style={'color': '#d61704', 'fontWeight': '600', 'cursor': 'pointer'})
                 ], style={'color': '#6c757d', 'marginBottom': '0'}),
-                html.P("Supports CSV from EBMT Treatment Overview Report", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
+                html.P("Supports CSV from your favorite european registry", style={'color': '#adb5bd', 'fontSize': '12px', 'marginTop': '8px', 'marginBottom': '0'})
             ], style={
                 'border': '3px dashed #0D3182',
                 'borderRadius': '16px',
@@ -97,7 +97,7 @@ def create_how_to_get_data_section():
         # Header cliquable
         dbc.Button([
             html.I(className="bi bi-question-circle me-2"),
-            "How to get your data from EBMT Registry?",
+            "How to get your data from your favorite european registry?",
             html.I(className="bi bi-chevron-down ms-2", id="tutorial-chevron")
         ], 
         id="tutorial-collapse-btn",
@@ -119,7 +119,7 @@ def create_how_to_get_data_section():
                 # Introduction
                 html.P([
                     "To use AlloGraph, you need to export your data from the ",
-                    html.Strong("EBMT Registry"), 
+                    html.Strong("your favorite european registry"), 
                     ". Follow these steps:"
                 ], style={'marginBottom': '20px', 'color': '#495057'}),
                 
@@ -152,8 +152,8 @@ def create_how_to_get_data_section():
                                     'fontWeight': '700', 'marginRight': '12px', 'flexShrink': '0'
                                 }),
                                 html.Div([
-                                    html.Strong("Login to EBMT Registry", style={'color': '#0D3182'}),
-                                    html.P("Go to ebmt.registry.org and sign in with your credentials.", 
+                                    html.Strong("Login to your favorite european registry", style={'color': '#0D3182'}),
+                                    html.P("Go to your favorite european registry and sign in with your credentials.", 
                                            style={'fontSize': '13px', 'color': '#6c757d', 'marginBottom': '0'})
                                 ])
                             ], style={'display': 'flex', 'alignItems': 'flex-start', 'marginBottom': '15px'})
@@ -294,7 +294,7 @@ def create_welcome_content():
                     # Badge
                     html.Div([
                         html.I(className="bi bi-graph-up me-2"),
-                        "EBMT-Compliant Data Analysis Tool"
+                        "Data Analysis Tool compliant with your favorite european registry data model"
                     ], style={
                         'display': 'inline-flex', 'alignItems': 'center',
                         'backgroundColor': '#0D318220', 'color': '#0D3182',
@@ -320,7 +320,7 @@ def create_welcome_content():
                         "AlloGraph is a comprehensive analytics platform designed for ",
                         html.Strong("allogeneic hematopoietic stem cell transplantation"),
                         " data. Visualize trends, perform survival analysis, and generate ",
-                        "clinical indicators that conform to the EBMT registry data model."
+                        "clinical indicators that conform to your favorite european registry data model."
                     ], style={
                         'color': '#6c757d',
                         'fontSize': '1.1rem',

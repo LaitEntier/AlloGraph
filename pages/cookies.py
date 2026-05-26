@@ -38,7 +38,7 @@ def get_layout():
                         html.Ul([
                             html.Li([
                                 html.Strong("Dash dcc.Store (localStorage / sessionStorage):"),
-                                " Used to hold the dataset you upload and derived analytical results while you interact with the platform. ",
+                                " Used to hold the dataset you load and derived analytical results while you interact with the platform. ",
                                 "This storage is limited to the browser tab/session and is cleared when you close the tab or click 'Void data'."
                             ]),
                             html.Li([

@@ -36,7 +36,7 @@ def get_layout():
                         html.P([
                             "For any questions regarding this platform, please contact:",
                             html.Br(),
-                            html.Strong("[To be completed — contact email address]")
+                            html.Strong("contact@allograph.eu")
                         ]),
 
                         html.H5("Hosting", style={'color': '#0D3182', 'fontWeight': '700', 'marginTop': '25px'}),
@@ -57,8 +57,9 @@ def get_layout():
                         html.H5("Nature of the Service", style={'color': '#0D3182', 'fontWeight': '700', 'marginTop': '25px'}),
                         html.P([
                             "AlloGraph is a standalone analytical tool designed for healthcare professionals and researchers. ",
-                            "Uploaded data is transmitted to the application server for real-time processing and visualization. ",
-                            "However, no patient data is stored, logged, archived, or persisted on any remote server beyond the duration of the active session."
+                            "Loaded data is transmitted to the application server for real-time processing and visualization. ",
+                            "However, patient data is never stored, logged, archived, or persisted on any remote server beyond the duration of the active session.",
+                            "AlloGraph does not communicate directly with the EBMT Registry or any external databases. "
                         ]),
 
 

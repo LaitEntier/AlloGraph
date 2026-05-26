@@ -2,7 +2,7 @@
 
 ## Overview
 
-AlloGraph is a comprehensive web-based application designed for the analysis of allogeneic hematopoietic stem cell transplantation data. Built primarily using the Dash and Plotly Python libraries, this application aims to provide clinicians and researchers with reproducible analytical tools compatible with common HSCT registry data structures, including the EBMT Registry format.
+AlloGraph is a comprehensive web-based application designed for the analysis of allogeneic hematopoietic stem cell transplantation data. Built primarily using the Dash and Plotly Python libraries, this application aims to provide clinicians and researchers with reproducible analytical tools compatible with common HSCT registry data structures, including your favorite european registry format.
 
 ## Purpose and Scope
 
@@ -50,7 +50,7 @@ Download the latest release and execute the main application file using Python. 
 
 ## Data Format Requirements
 
-The application is designed to work with datasets compatible with the EBMT Registry data structure. You may contact the EBMT and ask for a database extraction relative to your care facility.
+The application is designed to work with datasets compatible with your favorite european registry data structure. You may contact your favorite european registry and ask for a database extraction relative to your care facility.
 
 ## Application Architecture
 

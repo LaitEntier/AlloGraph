@@ -247,7 +247,7 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             content = html.Div([
                 # Section upload classique
                 html.Div([
-                    html.H6("Upload your data:", className="mb-2", style={'color': '#021F59'}),
+                    html.H6("Load your data:", className="mb-2", style={'color': '#021F59'}),
                     layouts.create_upload_component(),
                     html.Div(id='upload-status')
                 ], className="mb-4"),
@@ -486,7 +486,7 @@ def process_uploaded_file(contents, filename):
         
         # Message de succès avec les deux dimensions
         success_message = dbc.Alert([
-            html.H6("✅ File uploaded successfully!", className="mb-2"),
+            html.H6("✅ File loaded successfully!", className="mb-2"),
             html.P([
                 "📁 ", html.Strong(filename)
             ], className="mb-2", style={'fontSize': '12px'}),

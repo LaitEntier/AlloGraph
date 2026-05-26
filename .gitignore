@@ -51,7 +51,7 @@ Thumbs.db
 # Logs
 *.log
 
-# Data files (optionnel - décommentez si vous ne voulez pas uploader de données de test)
+# Data files
 # *.csv
 # *.xlsx
 # *.xls
