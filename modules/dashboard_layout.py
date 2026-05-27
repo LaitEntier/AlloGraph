@@ -248,7 +248,11 @@ def create_base_layout():
                         'fontSize': '13px'
                     })
                 ], className='text-center', style={'color': '#021F59', 'marginBottom': '4px'}),
-                html.P('IDDN.FR.001.090021.000.S.P.2026.000.31230', className='text-center', style={'color': '#6c757d', 'fontSize': '11px'})
+                html.P('IDDN.FR.001.090021.000.S.P.2026.000.31230', className='text-center', style={'color': '#6c757d', 'fontSize': '11px'}),
+                html.P([
+                    'Design by Lucie Clarysse ',
+                    html.A('@Com&Sci', href='https://comsci.art', target='_blank', style={'color': '#021F59', 'textDecoration': 'underline'})
+                ], className='text-center', style={'color': '#6c757d', 'fontSize': '11px', 'marginBottom': '4px'})
             ])
         ])
     ], fluid=True, className='p-4')

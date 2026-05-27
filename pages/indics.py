@@ -14,6 +14,148 @@ from modules.dashboard_layout import apply_malignancy_filter
 import modules.data_processing as data_processing
 import visualizations.allogreffes.graphs as gr
 
+# =============================================================================
+# INFOBULLES MÉTHODES DE CALCUL
+# =============================================================================
+
+AGVH_CALCULATION_TEXT = """Acute GVH (aGVH) — Calculation Method
+
+Required variables:
+• First Agvhd Occurrence Date
+• Treatment Date
+• First aGvHD Maximum Score
+
+aGVH delay = First Agvhd Occurrence Date − Treatment Date (days)
+
+Inclusion: Delay ≤ 100 days AND Grade ∈ {Grade 2, Grade 3, Grade 4}
+
+Results:
+• aGVH Grades 2-4: Patients with Grade 2, 3 or 4
+• aGVH Grades 3-4: Patients with Grade 3 or 4
+
+Rate (%) = (Number of cases / Total transplants) × 100"""
+
+GVHC_CALCULATION_TEXT = """Chronic GVH (cGVH) — Calculation Method
+
+Required variables:
+• First Cgvhd Occurrence Date
+• Treatment Date
+• First cGvHD Maximum NIH Score
+
+cGVH delay = First Cgvhd Occurrence Date − Treatment Date (days)
+
+Inclusion: Delay ≤ 365 days AND Score ∈ {Mild, Moderate, Severe}
+
+Pre-processing:
+• Limited → Mild
+• Extensive → Severe
+
+Results stratified by grade (Mild, Moderate, Severe)
+
+Rate (%) = (Number of cases / Total transplants) × 100"""
+
+TRM_CALCULATION_TEXT = """Toxicity-Related Mortality (TRM) — Calculation Method
+
+Required variables:
+• Status Last Follow Up
+• Death Cause
+• Date Of Last Follow Up
+• Treatment Date
+
+Follow-up days = Date Of Last Follow Up − Treatment Date
+
+Inclusion filter:
+• Death Cause ∈ {'Cellular therapy-related cause of death', 'HCT-related cause of death'}
+• AND (Status = 'Dead' OR (Status = 'Alive' AND Follow-up days ≥ 365))
+
+TRM D30 = Death with Follow-up days ≤ 30
+TRM D100 = Death with Follow-up days ≤ 100
+TRM D365 = Death with Follow-up days ≤ 365
+
+Rate (%) = (Number of TRM deaths / Total transplants) × 100"""
+
+SURVIE_CALCULATION_TEXT = """Overall Survival — Calculation Method
+
+Required variables:
+• Status Last Follow Up
+• Date Of Last Follow Up
+• Treatment Date
+
+Inclusion filter:
+• Status ∈ {'Dead', 'Died after conditioning but before main treatment'}
+• OR (Status = 'Alive' AND Follow-up days ≥ 365)
+
+Deaths D30 = Death with Follow-up days ≤ 30
+Deaths D100 = Death with Follow-up days ≤ 100
+Deaths D365 = Death with Follow-up days ≤ 365
+
+Survivors = Total − Deaths
+Survival rate (%) = (Survivors / Total) × 100"""
+
+PRISE_GREFFE_CALCULATION_TEXT = """Transplantation Success / Platelet Reconstitution — Calculation Method
+
+Required variables:
+• Date Platelet Reconstitution
+• Treatment Date
+
+Reconstitution delay = Date Platelet Reconstitution − Treatment Date (days)
+
+Inclusion: Non-missing data AND Delay ≤ 100 days
+
+Success = Patients with reconstitution ≤ 100 days
+Rate (%) = (Success / Total with valid data) × 100"""
+
+SORTIE_APLASIE_CALCULATION_TEXT = """ANC Recovery — Calculation Method
+
+Required variables:
+• Date Anc Recovery
+• Treatment Date
+
+ANC reconstitution delay = Date Anc Recovery − Treatment Date (days)
+
+Inclusion: Non-missing data AND Delay ≤ 28 days
+
+Success = Patients with ANC reconstitution ≤ 28 days
+Rate (%) = (Success / Total with valid data) × 100"""
+
+RECHUTE_CALCULATION_TEXT = """Relapse — Calculation Method
+
+Required variables:
+• First Relapse
+• First Relapse Date
+• Treatment Date
+
+Relapse delay = First Relapse Date − Treatment Date (days)
+
+Inclusion: First Relapse = "Yes" AND First Relapse Date not missing
+
+Relapse D100 = First Relapse = "Yes" AND Delay ≤ 100 days
+Relapse D365 = First Relapse = "Yes" AND Delay ≤ 365 days
+
+Rate (%) = (Number of relapses / Total with valid data) × 100"""
+
+def create_info_tooltip(tooltip_text, tooltip_id):
+    """Crée un icône info-circle avec un tooltip dbc au survol"""
+    return [
+        html.I(
+            className="bi bi-info-circle",
+            id=tooltip_id,
+            style={
+                'cursor': 'pointer',
+                'fontSize': '13px',
+                'marginLeft': '6px',
+                'color': '#77ACF2',
+                'verticalAlign': 'middle'
+            }
+        ),
+        dbc.Tooltip(
+            tooltip_text,
+            target=tooltip_id,
+            placement="top",
+            style={'maxWidth': '350px', 'textAlign': 'left', 'fontSize': '12px', 'whiteSpace': 'pre-line'}
+        )
+    ]
+
 def get_layout():
     """Layout avec sélection Yearly/Quarterly dans la sidebar"""
     return dbc.Container([
@@ -441,7 +583,7 @@ def create_gvha_global_visualization(df):
                             dbc.Card([
                                 dbc.CardBody([
                                     html.H3(f"{pct_global_2_4:.1f}%", className="text-center mb-2", style={'color': '#2c3e50'}),
-                                    html.P("Acute GVH grades 2-4", className="text-center mb-1", style={'fontSize': '14px'}),
+                                    html.Div([html.Span("Acute GVH grades 2-4", style={'fontSize': '14px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, "gvha-global-2-4")], className="text-center mb-1"),
                                     html.P(f"({total_gvh_2_4}/{total_patients})", className="text-center text-muted", style={'fontSize': '12px'})
                                 ], className="py-3")
                             ], color="primary", outline=True, style={'border-width': '2px'})
@@ -450,7 +592,7 @@ def create_gvha_global_visualization(df):
                             dbc.Card([
                                 dbc.CardBody([
                                     html.H3(f"{pct_global_3_4:.1f}%", className="text-center mb-2", style={'color': '#d61704'}),
-                                    html.P("Acute GVH grades 3-4", className="text-center mb-1", style={'fontSize': '14px'}),
+                                    html.Div([html.Span("Acute GVH grades 3-4", style={'fontSize': '14px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, "gvha-global-3-4")], className="text-center mb-1"),
                                     html.P(f"({total_gvh_3_4}/{total_patients})", className="text-center text-muted", style={'fontSize': '12px'})
                                 ], className="py-3")
                             ], color="danger", outline=True, style={'border-width': '2px'})
@@ -1038,9 +1180,7 @@ def create_trm_badges_content(year_data, analysis_year, subtitle=None):
                         html.H3(f"{badge_data['percentage']:.1f}%", 
                                 className="text-center mb-1", 
                                 style={'color': badge_data['color'], 'fontSize': '20px'}),
-                        html.P(f"TRM {badge_data['period']}", 
-                               className="text-center mb-1", 
-                               style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Div([html.Span(f"TRM {badge_data['period']}", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(TRM_CALCULATION_TEXT, f"trm-badge-{badge_data['period']}")], className="text-center mb-1"),
                         html.P(f"({badge_data['count']}/{total_greffes})", 
                                className="text-center text-muted", 
                                style={'fontSize': '10px'})
@@ -1127,7 +1267,7 @@ def create_trm_quarter_badge(quarterly_df, quarter_num, selected_year):
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{trm_pct:.1f}%", className="text-center mb-1", style={'color': '#e74c3c'}),
-                html.P("TRM (1Y)", className="text-center mb-1", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                html.Div([html.Span("TRM (1Y)", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(TRM_CALCULATION_TEXT, f"trm-q{quarter_num}-1y")], className="text-center mb-1"),
                 html.P(f"({int(trm_count)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '10px'})
             ], className="py-3")
         ], color="danger", outline=True, style={'border-width': '1px'})
@@ -1175,9 +1315,7 @@ def create_trm_quarter_badges_column(quarterly_df, quarter_num):
                 html.H5(f"{badge_data['percentage']:.1f}%", 
                         className="text-center mb-1", 
                         style={'color': badge_data['color'], 'fontSize': '14px'}),
-                html.P(f"TRM {badge_data['period']}", 
-                       className="text-center mb-1", 
-                       style={'fontSize': '10px', 'fontWeight': 'bold'}),
+                html.Div([html.Span(f"TRM {badge_data['period']}", style={'fontSize': '10px', 'fontWeight': 'bold'}), *create_info_tooltip(TRM_CALCULATION_TEXT, f"trm-q{quarter_num}-{badge_data['period']}")], className="text-center mb-1"),
                 html.P(f"({int(badge_data['count'])}/{int(total_patients)})", 
                        className="text-center text-muted", 
                        style={'fontSize': '8px'})
@@ -1644,9 +1782,7 @@ def create_survie_badges_content(year_data, analysis_year, subtitle=None):
                         html.H3(f"{badge_data['percentage']:.1f}%", 
                                 className="text-center mb-1", 
                                 style={'color': badge_data['color'], 'fontSize': '20px'}),
-                        html.P(f"Survival {badge_data['period']}", 
-                               className="text-center mb-1", 
-                               style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Div([html.Span(f"Survival {badge_data['period']}", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(SURVIE_CALCULATION_TEXT, f"survie-badge-{badge_data['period']}")], className="text-center mb-1"),
                         html.P(f"({badge_data['count']}/{total_greffes})", 
                                className="text-center text-muted", 
                                style={'fontSize': '10px'})
@@ -1717,7 +1853,7 @@ def create_survie_quarter_badge(quarterly_df, quarter_num, selected_year):
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{survival_pct:.1f}%", className="text-center mb-1", style={'color': '#27ae60'}),
-                html.P("Survival (1Y)", className="text-center mb-1", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                html.Div([html.Span("Survival (1Y)", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(SURVIE_CALCULATION_TEXT, f"survie-q{quarter_num}-1y")], className="text-center mb-1"),
                 html.P(f"({int(alive_count)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '10px'})
             ], className="py-3")
         ], color="success", outline=True, style={'border-width': '1px'})
@@ -1765,9 +1901,7 @@ def create_survie_quarter_badges_column(quarterly_df, quarter_num):
                 html.H5(f"{badge_data['percentage']:.1f}%", 
                         className="text-center mb-1", 
                         style={'color': badge_data['color'], 'fontSize': '14px'}),
-                html.P(f"Survival {badge_data['period']}", 
-                       className="text-center mb-1", 
-                       style={'fontSize': '10px', 'fontWeight': 'bold'}),
+                html.Div([html.Span(f"Survival {badge_data['period']}", style={'fontSize': '10px', 'fontWeight': 'bold'}), *create_info_tooltip(SURVIE_CALCULATION_TEXT, f"survie-q{quarter_num}-{badge_data['period']}")], className="text-center mb-1"),
                 html.P(f"({int(badge_data['count'])}/{int(total_patients)})", 
                        className="text-center text-muted", 
                        style={'fontSize': '8px'})
@@ -2132,7 +2266,7 @@ def create_prise_greffe_badge_content(year_data, analysis_year, subtitle=None):
             dbc.Card([
                 dbc.CardBody([
                     html.H2(f"{prise_pct:.1f}%", className="text-center mb-2", style={'color': text_color}),
-                    html.P("Transplant Success (≤100 days)", className="text-center mb-2", style={'fontSize': '16px', 'fontWeight': 'bold'}),
+                    html.Div([html.Span("Transplant Success (≤100 days)", style={'fontSize': '16px', 'fontWeight': 'bold'}), *create_info_tooltip(PRISE_GREFFE_CALCULATION_TEXT, "prise-badge")], className="text-center mb-2"),
                     html.P(f"({prise_count}/{total_greffes})", className="text-center text-muted", style={'fontSize': '14px'}),
                 ], className="py-3")
             ], color=badge_color, outline=True, style={'border-width': '2px'})
@@ -2196,7 +2330,7 @@ def create_prise_greffe_quarter_badge(quarterly_df, quarter_num, selected_year):
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{uptake_pct:.1f}%", className="text-center mb-1", style={'color': text_color}),
-                html.P("Transplant Success", className="text-center mb-1", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                html.Div([html.Span("Transplant Success", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(PRISE_GREFFE_CALCULATION_TEXT, f"prise-q{quarter_num}")], className="text-center mb-1"),
                 html.P(f"({int(uptake_count)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '10px'})
             ], className="py-3")
         ], color=badge_color, outline=True, style={'border-width': '1px'})
@@ -2515,7 +2649,7 @@ def create_sortie_aplasie_badge_content(year_data, analysis_year, subtitle=None)
             dbc.Card([
                 dbc.CardBody([
                     html.H2(f"{sortie_pct:.1f}%", className="text-center mb-2", style={'color': text_color}),
-                    html.P("ANC Recovery (≤28 days)", className="text-center mb-2", style={'fontSize': '16px', 'fontWeight': 'bold'}),
+                    html.Div([html.Span("ANC Recovery (≤28 days)", style={'fontSize': '16px', 'fontWeight': 'bold'}), *create_info_tooltip(SORTIE_APLASIE_CALCULATION_TEXT, "aplasie-badge")], className="text-center mb-2"),
                     html.P(f"({sortie_count}/{total_greffes})", className="text-center text-muted", style={'fontSize': '14px'}),
                 ], className="py-3")
             ], color=badge_color, outline=True, style={'border-width': '2px'})
@@ -2579,7 +2713,7 @@ def create_sortie_aplasie_quarter_badge(quarterly_df, quarter_num, selected_year
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{recovery_pct:.1f}%", className="text-center mb-1", style={'color': text_color}),
-                html.P("ANC Recovery", className="text-center mb-1", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                html.Div([html.Span("ANC Recovery", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(SORTIE_APLASIE_CALCULATION_TEXT, f"aplasie-q{quarter_num}")], className="text-center mb-1"),
                 html.P(f"({int(recovery_count)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '10px'})
             ], className="py-3")
         ], color=badge_color, outline=True, style={'border-width': '1px'})
@@ -2962,7 +3096,7 @@ def create_gvhc_badges_content(year_data, analysis_year, subtitle=None):
             dbc.Card([
                 dbc.CardBody([
                     html.H2(f"{gvhc_pct:.1f}%", className="text-center mb-2", style={'color': '#8e44ad'}),
-                    html.P("Chronic GVH (all grades)", className="text-center mb-2", style={'fontSize': '16px', 'fontWeight': 'bold'}),
+                    html.Div([html.Span("Chronic GVH (all grades)", style={'fontSize': '16px', 'fontWeight': 'bold'}), *create_info_tooltip(GVHC_CALCULATION_TEXT, "gvhc-badge-all")], className="text-center mb-2"),
                     html.P(f"({gvhc_total}/{total_greffes})", className="text-center text-muted", style={'fontSize': '14px'})
                 ], className="py-3")
             ], color="secondary", outline=True, style={'border-width': '2px'})
@@ -3028,7 +3162,7 @@ def create_gvhc_quarter_badge(quarterly_df, quarter_num, selected_year):
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{gvhc_pct:.1f}%", className="text-center mb-1", style={'color': '#8e44ad'}),
-                html.P("cGVH Total", className="text-center mb-1", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                html.Div([html.Span("cGVH Total", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(GVHC_CALCULATION_TEXT, f"gvhc-q{quarter_num}-all")], className="text-center mb-1"),
                 html.P(f"({int(gvhc_total)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '10px'})
             ], className="py-3")
         ], color="secondary", outline=True, style={'border-width': '1px'})
@@ -3449,9 +3583,7 @@ def create_rechute_badges_content(year_data, analysis_year, subtitle=None):
                         html.H3(f"{badge_data['percentage']:.1f}%", 
                                 className="text-center mb-1", 
                                 style={'color': badge_data['color'], 'fontSize': '20px'}),
-                        html.P(f"Relapse {badge_data['period']}", 
-                               className="text-center mb-1", 
-                               style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Div([html.Span(f"Relapse {badge_data['period']}", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(RECHUTE_CALCULATION_TEXT, f"rechute-badge-{badge_data['period']}")], className="text-center mb-1"),
                         html.P(f"({badge_data['count']}/{total_greffes})", 
                                className="text-center text-muted", 
                                style={'fontSize': '10px'})
@@ -3520,7 +3652,7 @@ def create_rechute_quarter_badge(quarterly_df, quarter_num, selected_year):
         dbc.Card([
             dbc.CardBody([
                 html.H4(f"{relapse_pct:.1f}%", className="text-center mb-1", style={'color': '#e74c3c'}),
-                html.P("Relapse (1Y)", className="text-center mb-1", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                html.Div([html.Span("Relapse (1Y)", style={'fontSize': '12px', 'fontWeight': 'bold'}), *create_info_tooltip(RECHUTE_CALCULATION_TEXT, f"rechute-q{quarter_num}-1y")], className="text-center mb-1"),
                 html.P(f"({int(relapse_count)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '10px'})
             ], className="py-3")
         ], color="danger", outline=True, style={'border-width': '1px'})
@@ -3562,9 +3694,7 @@ def create_rechute_quarter_badges_column(quarterly_df, quarter_num):
                 html.H5(f"{badge_data['percentage']:.1f}%", 
                         className="text-center mb-1", 
                         style={'color': badge_data['color'], 'fontSize': '14px'}),
-                html.P(f"Relapse {badge_data['period']}", 
-                       className="text-center mb-1", 
-                       style={'fontSize': '10px', 'fontWeight': 'bold'}),
+                html.Div([html.Span(f"Relapse {badge_data['period']}", style={'fontSize': '10px', 'fontWeight': 'bold'}), *create_info_tooltip(RECHUTE_CALCULATION_TEXT, f"rechute-q{quarter_num}-{badge_data['period']}")], className="text-center mb-1"),
                 html.P(f"({int(badge_data['count'])}/{int(total_patients)})", 
                        className="text-center text-muted", 
                        style={'fontSize': '8px'})
@@ -4341,7 +4471,7 @@ def create_gvha_badges_content(year_data, analysis_year, subtitle=None):
                 dbc.Card([
                     dbc.CardBody([
                         html.H3(f"{pct_2_4:.1f}%", className="text-center mb-2", style={'color': '#2c3e50'}),
-                        html.P("Acute GVH grades 2-4", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.Div([html.Span("Acute GVH grades 2-4", style={'fontSize': '14px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, "gvha-badge-2-4")], className="text-center mb-1"),
                         html.P(f"({nb_2_4}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
                     ], className="py-3")
                 ], color="primary", outline=True, style={'border-width': '2px'})
@@ -4351,7 +4481,7 @@ def create_gvha_badges_content(year_data, analysis_year, subtitle=None):
                 dbc.Card([
                     dbc.CardBody([
                         html.H3(f"{pct_3_4:.1f}%", className="text-center mb-2", style={'color': '#d61704'}),
-                        html.P("Acute GVH grades 3-4", className="text-center mb-1", style={'fontSize': '14px'}),
+                        html.Div([html.Span("Acute GVH grades 3-4", style={'fontSize': '14px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, "gvha-badge-3-4")], className="text-center mb-1"),
                         html.P(f"({nb_3_4}/{total_greffes})", className="text-center text-muted", style={'fontSize': '12px'})
                     ], className="py-3")
                 ], color="danger", outline=True, style={'border-width': '2px'})
@@ -4569,7 +4699,7 @@ def create_quarterly_badges_gvha(quarterly_df, selected_quarter, selected_year):
                     dbc.Card([
                         dbc.CardBody([
                             html.H3(f"{pct_2_4:.1f}%", className="text-center mb-2", style={'color': '#2c3e50'}),
-                            html.P("Acute GVH grades 2-4", className="text-center mb-1", style={'fontSize': '14px'}),
+                            html.Div([html.Span("Acute GVH grades 2-4", style={'fontSize': '14px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, f"gvha-quarterly-{selected_quarter}-2-4")], className="text-center mb-1"),
                             html.P(f"({int(nb_2_4)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '12px'})
                         ], className="py-3")
                     ], color="primary", outline=True, style={'border-width': '2px'})
@@ -4579,7 +4709,7 @@ def create_quarterly_badges_gvha(quarterly_df, selected_quarter, selected_year):
                     dbc.Card([
                         dbc.CardBody([
                             html.H3(f"{pct_3_4:.1f}%", className="text-center mb-2", style={'color': '#d61704'}),
-                            html.P("Acute GVH grades 3-4", className="text-center mb-1", style={'fontSize': '14px'}),
+                            html.Div([html.Span("Acute GVH grades 3-4", style={'fontSize': '14px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, f"gvha-quarterly-{selected_quarter}-3-4")], className="text-center mb-1"),
                             html.P(f"({int(nb_3_4)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '12px'})
                         ], className="py-3")
                     ], color="danger", outline=True, style={'border-width': '2px'})
@@ -4712,7 +4842,7 @@ def create_quarter_badges_column(quarterly_df, quarter_num, selected_year):
             dbc.Card([
                 dbc.CardBody([
                     html.H5(f"{pct_2_4:.1f}%", className="text-center mb-1", style={'color': '#2c3e50', 'fontSize': '16px'}),
-                    html.P("aGVH 2-4", className="text-center mb-1", style={'fontSize': '11px', 'margin': '0'}),
+                    html.Div([html.Span("aGVH 2-4", style={'fontSize': '11px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, f"gvha-q{quarter_num}-2-4")], className="text-center mb-1"),
                     html.P(f"({int(nb_2_4)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '9px', 'margin': '0'})
                 ], className="py-2")
             ], color="primary", outline=True, style={'border-width': '1px'}, className='mb-2'),
@@ -4721,7 +4851,7 @@ def create_quarter_badges_column(quarterly_df, quarter_num, selected_year):
             dbc.Card([
                 dbc.CardBody([
                     html.H5(f"{pct_3_4:.1f}%", className="text-center mb-1", style={'color': '#d61704', 'fontSize': '16px'}),
-                    html.P("aGVH 3-4", className="text-center mb-1", style={'fontSize': '11px', 'margin': '0'}),
+                    html.Div([html.Span("aGVH 3-4", style={'fontSize': '11px'}), *create_info_tooltip(AGVH_CALCULATION_TEXT, f"gvha-q{quarter_num}-3-4")], className="text-center mb-1"),
                     html.P(f"({int(nb_3_4)}/{int(total_patients)})", className="text-center text-muted", style={'fontSize': '9px', 'margin': '0'})
                 ], className="py-2")
             ], color="danger", outline=True, style={'border-width': '1px'})

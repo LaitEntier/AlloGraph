@@ -72,6 +72,20 @@ def get_layout():
                 ])
             ], width=12)
         ], className='mb-4'),
+        
+        # Quatrième section - GRFS (GvH & Relapse Free Survival)
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5('GRFS (GvH & Relapse Free Survival)')),
+                    dbc.CardBody([
+                        html.Div(
+                            id='survival-grfs-graph'
+                        )
+                    ], className='p-2')
+                ])
+            ], width=12)
+        ], className='mb-4'),
 
         html.Hr(style={
             'border': '2px solid #d4c4b5',
@@ -853,6 +867,335 @@ def create_interactive_km_curves_by_year(processed_data, max_years=None):
     )
     
     return fig, pd.DataFrame(stats_summary)
+
+def prepare_grfs_data(df):
+    """
+    Prépare les données pour l'analyse de survie GRFS
+    (GvH & Relapse Free Survival)
+    
+    Event = première occurrence de GvHD aiguë, GvHD chronique, ou rechute
+    Censure = pas d'event à la date de dernier suivi
+    """
+    required_cols = ['Treatment Date', 'Date Of Last Follow Up']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing columns for GRFS analysis: {missing_cols}")
+    
+    processed_data = df.copy()
+    
+    # Convertir les dates
+    processed_data['Treatment Date'] = pd.to_datetime(
+        processed_data['Treatment Date'], dayfirst=True, format='mixed'
+    )
+    processed_data['Date Of Last Follow Up'] = pd.to_datetime(
+        processed_data['Date Of Last Follow Up'], dayfirst=True, format='mixed'
+    )
+    
+    # Convertir les dates d'event si elles existent
+    date_cols = [
+        'First Agvhd Occurrence Date', 
+        'First Cgvhd Occurrence Date',
+        'First Relapse Date'
+    ]
+    for col in date_cols:
+        if col in processed_data.columns:
+            processed_data[col] = pd.to_datetime(
+                processed_data[col], dayfirst=True, format='mixed', errors='coerce'
+            )
+    
+    # Calculer le temps de suivi de base
+    processed_data['follow_up_days'] = (
+        processed_data['Date Of Last Follow Up'] - processed_data['Treatment Date']
+    ).dt.days
+    
+    # Collecter les dates candidates pour chaque type d'event
+    candidate_dates = pd.DataFrame(index=processed_data.index)
+    
+    if 'First Agvhd Occurrence' in processed_data.columns and 'First Agvhd Occurrence Date' in processed_data.columns:
+        mask = processed_data['First Agvhd Occurrence'] == 'Yes'
+        candidate_dates['agvhd'] = processed_data['First Agvhd Occurrence Date'].where(mask, pd.NaT)
+    
+    if 'First Cgvhd Occurrence' in processed_data.columns and 'First Cgvhd Occurrence Date' in processed_data.columns:
+        mask = processed_data['First Cgvhd Occurrence'] == 'Yes'
+        candidate_dates['cgvhd'] = processed_data['First Cgvhd Occurrence Date'].where(mask, pd.NaT)
+    
+    if 'First Relapse' in processed_data.columns and 'First Relapse Date' in processed_data.columns:
+        mask = processed_data['First Relapse'] == 'Yes'
+        candidate_dates['relapse'] = processed_data['First Relapse Date'].where(mask, pd.NaT)
+    
+    if not candidate_dates.empty:
+        processed_data['event_date'] = candidate_dates.min(axis=1)
+    else:
+        processed_data['event_date'] = pd.NaT
+    
+    # Déterminer le temps et le statut d'event
+    event_valid = processed_data['event_date'].notna()
+    event_before_censor = event_valid & (
+        processed_data['event_date'] <= processed_data['Date Of Last Follow Up']
+    )
+    
+    processed_data['grfs_event'] = event_before_censor.astype(int)
+    processed_data['grfs_days'] = processed_data['follow_up_days'].copy()
+    
+    event_times = (processed_data.loc[event_before_censor, 'event_date'] - 
+                   processed_data.loc[event_before_censor, 'Treatment Date']).dt.days
+    processed_data.loc[event_before_censor, 'grfs_days'] = event_times
+    
+    # Nettoyer les données (supprimer les valeurs négatives ou nulles)
+    processed_data = processed_data[
+        (processed_data['grfs_days'] >= 0) & 
+        (processed_data['grfs_days'].notna())
+    ]
+    
+    return processed_data
+
+
+def create_grfs_km_curve(processed_data, max_years=None, title="GRFS (GvH & Relapse Free Survival)"):
+    """
+    Crée une courbe Kaplan-Meier interactive pour la GRFS avec axe X en années
+    """
+    if not LIFELINES_AVAILABLE:
+        raise ImportError("lifelines is not available")
+    
+    # Filtrer si nécessaire (conversion en jours pour lifelines)
+    if max_years:
+        max_days = max_years * 365.25
+        processed_data_filtered = processed_data.copy()
+        processed_data_filtered['grfs_days'] = processed_data_filtered['grfs_days'].astype(float)
+        processed_data_filtered['grfs_event'] = processed_data_filtered['grfs_event'].astype(float)
+        mask_over_max = processed_data_filtered['grfs_days'] > max_days
+        processed_data_filtered.loc[mask_over_max, 'grfs_days'] = max_days
+        processed_data_filtered.loc[mask_over_max, 'grfs_event'] = 0
+        display_max = max_years
+    else:
+        processed_data_filtered = processed_data
+        display_max = processed_data['grfs_days'].max() / 365.25
+    
+    # Ajuster le modèle (lifelines utilise les jours)
+    kmf = KaplanMeierFitter()
+    kmf.fit(
+        durations=processed_data_filtered['grfs_days'],
+        event_observed=processed_data_filtered['grfs_event']
+    )
+    
+    # Obtenir les données et convertir en années pour l'affichage
+    survival_function = kmf.survival_function_
+    timeline_days = survival_function.index.values
+    timeline_years = timeline_days / 365.25
+    survival_probs = survival_function.iloc[:, 0].values
+    confidence_interval = kmf.confidence_interval_
+    ci_lower = confidence_interval.iloc[:, 0].values
+    ci_upper = confidence_interval.iloc[:, 1].values
+    
+    # Texte de survol
+    hover_text = [
+        f"Time: {t:.1f} years ({t*365.25:.0f} days)<br>" +
+        f"GRFS probability: {p:.3f} ({p*100:.1f}%)<br>" +
+        f"95% CI: [{ci_l:.3f} - {ci_u:.3f}]"
+        for t, p, ci_l, ci_u in zip(timeline_years, survival_probs, ci_lower, ci_upper)
+    ]
+    
+    # Identifier les temps de censure
+    event_table = kmf.event_table
+    censoring_times_days = event_table[event_table['censored'] > 0].index.values
+    censoring_times_years = censoring_times_days / 365.25
+    
+    censoring_surv_probs = []
+    for ct_day in censoring_times_days:
+        valid_indices = timeline_days <= ct_day
+        if valid_indices.any():
+            closest_idx = np.where(valid_indices)[0][-1]
+            censoring_surv_probs.append(survival_probs[closest_idx])
+        else:
+            censoring_surv_probs.append(1.0)
+    
+    # Calculer le nombre de sujets à risque aux temps spécifiés
+    time_points = np.arange(0, int(display_max) + 1)
+    at_risk_counts = []
+    for t in time_points:
+        t_days = t * 365.25
+        at_risk = len(processed_data_filtered[processed_data_filtered['grfs_days'] >= t_days])
+        at_risk_counts.append(at_risk)
+    
+    # Créer la figure avec subplots pour la table "Number at risk"
+    fig = make_subplots(
+        rows=2, cols=1,
+        row_heights=[0.82, 0.18],
+        vertical_spacing=0.05,
+        subplot_titles=(None, None)
+    )
+    
+    # Courbe principale
+    fig.add_trace(go.Scatter(
+        x=timeline_years,
+        y=survival_probs,
+        mode='lines',
+        name='GRFS curve',
+        line=dict(color='#2E86AB', width=4, dash='solid'),
+        hovertemplate='%{hovertext}<extra></extra>',
+        hovertext=hover_text,
+        opacity=0.9
+    ), row=1, col=1)
+    
+    # Marqueurs de censure
+    if len(censoring_times_years) > 0:
+        censoring_hover = [
+            f"Censoring<br>Time: {t:.1f} years<br>GRFS: {p:.3f}"
+            for t, p in zip(censoring_times_years, censoring_surv_probs)
+        ]
+        fig.add_trace(go.Scatter(
+            x=censoring_times_years,
+            y=censoring_surv_probs,
+            mode='markers',
+            name='Censored',
+            marker=dict(symbol='line-ns', size=12, color='#2E86AB', line=dict(width=2)),
+            hovertemplate='%{hovertext}<extra></extra>',
+            hovertext=censoring_hover,
+            showlegend=False,
+            opacity=0.7
+        ), row=1, col=1)
+    
+    # Intervalle de confiance
+    fig.add_trace(go.Scatter(
+        x=np.concatenate([timeline_years, timeline_years[::-1]]),
+        y=np.concatenate([ci_upper, ci_lower[::-1]]),
+        fill='toself',
+        fillcolor='rgba(46, 134, 171, 0.15)',
+        line=dict(color='rgba(255,255,255,0)'),
+        hoverinfo="skip",
+        showlegend=False,
+        name='IC 95%',
+        opacity=0.6
+    ), row=1, col=1)
+    
+    # Ligne médiane
+    median_survival_days = kmf.median_survival_time_
+    if not np.isnan(median_survival_days):
+        median_survival_years = median_survival_days / 365.25
+        fig.add_hline(
+            y=0.5, 
+            line_dash="dash", 
+            line_color="#e74c3c", 
+            line_width=2,
+            opacity=0.8,
+            row=1, col=1
+        )
+        fig.add_vline(
+            x=median_survival_years, 
+            line_dash="dash", 
+            line_color="#e74c3c", 
+            line_width=2,
+            opacity=0.8,
+            row=1, col=1
+        )
+        fig.add_annotation(
+            x=median_survival_years + display_max*0.05,
+            y=0.55,
+            text=f"<b>Median: {median_survival_years:.1f} years</b>",
+            showarrow=False,
+            font=dict(color="#e74c3c", size=12, family='Arial, sans-serif'),
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="#e74c3c",
+            borderwidth=1,
+            row=1, col=1
+        )
+    
+    # Table "Number at risk"
+    fig.add_annotation(
+        x=0, y=0.7,
+        xref='x2 domain', yref='y2 domain',
+        text='<b>Number at risk</b>',
+        showarrow=False,
+        font=dict(size=11, family='Arial, sans-serif', color='#2c3e50'),
+        xanchor='left',
+        row=2, col=1
+    )
+    
+    for t, count in zip(time_points, at_risk_counts):
+        if t <= display_max:
+            fig.add_annotation(
+                x=t, y=0.2,
+                xref='x2', yref='y2 domain',
+                text=str(count),
+                showarrow=False,
+                font=dict(size=11, family='Arial, sans-serif', color='#2c3e50'),
+                xanchor='center',
+                row=2, col=1
+            )
+    
+    # Mise en forme
+    fig.update_layout(
+        title={
+            'text': f'<b>{title}</b>', 
+            'x': 0.5, 
+            'y': 0.97,
+            'font': {'size': 18, 'family': 'Arial, sans-serif', 'color': '#2c3e50'}
+        },
+        showlegend=False,
+        plot_bgcolor='rgba(248, 249, 250, 0.8)',
+        paper_bgcolor='white',
+        height=520,
+        margin=dict(l=80, r=60, t=60, b=40),
+        font=dict(family='Arial, sans-serif', color='#2c3e50')
+    )
+    
+    fig.update_xaxes(
+        range=[0, display_max],
+        title_text='<b>Time (years)</b>',
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128, 128, 128, 0.2)',
+        showline=True,
+        linewidth=2,
+        linecolor='#bdc3c7',
+        mirror=True,
+        dtick=1 if display_max <= 10 else 2,
+        row=1, col=1
+    )
+    
+    fig.update_yaxes(
+        range=[0, 1.05],
+        title_text='<b>GRFS probability</b>',
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(128, 128, 128, 0.2)',
+        showline=True,
+        linewidth=2,
+        linecolor='#bdc3c7',
+        mirror=True,
+        tickformat='.2f',
+        row=1, col=1
+    )
+    
+    fig.update_xaxes(
+        range=[0, display_max],
+        showgrid=False,
+        showline=False,
+        showticklabels=False,
+        zeroline=False,
+        row=2, col=1
+    )
+    
+    fig.update_yaxes(
+        range=[0, 1],
+        showgrid=False,
+        showline=False,
+        showticklabels=False,
+        zeroline=False,
+        row=2, col=1
+    )
+    
+    fig.add_shape(
+        type="rect",
+        xref="paper", yref="paper",
+        x0=0, y0=0, x1=1, y1=0.18,
+        fillcolor="white",
+        line=dict(width=0),
+        layer="below"
+    )
+    
+    return fig
+
 def register_callbacks(app):
     """
     Enregistre tous les callbacks spécifiques à la page Survie
@@ -1080,6 +1423,83 @@ def register_callbacks(app):
                 html.Pre(str(e), style={'whiteSpace': 'pre-wrap', 'fontSize': '11px'})
             ], color='danger')
             return error_alert, error_alert
+    
+    # Cached version of GRFS calculation
+    @cache_survival_result
+    def _cached_grfs_km(data_json_str, selected_years_tuple, max_years):
+        """Cached version of GRFS Kaplan-Meier calculation"""
+        import json
+        data_list = json.loads(data_json_str)
+        df = pd.DataFrame(data_list)
+        
+        # Filter by years
+        if selected_years_tuple and 'Year' in df.columns:
+            df = df[df['Year'].isin(list(selected_years_tuple))]
+        
+        if df.empty:
+            return None
+        
+        # Prepare GRFS data and create KM curve
+        processed_data = prepare_grfs_data(df)
+        
+        if processed_data.empty:
+            return None
+        
+        fig = create_grfs_km_curve(processed_data, max_years=max_years)
+        return fig.to_dict() if fig else None
+    
+    @app.callback(
+        Output('survival-grfs-graph', 'children'),
+        [Input('data-store-survival', 'data'),
+         Input('current-page', 'data'),
+         Input('survival-year-filter', 'value'),
+         Input('survival-age-filter', 'value'),
+         Input('survival-malignancy-filter', 'value')]
+    )
+    def update_survival_grfs_graph(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+        """Met à jour le graphique GRFS (Kaplan-Meier)"""
+        if current_page != 'Survival' or data is None:
+            return html.Div()
+        
+        if not LIFELINES_AVAILABLE:
+            return dbc.Alert([
+                html.H6("Module 'lifelines' required", className="mb-2"),
+                html.P("To use GRFS analysis, install the lifelines module:", className="mb-1"),
+                html.Code("pip install lifelines", className="d-block mb-2"),
+                html.P("Restart the application.", className="mb-0")
+            ], color="warning")
+        
+        try:
+            import json
+            df = pd.DataFrame(data)
+            if selected_age_groups and 'Age Group Detailed' in df.columns:
+                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            
+            df = apply_malignancy_filter(df, malignancy_filter)
+            
+            data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
+            years_tuple = tuple(selected_years) if selected_years else tuple()
+            
+            # For GRFS, we use the full follow-up (no artificial limit by default)
+            max_years = None
+            
+            fig_dict = _cached_grfs_km(data_json, years_tuple, max_years)
+            
+            if fig_dict is None:
+                return dbc.Alert('No valid data for GRFS analysis', color='warning')
+            
+            import plotly.graph_objects as go
+            fig = go.Figure(fig_dict)
+            
+            return dcc.Graph(
+                figure=fig,
+                style={'height': '100%'},
+                config={'responsive': True}
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return dbc.Alert(f'Error during GRFS curve creation: {str(e)}', color='danger')
     
     @app.callback(
         Output('survival-missing-summary-table', 'children'),

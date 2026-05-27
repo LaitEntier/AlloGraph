@@ -2435,6 +2435,7 @@ def create_grouped_barplot_with_cumulative_by_category(
             textposition='top center',
             textfont=dict(size=12),
             showlegend=False,  # Caché car groupé avec la barre
+            yaxis='y2',
             hovertemplate=f'<b>{category} (cumulative)</b><br>' +
                          'Year: %{x}<br>' +
                          'Cumulative count: %{y}<br>' +
@@ -2470,7 +2471,15 @@ def create_grouped_barplot_with_cumulative_by_category(
         ),
         'yaxis': dict(
             title=bar_y_axis_title,
-            side='left'
+            side='left',
+            showgrid=True
+        ),
+        'yaxis2': dict(
+            title=line_y_axis_title,
+            side='right',
+            overlaying='y',
+            showgrid=False,
+            rangemode='tozero'
         ),
         'hovermode': 'x unified'
     }
