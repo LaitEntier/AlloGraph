@@ -50,6 +50,7 @@ def create_header_with_logo():
                         html.Button('GVH', id='nav-gvh', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Relapse', id='nav-relapse', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Survival', id='nav-survival', className='btn btn-secondary me-2 nav-button', disabled=True),
+                        html.Button('Toxicity', id='nav-toxicity', className='btn btn-secondary me-2 nav-button', disabled=True),
                         html.Button('Indicators', id='nav-indics', className='btn btn-secondary me-2 nav-button', disabled=True),
                     ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'gap': '8px'}),
                     

@@ -28,6 +28,7 @@ import pages.procedures as procedures_page
 import pages.gvh as gvh_page
 import pages.relapse as relapse_page
 import pages.survival as survival_page
+import pages.toxicity as toxicity_page
 import pages.indics as indic_page
 import pages.legal as legal_page
 import pages.privacy as privacy_page
@@ -120,13 +121,15 @@ app.layout = html.Div([
      Output('nav-gvh', 'className'),
      Output('nav-relapse', 'className'),
      Output('nav-survival', 'className'),        
+     Output('nav-toxicity', 'className'),
      Output('nav-indics', 'className'),
      Output('nav-patients', 'disabled'),
      Output('nav-hemopathies', 'disabled'),
      Output('nav-procedures', 'disabled'),
      Output('nav-gvh', 'disabled'),
      Output('nav-relapse', 'disabled'),
-     Output('nav-survival', 'disabled'),         
+     Output('nav-survival', 'disabled'),
+     Output('nav-toxicity', 'disabled'),
      Output('nav-indics', 'disabled')],
     [Input('nav-home', 'n_clicks'),
      Input('nav-home-logo', 'n_clicks'),
@@ -135,7 +138,8 @@ app.layout = html.Div([
      Input('nav-procedures', 'n_clicks'),
      Input('nav-gvh', 'n_clicks'),
      Input('nav-relapse', 'n_clicks'),
-     Input('nav-survival', 'n_clicks'),          
+     Input('nav-survival', 'n_clicks'),
+     Input('nav-toxicity', 'n_clicks'),
      Input('nav-indics', 'n_clicks'),
      Input('footer-nav-legal', 'n_clicks'),
      Input('footer-nav-privacy', 'n_clicks'),
@@ -143,7 +147,7 @@ app.layout = html.Div([
      Input('data-store', 'data')],
     [State('current-page', 'data')]
 )
-def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, indics_clicks, legal_clicks, privacy_clicks, cookies_clicks, data, current_page):
+def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, toxicity_clicks, indics_clicks, legal_clicks, privacy_clicks, cookies_clicks, data, current_page):
     ctx = dash.callback_context
     
     if not ctx.triggered:
@@ -159,12 +163,13 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
             'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
             'Relapse': 'btn btn-primary me-2 nav-button' if current_page == 'Relapse' else 'btn btn-secondary me-2 nav-button',
             'Survival': 'btn btn-primary me-2 nav-button' if current_page == 'Survival' else 'btn btn-secondary me-2 nav-button',
+            'Toxicity': 'btn btn-primary me-2 nav-button' if current_page == 'Toxicity' else 'btn btn-secondary me-2 nav-button',
             'Indicators': 'btn btn-primary me-2 nav-button' if current_page == 'Indicators' else 'btn btn-secondary me-2 nav-button'
         }
 
         return (current_page, styles['Home'], styles['Patients'],
-                styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
-                disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+                styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Toxicity'], styles['Indicators'],
+                disabled, disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
@@ -180,12 +185,13 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
             'GvH': 'btn btn-primary me-2 nav-button' if current_page == 'GvH' else 'btn btn-secondary me-2 nav-button',
             'Relapse': 'btn btn-primary me-2 nav-button' if current_page == 'Relapse' else 'btn btn-secondary me-2 nav-button',
             'Survival': 'btn btn-primary me-2 nav-button' if current_page == 'Survival' else 'btn btn-secondary me-2 nav-button',
+            'Toxicity': 'btn btn-primary me-2 nav-button' if current_page == 'Toxicity' else 'btn btn-secondary me-2 nav-button',
             'Indicators': 'btn btn-primary me-2 nav-button' if current_page == 'Indicators' else 'btn btn-secondary me-2 nav-button'
         }
 
         return (current_page, styles['Home'], styles['Patients'],
-                styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Indicators'],
-                disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+                styles['Indications'], styles['Procedures'], styles['GvH'], styles['Relapse'], styles['Survival'], styles['Toxicity'], styles['Indicators'],
+                disabled, disabled, disabled, disabled, disabled, disabled, disabled, disabled)
     
     # Navigation normale
     page_map = {
@@ -196,7 +202,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
         'nav-procedures': 'Procedures',
         'nav-gvh': 'GvH',
         'nav-relapse': 'Relapse',
-        'nav-survival': 'Survival',               
+        'nav-survival': 'Survival',
+        'nav-toxicity': 'Toxicity',
         'nav-indics': 'Indicators',
         'footer-nav-legal': 'Legal',
         'footer-nav-privacy': 'Privacy',
@@ -211,7 +218,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
         'Procedures': 'nav-procedures',
         'GvH': 'nav-gvh',
         'Relapse': 'nav-relapse',
-        'Survival': 'nav-survival',               
+        'Survival': 'nav-survival',
+        'Toxicity': 'nav-toxicity',
         'Indicators': 'nav-indics'
     }
     
@@ -222,8 +230,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
     disabled = data is None
 
     return (new_page, styles['nav-home'], styles['nav-patients'],
-            styles['nav-hemopathies'], styles['nav-procedures'], styles['nav-gvh'], styles['nav-relapse'], styles['nav-survival'], styles['nav-indics'],
-            disabled, disabled, disabled, disabled, disabled, disabled, disabled)
+            styles['nav-hemopathies'], styles['nav-procedures'], styles['nav-gvh'], styles['nav-relapse'], styles['nav-survival'], styles['nav-toxicity'], styles['nav-indics'],
+            disabled, disabled, disabled, disabled, disabled, disabled, disabled, disabled)
 
 @app.callback(
     Output('sidebar-content', 'children'),
@@ -390,11 +398,16 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
         content = relapse_page.create_relapse_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Relapse', content)
 
-    elif current_page == 'Survival' and data is not None:  
+    elif current_page == 'Survival' and data is not None:
         # Sidebar spécifique pour la page Survie
         content = survival_page.create_survival_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Survival', content)
-    
+
+    elif current_page == 'Toxicity' and data is not None:
+        # Sidebar spécifique pour la page Toxicity
+        content = toxicity_page.create_toxicity_sidebar_content(data, pediatric_view)
+        return layouts.create_sidebar_layout('Parameters Toxicity', content)
+
     elif current_page == 'Indicators' and data is not None:
         content = indic_page.create_indicators_sidebar_content(data, pediatric_view)
         return layouts.create_sidebar_layout('Indicators', content)
@@ -624,8 +637,11 @@ def update_main_content(current_page, last_rendered_page):
     elif current_page == 'Relapse':
             return relapse_page.get_layout(), current_page
 
-    elif current_page == 'Survival':  
+    elif current_page == 'Survival':
             return survival_page.get_layout(), current_page
+
+    elif current_page == 'Toxicity':
+            return toxicity_page.get_layout(), current_page
 
     elif current_page == 'Indicators':
             return indic_page.get_layout(), current_page
@@ -843,6 +859,7 @@ procedures_page.register_callbacks(app)
 gvh_page.register_callbacks(app)
 relapse_page.register_callbacks(app)
 survival_page.register_callbacks(app)
+toxicity_page.register_callbacks(app)
 indic_page.register_callbacks(app)
 legal_page.register_callbacks(app)
 privacy_page.register_callbacks(app)

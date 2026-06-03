@@ -10,23 +10,24 @@ from modules.dashboard_layout import apply_malignancy_filter
 import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
+
 def get_layout():
     """
-    Retourne le layout de la page Rechute
+    Retourne le layout de la page Toxicity
     """
     return dbc.Container([
-        dcc.Store(id='relapse-missing-store'),
+        dcc.Store(id='toxicity-missing-store'),
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Competing Risks Analysis')),
+                    dbc.CardHeader(html.H4('Competing Risks Analysis - NRM')),
                     dbc.CardBody([
                         dcc.Loading(
-                            id="loading-patients-normalized",
+                            id="loading-toxicity-nrm",
                             type="circle",
                             children=
                             html.Div(
-                                id='relapse-main-graph',
+                                id='toxicity-nrm-graph',
                                 style={'height': '800px', 'width': '100%'}
                             )
                         )
@@ -41,54 +42,54 @@ def get_layout():
         }),
 
         dbc.Row([
-                # Tableau 1 - Résumé des colonnes
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader(html.H5("Summary by column", className='mb-0')),
-                        dbc.CardBody([
-                            html.Div(id='relapse-missing-summary-table', children=[
-                                dbc.Alert("Initial content - will be replaced by the callback", color='warning')
-                            ])
+            # Tableau 1 - Résumé des colonnes
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H5("Summary by column", className='mb-0')),
+                    dbc.CardBody([
+                        html.Div(id='toxicity-missing-summary-table', children=[
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ])
                     ])
-                ], width=6),
-                
-                # Tableau 2 - Patients concernés  
-                dbc.Col([
-                    dbc.Card([
-                        dbc.CardHeader([
-                            html.Div([
-                                html.H5("Lines affected", className='mb-0', style={'color': '#ffffff'}),
-                                dbc.Button(
-                                    [html.I(className="fas fa-download me-2"), "Export CSV"],
-                                    id="export-missing-relapse-button",
-                                    color="primary",
-                                    size="sm",
-                                    disabled=True,  # Désactivé par défaut
-                                )
-                            ], className="d-flex justify-content-between align-items-center")
+                ])
+            ], width=6),
+
+            # Tableau 2 - Patients concernés
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Div([
+                            html.H5("Lines affected", className='mb-0', style={'color': '#ffffff'}),
+                            dbc.Button(
+                                [html.I(className="fas fa-download me-2"), "Export CSV"],
+                                id="export-missing-toxicity-button",
+                                color="primary",
+                                size="sm",
+                                disabled=True,  # Désactivé par défaut
+                            )
+                        ], className="d-flex justify-content-between align-items-center")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id='toxicity-missing-detail-table', children=[
+                            dbc.Alert("Initial content - will be replaced by the callback", color='warning')
                         ]),
-                        dbc.CardBody([
-                            html.Div(id='relapse-missing-detail-table', children=[
-                                dbc.Alert("Initial content - will be replaced by the callback", color='warning')
-                            ]),
-                            # Composant pour télécharger le fichier Excel (invisible)
-                            dcc.Download(id="download-missing-relapse-excel")
-                        ])
+                        # Composant pour télécharger le fichier Excel (invisible)
+                        dcc.Download(id="download-missing-toxicity-excel")
                     ])
-                ], width=6)
-            ])
+                ])
+            ], width=6)
+        ])
     ], fluid=True)
 
 
-def create_relapse_sidebar_content(data, pediatric_view=False):
+def create_toxicity_sidebar_content(data, pediatric_view=False):
     """
-    Crée le contenu de la sidebar spécifique à la page Rechute.
-    
+    Crée le contenu de la sidebar spécifique à la page Toxicity.
+
     Args:
         data (list): Liste de dictionnaires (format store Dash) avec les données
         pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
-        
+
     Returns:
         html.Div: Contenu de la sidebar
     """
@@ -96,45 +97,45 @@ def create_relapse_sidebar_content(data, pediatric_view=False):
         return html.Div([
             html.P('No data available', className='text-warning')
         ])
-    
+
     # Convertir la liste en DataFrame
     df = pd.DataFrame(data)
-    
+
     # Obtenir les années disponibles pour les filtres
     years_options = []
     if 'Year' in df.columns:
         available_years = sorted(df['Year'].unique().tolist())
         years_options = [{'label': f'{year}', 'value': year} for year in available_years]
-    
+
     controls = [
         layouts.create_pediatric_switch_component(pediatric_view),
-        
+
         # Filtres par année
         html.H5('Year filters', className='mb-2'),
         dcc.Checklist(
-            id='relapse-year-filter',
+            id='toxicity-year-filter',
             options=years_options,
             value=[year['value'] for year in years_options],
             inline=False,
             className='mb-3'
         ),
-        
+
         html.Hr(),
         # Filtre d'âge toujours présent dans le DOM mais caché en vue normale
         layouts.create_age_filter_component(
-            component_id='relapse-age-filter',
+            component_id='toxicity-age-filter',
             title='Age groups',
             pediatric_only=pediatric_view,
             hidden=not pediatric_view
         ),
-        
+
         html.Hr(),
-        
+
         # Filtres par type de diagnostic
-        layouts.create_malignancy_filter_component(component_id='relapse-malignancy-filter', title='Diagnosis type'),
-        
+        layouts.create_malignancy_filter_component(component_id='toxicity-malignancy-filter', title='Diagnosis type'),
+
         html.Hr(),
-        
+
         # Informations sur les données
         html.Div([
             html.H6("📊 Information", className="mb-2"),
@@ -146,23 +147,24 @@ def create_relapse_sidebar_content(data, pediatric_view=False):
             ], className="mb-0", style={'fontSize': '12px'})
         ])
     ]
-    
+
     return html.Div(controls)
+
 
 def calculate_max_relapse_followup_days(data):
     """
-    Calcule la durée maximale de suivi dans les données pour déterminer 
-    jusqu'où dessiner le graphique de rechute
-    
+    Calcule la durée maximale de suivi dans les données pour déterminer
+    jusqu'où dessiner le graphique
+
     Args:
         data (pd.DataFrame): DataFrame avec les données
-        
+
     Returns:
         int: Durée maximale en jours (minimum 365 pour avoir au moins 1 an)
     """
     try:
         df = data.copy()
-        
+
         # Convertir les dates nécessaires
         df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], format='mixed', errors='coerce')
         df['Date Of Last Follow Up'] = pd.to_datetime(df['Date Of Last Follow Up'], format='mixed', errors='coerce')
@@ -171,71 +173,69 @@ def calculate_max_relapse_followup_days(data):
         # Calculer les durées de suivi
         df['followup_days'] = (df['Date Of Last Follow Up'] - df['Treatment Date']).dt.days
         df['relapse_days'] = (df['First Relapse Date'] - df['Treatment Date']).dt.days
-        
+
         # Nettoyer les valeurs invalides
         valid_followup = df['followup_days'].dropna()
         valid_followup = valid_followup[valid_followup >= 0]
-        
+
         valid_relapse = df['relapse_days'].dropna()
         valid_relapse = valid_relapse[valid_relapse >= 0]
-        
+
         # Prendre le maximum entre suivi et événements de rechute
         max_followup = valid_followup.max() if len(valid_followup) > 0 else 365
         max_relapse = valid_relapse.max() if len(valid_relapse) > 0 else 365
-        
+
         max_days = max(max_followup, max_relapse, 365)  # Au minimum 1 an
-        
+
         # Limiter à une valeur raisonnable (ex: 10 ans)
         max_days = min(max_days, 3650)
-        
-        print(f"Maximum duration calculated for relapse: {max_days} days ({max_days/365.25:.1f} years)")
+
+        print(f"Maximum duration calculated for toxicity: {max_days} days ({max_days/365.25:.1f} years)")
         return int(max_days)
-        
+
     except Exception as e:
-        print(f"Error during maximum duration calculation for relapse: {e}")
+        print(f"Error during maximum duration calculation for toxicity: {e}")
         return 365  # Fallback à 1 an
 
 
-def create_relapse_analysis(data):
+def create_trm_competing_risks_analysis(data):
     """
-    Crée l'analyse de risques compétitifs pour les rechutes - Version améliorée
-    avec gestion de l'affichage initial limité
-    
+    Crée l'analyse de risques compétitifs pour la TRM (Treatment-Related Mortality)
+
+    Event = décès sans rechute préalable (TRM)
+    Competing = rechute
+
     Args:
         data (pd.DataFrame): DataFrame avec les données
-        
+
     Returns:
         plotly.graph_objects.Figure: Figure de l'analyse des risques compétitifs
     """
-    # Vérifier les colonnes nécessaires
     required_columns = [
         'Treatment Date', 'First Relapse', 'First Relapse Date',
         'Status Last Follow Up', 'Date Of Last Follow Up'
     ]
-    
+
     missing_columns = [col for col in required_columns if col not in data.columns]
-    
+
     if missing_columns:
-        # Créer un graphique d'erreur informatif
         fig = go.Figure()
         fig.add_annotation(
-            text=f"Missing variables for relapse analysis :<br>{', '.join(missing_columns)}",
+            text=f"Missing variables for TRM analysis :<br>{', '.join(missing_columns)}",
             xref="paper", yref="paper",
             x=0.5, y=0.5, xanchor='center', yanchor='middle',
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Competing risks analysis : relapse vs death",
+            title="Competing risks analysis : TRM vs relapse",
             height=500,
             showlegend=False
         )
         return fig
-    
-    # Filtrer les données pour ne garder que celles avec les informations de base
+
     df_filtered = data.dropna(subset=['Treatment Date']).copy()
-    
+
     if len(df_filtered) == 0:
-        # Graphique vide si pas de données
         fig = go.Figure()
         fig.add_annotation(
             text="No data available for the analysis",
@@ -244,58 +244,78 @@ def create_relapse_analysis(data):
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Competing risks analysis : relapse vs death",
+            title="Competing risks analysis : TRM vs relapse",
             height=500,
             showlegend=False
         )
         return fig
-    
+
     try:
-        # Import de la classe CompetingRisksAnalyzer
         import modules.competing_risks as cr
-        
-        # NOUVEAUTÉ : Calculer la durée maximale réelle des données pour les rechutes
+
+        # Créer les colonnes TRM
+        df_filtered['Treatment Date_dt'] = pd.to_datetime(df_filtered['Treatment Date'], format='mixed', errors='coerce')
+        df_filtered['Date Of Last Follow Up_dt'] = pd.to_datetime(df_filtered['Date Of Last Follow Up'], format='mixed', errors='coerce')
+        df_filtered['First Relapse Date_dt'] = pd.to_datetime(df_filtered['First Relapse Date'], format='mixed', errors='coerce')
+
+        # TRM = décès sans rechute préalable
+        death_mask = df_filtered['Status Last Follow Up'].astype(str).str.strip().str.lower() == 'dead'
+        relapse_mask = df_filtered['First Relapse'].astype(str).str.strip().str.lower() == 'yes'
+
+        # Rechute avant ou au moment du décès
+        relapse_before_death = (
+            relapse_mask &
+            df_filtered['First Relapse Date_dt'].notna() &
+            df_filtered['Date Of Last Follow Up_dt'].notna() &
+            (df_filtered['First Relapse Date_dt'] <= df_filtered['Date Of Last Follow Up_dt'])
+        )
+
+        trm_mask = death_mask & ~relapse_before_death
+
+        df_filtered['TRM Event'] = 'No'
+        df_filtered.loc[trm_mask, 'TRM Event'] = 'Yes'
+        df_filtered['TRM Date'] = pd.NaT
+        df_filtered.loc[trm_mask, 'TRM Date'] = df_filtered.loc[trm_mask, 'Date Of Last Follow Up']
+
+        # Calculer la durée maximale
         max_days = calculate_max_relapse_followup_days(df_filtered)
-        initial_display_days = 365  # Affichage initial limité à 1 an
-        
-        title = f"Competing risks analysis : relapse vs death (up to {max_days} days)"
-        
-        # Initialiser l'analyseur
+        initial_display_days = 365
+
+        title = f"Competing risks analysis : TRM vs relapse (up to {max_days} days)"
+
         analyzer = cr.CompetingRisksAnalyzer(df_filtered, 'Treatment Date')
-        
-        # Configuration des événements pour la rechute
+
         events_config = {
+            'TRM': {
+                'occurrence_col': 'TRM Event',
+                'date_col': 'TRM Date',
+                'label': 'TRM (décès sans rechute)',
+                'color': '#e74c3c'
+            },
             'Rechute': {
-                'occurrence_col': 'First Relapse', 
-                'date_col': 'First Relapse Date', 
+                'occurrence_col': 'First Relapse',
+                'date_col': 'First Relapse Date',
                 'label': 'Rechute',
-                'color': '#f39c12'  # Orange/doré
+                'color': '#f39c12'
             }
         }
-        
-        # Configuration du suivi
+
         followup_config = {
             'status_col': 'Status Last Follow Up',
             'date_col': 'Date Of Last Follow Up',
             'death_value': 'Dead'
         }
-        
-        # Calculer l'incidence cumulative avec la nouvelle durée maximale
+
         results, processed_data = analyzer.calculate_cumulative_incidence(
-            events_config, followup_config, max_days=max_days
+            events_config, followup_config, max_days=max_days, death_as_competing=False
         )
-        
-        # Créer le graphique avec la méthode existante
+
         fig = analyzer.create_competing_risks_plot(
             results, processed_data, events_config, title=title
         )
-        
-        # NOUVEAUTÉ : Modifier l'affichage initial pour les rechutes
+
         if max_days > initial_display_days:
-            # Limiter l'affichage initial à 1 an
             fig.update_xaxes(range=[0, initial_display_days])
-            
-            # Ajouter une annotation explicative
             fig.add_annotation(
                 x=0.02, y=0.98,
                 xref='paper', yref='paper',
@@ -305,15 +325,14 @@ def create_relapse_analysis(data):
                 showarrow=False,
                 font=dict(size=10, color='#34495e'),
                 bgcolor="rgba(255, 255, 255, 0.9)",
-                bordercolor="#f39c12",
+                bordercolor="#e74c3c",
                 borderwidth=1,
                 align="left"
             )
-        
+
         return fig
-        
+
     except Exception as e:
-        # Graphique d'erreur si l'analyse échoue
         fig = go.Figure()
         fig.add_annotation(
             text=f"Error during the analysis of competing risks :<br>{str(e)}",
@@ -322,122 +341,124 @@ def create_relapse_analysis(data):
             showarrow=False, font_size=14
         )
         fig.update_layout(
-            title="Competing risks analysis : relapse vs death",
+            title="Competing risks analysis : TRM vs relapse",
             height=500,
             showlegend=False
         )
         return fig
 
+
 def register_callbacks(app):
     """
-    Enregistre les callbacks pour la page Rechute
+    Enregistre les callbacks pour la page Toxicity
     """
-    
-    # Callback principal pour le graphique Rechute
+
+    # Callback principal pour le graphique NRM
     @app.callback(
-        Output('relapse-main-graph', 'children'),
-        [Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value'),
-         Input('relapse-malignancy-filter', 'value'),
+        Output('toxicity-nrm-graph', 'children'),
+        [Input('toxicity-year-filter', 'value'),
+         Input('toxicity-age-filter', 'value'),
+         Input('toxicity-malignancy-filter', 'value'),
          Input('data-store', 'data'),
-         Input('current-page', 'data')]  # Ajouter current-page comme input
+         Input('current-page', 'data')]
     )
-    def update_relapse_main_graph(selected_years, selected_age_groups, malignancy_filter, data, current_page):
-        """Met à jour le graphique principal d'analyse des risques compétitifs pour les rechutes"""
-        
-        # Ne rien afficher si on n'est pas sur la page Rechute
-        if current_page != 'Relapse':
+    def update_toxicity_nrm_graph(selected_years, selected_age_groups, malignancy_filter, data, current_page):
+        """Met à jour le graphique d'analyse des risques compétitifs pour la TRM"""
+
+        if current_page != 'Toxicity':
             return html.Div()
-            
+
         if data is None:
             return dbc.Alert("No data available", color="warning")
-        
+
         df = pd.DataFrame(data)
-        
+
         # Filtrer les données par années sélectionnées
         if selected_years and 'Year' in df.columns:
             df = df[df['Year'].isin(selected_years)]
-        
+
         # Filtrer par tranches d'âge
         if selected_age_groups and 'Age Group Detailed' in df.columns:
             df = df[df['Age Group Detailed'].isin(selected_age_groups)]
-        
+
         # Filtrer par type de diagnostic
         df = apply_malignancy_filter(df, malignancy_filter)
-        
+
         try:
-            fig = create_relapse_analysis(df)
+            fig = create_trm_competing_risks_analysis(df)
             return dcc.Graph(figure=fig, style={'height': '100%', 'width': '100%'})
         except Exception as e:
-            return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
-    
+            return dbc.Alert(f"Error during TRM graph creation: {str(e)}", color="danger")
+
     @app.callback(
-        Output('relapse-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        Output('toxicity-missing-summary-table', 'children'),
+        [Input('data-store', 'data'),
          Input('current-page', 'data'),
-         Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value'),
-         Input('relapse-malignancy-filter', 'value')],
+         Input('toxicity-year-filter', 'value'),
+         Input('toxicity-age-filter', 'value'),
+         Input('toxicity-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
-        """Gère le tableau de résumé des données manquantes pour Rechute"""
-        
-        if current_page != 'Relapse' or not data:
+    def toxicity_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+        """Gère le tableau de résumé des données manquantes pour Toxicity"""
+
+        if current_page != 'Toxicity' or not data:
             return html.Div("Waiting...", className='text-muted')
-        
+
         try:
             df = pd.DataFrame(data)
-            
+
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
-            
+
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
-            
+
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
-            
+
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center')
-            
-            # Variables spécifiques à analyser pour Rechute
+
+            # Variables spécifiques à analyser pour Toxicity / NRM
             columns_to_analyze = [
-                # Variables de rechute
+                # Variables de suivi et décès
+                'Status Last Follow Up',
+                'Date Of Last Follow Up',
+
+                # Variables de rechute (utilisées pour définir TRM)
                 'First Relapse',
                 'First Relapse Date',
-                
-                # Variables de traitement et suivi
-                'Treatment Date',
-                'Status Last Follow Up',
-                'Date Of Last Follow Up'
+
+                # Variables de traitement
+                'Treatment Date'
             ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
-            
+
             if not existing_columns:
-                return dbc.Alert("No relapse variable found", color='warning')
-            
+                return dbc.Alert("No variable found for toxicity analysis", color='warning')
+
             missing_summary, _ = gr.analyze_missing_data(df, existing_columns, 'Long ID')
-            
+
             # Calculer le nombre de patients décédés pendant le conditionnement
             died_during_conditioning = 0
             if 'Status Last Follow Up' in df.columns and 'Treatment Date' in df.columns and 'Date Of Last Follow Up' in df.columns:
                 died_during_conditioning = df.apply(gr._is_patient_died_during_conditioning, axis=1).sum()
-            
+
             # Créer le contenu avec optionnellement l'info sur les décès pendant conditionnement
             content = []
-            
+
             if died_during_conditioning > 0:
                 content.append(
                     dbc.Alert([
                         html.I(className="fas fa-info-circle me-2"),
                         html.Strong(f"{died_during_conditioning} patient(s) "),
-                        "died during conditioning. Relapse data are not applicable for these patients and are excluded from missing data counts."
+                        "died during conditioning. TRM data are not applicable for these patients and are excluded from missing data counts."
                     ], color='info', className='mb-2', style={'fontSize': '12px'})
                 )
-            
+
             content.append(
                 dash_table.DataTable(
                     data=missing_summary.to_dict('records'),
@@ -445,7 +466,7 @@ def register_callbacks(app):
                         {"name": "Column", "id": "Column", "type": "text"},
                         {"name": "Total", "id": "Total patients", "type": "numeric"},
                         {"name": "Missing", "id": "Missing data", "type": "numeric"},
-                        {"name": "% Missing", "id": "Percentage missing", "type": "numeric", 
+                        {"name": "% Missing", "id": "Percentage missing", "type": "numeric",
                          "format": {"specifier": ".1f"}}
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
@@ -475,83 +496,80 @@ def register_callbacks(app):
                     ]
                 )
             )
-            
+
             return html.Div(content)
-            
+
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
     @app.callback(
-        [Output('relapse-missing-detail-table', 'children'),
-         Output('export-missing-relapse-button', 'disabled'),
-         Output('relapse-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Output('toxicity-missing-detail-table', 'children'),
+         Output('export-missing-toxicity-button', 'disabled'),
+         Output('toxicity-missing-store', 'data')],
+        [Input('data-store', 'data'),
          Input('current-page', 'data'),
-         Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value'),
-         Input('relapse-malignancy-filter', 'value')],
+         Input('toxicity-year-filter', 'value'),
+         Input('toxicity-age-filter', 'value'),
+         Input('toxicity-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
-        """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
-        
-        if current_page != 'Relapse' or not data:
+    def toxicity_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+        """Gère le tableau détaillé des patients avec données manquantes pour Toxicity"""
+
+        if current_page != 'Toxicity' or not data:
             return html.Div("Waiting...", className='text-muted'), True, None
-        
+
         try:
             df = pd.DataFrame(data)
-            
+
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
-            
+
             # Filtrer par tranches d'âge
             if selected_age_groups and 'Age Group Detailed' in df.columns:
                 df = df[df['Age Group Detailed'].isin(selected_age_groups)]
-            
+
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
-            
+
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True, None
-            
-            # Variables spécifiques à analyser pour Rechute
+
+            # Variables spécifiques à analyser pour Toxicity / NRM
             columns_to_analyze = [
-                # Variables de rechute
+                'Status Last Follow Up',
+                'Date Of Last Follow Up',
                 'First Relapse',
                 'First Relapse Date',
-                
-                # Variables de traitement et suivi
-                'Treatment Date',
-                'Status Last Follow Up',
-                'Date Of Last Follow Up'
+                'Treatment Date'
             ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
-            
+
             if not existing_columns:
-                return dbc.Alert("No relapse variable found", color='warning'), True, None
-            
+                return dbc.Alert("No variable found for toxicity analysis", color='warning'), True, None
+
             _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
-            
+
             if detailed_missing.empty:
                 return dbc.Alert("🎉 No missing data found !", color='success'), True, None
-            
+
             # Adapter les noms de colonnes pour correspondre au format attendu
             detailed_data = []
             for _, row in detailed_missing.iterrows():
                 detailed_data.append({
                     'Long ID': row['Long ID'],
-                    'Missing columns': row['Missing columns'],  
-                    'Nb missing': row['Nb missing']  
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
                 })
-            
+
             table_content = html.Div([
                 dash_table.DataTable(
                     data=detailed_data,
                     columns=[
                         {"name": "Long ID", "id": "Long ID"},
                         {"name": "Missing variables", "id": "Missing columns"},
-                        {"name": "Nb", "id": "Nb missing", "type": "numeric"} 
+                        {"name": "Nb", "id": "Nb missing", "type": "numeric"}
                     ],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                     style_cell={'textAlign': 'left', 'padding': '8px', 'fontSize': '12px', 'color': '#021F59'},
@@ -562,33 +580,33 @@ def register_callbacks(app):
                     page_size=10
                 )
             ])
-            
+
             return table_content, False, detailed_data
-            
+
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
 
     @app.callback(
-        Output("download-missing-relapse-excel", "data"),
-        Input("export-missing-relapse-button", "n_clicks"),
-        State('relapse-missing-store', 'data'),
+        Output("download-missing-toxicity-excel", "data"),
+        Input("export-missing-toxicity-button", "n_clicks"),
+        State('toxicity-missing-store', 'data'),
         prevent_initial_call=True
     )
-    def export_missing_relapse_excel(n_clicks, missing_data):
-        """Gère l'export Excel des patients avec données manquantes pour Rechute"""
+    def export_missing_toxicity_excel(n_clicks, missing_data):
+        """Gère l'export Excel des patients avec données manquantes pour Toxicity"""
         if n_clicks is None:
             return dash.no_update
-        
+
         try:
             # Récupérer les données stockées
             if missing_data:
                 missing_df = pd.DataFrame(missing_data)
-                
+
                 # Générer un nom de fichier avec la date
                 from datetime import datetime
                 current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"rechute_donnees_manquantes_{current_date}.xlsx"
-                
+                filename = f"toxicite_donnees_manquantes_{current_date}.xlsx"
+
                 return dcc.send_data_frame(
                     missing_df.to_excel,
                     filename=filename,
@@ -596,45 +614,7 @@ def register_callbacks(app):
                 )
             else:
                 return dash.no_update
-                
-        except Exception as e:
-            print(f"Error during Excel export Relapse: {e}")
-            return dash.no_update
 
-def create_relapse_data_table(df):
-    """
-    Crée une table avec les données pertinentes pour les rechutes
-    
-    Args:
-        df (pd.DataFrame): DataFrame avec les données
-        
-    Returns:
-        html.Div: Composant contenant la table
-    """
-    relevant_columns = [
-        'Treatment Date', 'First Relapse', 'First Relapse Date',
-        'Status Last Follow Up', 'Date Of Last Follow Up', 'Year'
-    ]
-    
-    # Filtrer les colonnes qui existent réellement
-    available_columns = [col for col in relevant_columns if col in df.columns]
-    
-    if not available_columns:
-        return dbc.Alert("Relapse data columns not found", color="warning")
-    
-    # Créer la table
-    table_df = df[available_columns].head(100)  # Limiter à 100 lignes pour l'affichage
-    
-    return html.Div([
-        html.H5("Relapse data", className="mb-3"),
-        html.P(f"Displaying {len(table_df)} first lines out of {len(df)} total", 
-               className="text-muted small"),
-        dbc.Table.from_dataframe(
-            table_df, 
-            striped=True, 
-            bordered=True, 
-            hover=True, 
-            responsive=True,
-            size="sm"
-        )
-    ], style={'height': '400px', 'overflow': 'auto'})
+        except Exception as e:
+            print(f"Error during Excel export Toxicity: {e}")
+            return dash.no_update
