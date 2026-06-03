@@ -35,6 +35,26 @@ def get_layout():
             ], width=12)
         ], className='mb-4'),
 
+        # Deuxième graphique - TRM (Treatment-Related Mortality)
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader(html.H4('Competing Risks Analysis - NRM')),
+                    dbc.CardBody([
+                        dcc.Loading(
+                            id="loading-trm",
+                            type="circle",
+                            children=
+                            html.Div(
+                                id='relapse-trm-graph',
+                                style={'height': '800px', 'width': '100%'}
+                            )
+                        )
+                    ], className='p-2')
+                ])
+            ], width=12)
+        ], className='mb-4'),
+
         html.Hr(style={
             'border': '2px solid #d4c4b5',
             'margin': '3rem 0 2rem 0'
@@ -328,6 +348,155 @@ def create_relapse_analysis(data):
         )
         return fig
 
+def create_trm_competing_risks_analysis(data):
+    """
+    Crée l'analyse de risques compétitifs pour la TRM (Treatment-Related Mortality)
+    
+    Event = décès sans rechute préalable (TRM)
+    Competing = rechute
+    
+    Args:
+        data (pd.DataFrame): DataFrame avec les données
+        
+    Returns:
+        plotly.graph_objects.Figure: Figure de l'analyse des risques compétitifs
+    """
+    required_columns = [
+        'Treatment Date', 'First Relapse', 'First Relapse Date',
+        'Status Last Follow Up', 'Date Of Last Follow Up'
+    ]
+    
+    missing_columns = [col for col in required_columns if col not in data.columns]
+    
+    if missing_columns:
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Missing variables for TRM analysis :<br>{', '.join(missing_columns)}",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(
+            title="Competing risks analysis : TRM vs relapse",
+            height=500,
+            showlegend=False
+        )
+        return fig
+    
+    df_filtered = data.dropna(subset=['Treatment Date']).copy()
+    
+    if len(df_filtered) == 0:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No data available for the analysis",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=16
+        )
+        fig.update_layout(
+            title="Competing risks analysis : TRM vs relapse",
+            height=500,
+            showlegend=False
+        )
+        return fig
+    
+    try:
+        import modules.competing_risks as cr
+        
+        # Créer les colonnes TRM
+        df_filtered['Treatment Date_dt'] = pd.to_datetime(df_filtered['Treatment Date'], format='mixed', errors='coerce')
+        df_filtered['Date Of Last Follow Up_dt'] = pd.to_datetime(df_filtered['Date Of Last Follow Up'], format='mixed', errors='coerce')
+        df_filtered['First Relapse Date_dt'] = pd.to_datetime(df_filtered['First Relapse Date'], format='mixed', errors='coerce')
+        
+        # TRM = décès sans rechute préalable
+        death_mask = df_filtered['Status Last Follow Up'].astype(str).str.strip().str.lower() == 'dead'
+        relapse_mask = df_filtered['First Relapse'].astype(str).str.strip().str.lower() == 'yes'
+        
+        # Rechute avant ou au moment du décès
+        relapse_before_death = (
+            relapse_mask & 
+            df_filtered['First Relapse Date_dt'].notna() &
+            df_filtered['Date Of Last Follow Up_dt'].notna() &
+            (df_filtered['First Relapse Date_dt'] <= df_filtered['Date Of Last Follow Up_dt'])
+        )
+        
+        trm_mask = death_mask & ~relapse_before_death
+        
+        df_filtered['TRM Event'] = 'No'
+        df_filtered.loc[trm_mask, 'TRM Event'] = 'Yes'
+        df_filtered['TRM Date'] = pd.NaT
+        df_filtered.loc[trm_mask, 'TRM Date'] = df_filtered.loc[trm_mask, 'Date Of Last Follow Up']
+        
+        # Calculer la durée maximale
+        max_days = calculate_max_relapse_followup_days(df_filtered)
+        initial_display_days = 365
+        
+        title = f"Competing risks analysis : TRM vs relapse (up to {max_days} days)"
+        
+        analyzer = cr.CompetingRisksAnalyzer(df_filtered, 'Treatment Date')
+        
+        events_config = {
+            'TRM': {
+                'occurrence_col': 'TRM Event',
+                'date_col': 'TRM Date',
+                'label': 'TRM (décès sans rechute)',
+                'color': '#e74c3c'
+            },
+            'Rechute': {
+                'occurrence_col': 'First Relapse',
+                'date_col': 'First Relapse Date',
+                'label': 'Rechute',
+                'color': '#f39c12'
+            }
+        }
+        
+        followup_config = {
+            'status_col': 'Status Last Follow Up',
+            'date_col': 'Date Of Last Follow Up',
+            'death_value': 'Dead'
+        }
+        
+        results, processed_data = analyzer.calculate_cumulative_incidence(
+            events_config, followup_config, max_days=max_days, death_as_competing=False
+        )
+        
+        fig = analyzer.create_competing_risks_plot(
+            results, processed_data, events_config, title=title
+        )
+        
+        if max_days > initial_display_days:
+            fig.update_xaxes(range=[0, initial_display_days])
+            fig.add_annotation(
+                x=0.02, y=0.98,
+                xref='paper', yref='paper',
+                text=f"<b>Initial display: {initial_display_days} days (1 year)</b><br>" +
+                     f"Data available up to {max_days} days<br>" +
+                     "<i>Utilisez les contrôles de zoom pour voir au-delà</i>",
+                showarrow=False,
+                font=dict(size=10, color='#34495e'),
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor="#e74c3c",
+                borderwidth=1,
+                align="left"
+            )
+        
+        return fig
+        
+    except Exception as e:
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Error during the analysis of competing risks :<br>{str(e)}",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False, font_size=14
+        )
+        fig.update_layout(
+            title="Competing risks analysis : TRM vs relapse",
+            height=500,
+            showlegend=False
+        )
+        return fig
+
 def register_callbacks(app):
     """
     Enregistre les callbacks pour la page Rechute
@@ -370,6 +539,43 @@ def register_callbacks(app):
             return dcc.Graph(figure=fig, style={'height': '100%', 'width': '100%'})
         except Exception as e:
             return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
+    
+    # Callback pour le graphique TRM
+    @app.callback(
+        Output('relapse-trm-graph', 'children'),
+        [Input('relapse-year-filter', 'value'),
+         Input('relapse-age-filter', 'value'),
+         Input('relapse-malignancy-filter', 'value'),
+         Input('data-store', 'data'),
+         Input('current-page', 'data')]
+    )
+    def update_relapse_trm_graph(selected_years, selected_age_groups, malignancy_filter, data, current_page):
+        """Met à jour le graphique d'analyse des risques compétitifs pour la TRM"""
+        
+        if current_page != 'Relapse':
+            return html.Div()
+            
+        if data is None:
+            return dbc.Alert("No data available", color="warning")
+        
+        df = pd.DataFrame(data)
+        
+        # Filtrer les données par années sélectionnées
+        if selected_years and 'Year' in df.columns:
+            df = df[df['Year'].isin(selected_years)]
+        
+        # Filtrer par tranches d'âge
+        if selected_age_groups and 'Age Group Detailed' in df.columns:
+            df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        
+        # Filtrer par type de diagnostic
+        df = apply_malignancy_filter(df, malignancy_filter)
+        
+        try:
+            fig = create_trm_competing_risks_analysis(df)
+            return dcc.Graph(figure=fig, style={'height': '100%', 'width': '100%'})
+        except Exception as e:
+            return dbc.Alert(f"Error during TRM graph creation: {str(e)}", color="danger")
         
     @app.callback(
         Output('relapse-missing-summary-table', 'children'),
