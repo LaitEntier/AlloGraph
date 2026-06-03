@@ -1,5 +1,5 @@
 import dash
-from dash import html, dcc
+from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
 
@@ -172,7 +172,50 @@ def create_base_layout():
                         'fontSize': '13px'
                     })
                 ], className='text-center', style={'color': '#021F59', 'marginBottom': '4px'}),
-                html.P('IDDN.FR.001.090021.000.S.P.2026.000.31230', className='text-center', style={'color': '#6c757d', 'fontSize': '11px'}),
+                html.Div([
+                    html.Img(
+                        src="allograph-app/assets/images/QRCodeIDDN.jpg",
+                        id='footer-qrcode-img',
+                        style={
+                            'height': '60px',
+                            'width': '60px',
+                            'cursor': 'pointer',
+                            'borderRadius': '4px',
+                            'border': '1px solid #dee2e6'
+                        }
+                    ),
+                    html.P([
+                        'Deposited at the ',
+                        html.Strong('Agence de la Protection des Programmes (APP)'),
+                        html.Br(),
+                        html.Span('IDDN.FR.001.090021.000.S.P.2026.000.31230', style={'fontSize': '10px'})
+                    ], className='text-center', style={'color': '#6c757d', 'fontSize': '11px', 'marginTop': '4px', 'marginBottom': '4px'})
+                ], className='text-center'),
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("IDDN Registration")),
+                        dbc.ModalBody([
+                            html.Div([
+                                html.Img(
+                                    src="allograph-app/assets/images/QRCodeIDDN.jpg",
+                                    style={
+                                        'height': '250px',
+                                        'width': '250px',
+                                        'borderRadius': '8px',
+                                        'border': '1px solid #dee2e6'
+                                    }
+                                ),
+                            ], className='text-center'),
+                            html.P([
+                                'Deposited at the ',
+                                html.Strong('Agence pour la Protection des Programmes (APP)')
+                            ], className='text-center mt-3', style={'color': '#021F59'})
+                        ])
+                    ],
+                    id='footer-qrcode-modal',
+                    centered=True,
+                    size='sm'
+                ),
                 html.P([
                     'Design by Lucie Clarysse ',
                     html.A('@Com&Sci', href='https://comsci.art', target='_blank', style={'color': '#021F59', 'textDecoration': 'underline'})
@@ -621,3 +664,18 @@ def create_procedures_sidebar_content(data, pediatric_view=False):
     ]
     
     return html.Div(controls)
+
+def register_callbacks(app):
+    """Callbacks pour le layout global (footer, modales, etc.)"""
+    
+    @app.callback(
+        Output('footer-qrcode-modal', 'is_open'),
+        Input('footer-qrcode-img', 'n_clicks'),
+        State('footer-qrcode-modal', 'is_open'),
+        prevent_initial_call=True
+    )
+    def toggle_qrcode_modal(n_clicks, is_open):
+        """Ouvre/ferme la modale du QR code au clic"""
+        if n_clicks:
+            return not is_open
+        return is_open

@@ -784,6 +784,7 @@ def load_test_sample(n_clicks):
     
 server = app.server
 
+layouts.register_callbacks(app)
 home_page.register_callbacks(app)
 patients_page.register_callbacks(app)
 hemopathies_page.register_callbacks(app)

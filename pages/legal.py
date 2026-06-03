@@ -50,8 +50,23 @@ def get_layout():
                         html.P([
                             "AlloGraph is an open-source project licensed under the Apache License 2.0.",
                             html.Br(),
+                            "Deposited at the ",
+                            html.Strong("Agence pour la Protection des Programmes (APP)"),
+                            ".",
+                            html.Br(),
                             "IDDN registration: ",
-                            html.Strong("IDDN.FR.001.090021.000.S.P.2026.000.31230")
+                            html.Strong("IDDN.FR.001.090021.000.S.P.2026.000.31230"),
+                            html.Br(),
+                            html.Img(
+                                src="allograph-app/assets/images/QRCodeIDDN.jpg",
+                                style={
+                                    'height': '160px',
+                                    'width': '160px',
+                                    'marginTop': '10px',
+                                    'borderRadius': '8px',
+                                    'border': '1px solid #dee2e6'
+                                }
+                            )
                         ]),
 
                         html.H5("Nature of the Service", style={'color': '#0D3182', 'fontWeight': '700', 'marginTop': '25px'}),
