@@ -26,7 +26,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(
                         html.Div([
-                            html.H4('Competing Risks Analysis - NRM', className='mb-0 d-inline'),
+                            html.H4('Non-Relapse Mortality', className='mb-0 d-inline'),
                             html.Span(layouts.create_info_tooltip(NRM_INFO_TEXT, "toxicity-main-info"))
                         ])
                     ),
@@ -236,7 +236,7 @@ def create_trm_competing_risks_analysis(data):
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Competing risks analysis : TRM vs relapse",
+            title="Competing risks analysis : NRM vs relapse",
             height=500,
             showlegend=False
         )
@@ -253,7 +253,7 @@ def create_trm_competing_risks_analysis(data):
             showarrow=False, font_size=16
         )
         fig.update_layout(
-            title="Competing risks analysis : TRM vs relapse",
+            title="Competing risks analysis : NRM vs relapse",
             height=500,
             showlegend=False
         )
@@ -290,21 +290,21 @@ def create_trm_competing_risks_analysis(data):
         max_days = calculate_max_relapse_followup_days(df_filtered)
         initial_display_days = 365
 
-        title = f"Competing risks analysis : TRM vs relapse (up to {max_days} days)"
+        title = f"Competing risks analysis : NRM vs relapse (up to {max_days} days)"
 
         analyzer = cr.CompetingRisksAnalyzer(df_filtered, 'Treatment Date')
 
         events_config = {
-            'TRM': {
+            'NRM': {
                 'occurrence_col': 'TRM Event',
                 'date_col': 'TRM Date',
-                'label': 'TRM (décès sans rechute)',
+                'label': 'NRM (death without relapse)',
                 'color': '#e74c3c'
             },
-            'Rechute': {
+            'Relapse': {
                 'occurrence_col': 'First Relapse',
                 'date_col': 'First Relapse Date',
-                'label': 'Rechute',
+                'label': 'Relapse',
                 'color': '#f39c12'
             }
         }
@@ -330,7 +330,7 @@ def create_trm_competing_risks_analysis(data):
                 xref='paper', yref='paper',
                 text=f"<b>Initial display: {initial_display_days} days (1 year)</b><br>" +
                      f"Data available up to {max_days} days<br>" +
-                     "<i>Utilisez les contrôles de zoom pour voir au-delà</i>",
+                     "<i>Use zoom & pan controls to see beyond</i>",
                 showarrow=False,
                 font=dict(size=10, color='#34495e'),
                 bgcolor="rgba(255, 255, 255, 0.9)",
@@ -350,7 +350,7 @@ def create_trm_competing_risks_analysis(data):
             showarrow=False, font_size=14
         )
         fig.update_layout(
-            title="Competing risks analysis : TRM vs relapse",
+            title="Competing risks analysis : NRM vs relapse",
             height=500,
             showlegend=False
         )

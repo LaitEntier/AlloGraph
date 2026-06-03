@@ -138,7 +138,17 @@ def create_gvh_sidebar_content(data, pediatric_view=False):
         html.Hr(),
         
         # Filtres de grade/score dynamiques
-        html.Div(id='gvh-grade-filter-container'),
+        html.Div([
+            html.H6('Grade filters for aGvH', className='mb-2'),
+            dcc.Checklist(
+                id='gvh-grade-filter',
+                options=[],
+                value=[],
+                inline=False,
+                className='mb-3',
+                style={'fontSize': '12px'}
+            )
+        ], id='gvh-grade-filter-container'),
         
         html.Hr(),
         

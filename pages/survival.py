@@ -96,7 +96,7 @@ def get_layout():
                 dbc.Card([
                     dbc.CardHeader(
                         html.Div([
-                            html.H5('GRFS (GvH & Relapse Free Survival)', className='mb-0 d-inline'),
+                            html.H5('GvH & Relapse Free Survival', className='mb-0 d-inline'),
                             html.Span(layouts.create_info_tooltip(GRFS_INFO_TEXT, "survival-grfs-info"))
                         ])
                     ),
@@ -972,7 +972,7 @@ def prepare_grfs_data(df):
     return processed_data
 
 
-def create_grfs_km_curve(processed_data, max_years=None, title="GRFS (GvH & Relapse Free Survival)"):
+def create_grfs_km_curve(processed_data, max_years=None, title="GvH & Relapse Free Survival"):
     """
     Crée une courbe Kaplan-Meier interactive pour la GRFS avec axe X en années
     """
