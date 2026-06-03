@@ -10,7 +10,7 @@ import plotly.express as px
 
 # Import des modules communs (à adapter selon votre structure)
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, create_info_tooltip
 import modules.data_processing as data_processing
 import visualizations.allogreffes.graphs as gr
 
@@ -133,28 +133,6 @@ Relapse D100 = First Relapse = "Yes" AND Delay ≤ 100 days
 Relapse D365 = First Relapse = "Yes" AND Delay ≤ 365 days
 
 Rate (%) = (Number of relapses / Total with valid data) × 100"""
-
-def create_info_tooltip(tooltip_text, tooltip_id):
-    """Crée un icône info-circle avec un tooltip dbc au survol"""
-    return [
-        html.I(
-            className="bi bi-info-circle",
-            id=tooltip_id,
-            style={
-                'cursor': 'pointer',
-                'fontSize': '13px',
-                'marginLeft': '6px',
-                'color': '#77ACF2',
-                'verticalAlign': 'middle'
-            }
-        ),
-        dbc.Tooltip(
-            tooltip_text,
-            target=tooltip_id,
-            placement="top",
-            style={'maxWidth': '350px', 'textAlign': 'left', 'fontSize': '12px', 'whiteSpace': 'pre-line'}
-        )
-    ]
 
 def get_layout():
     """Layout avec sélection Yearly/Quarterly dans la sidebar"""

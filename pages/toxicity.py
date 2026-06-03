@@ -11,6 +11,10 @@ import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
 
+NRM_INFO_TEXT = """Event = Death without prior relapse (NRM)
+Competing = Death after relapse"""
+
+
 def get_layout():
     """
     Retourne le layout de la page Toxicity
@@ -20,7 +24,12 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Competing Risks Analysis - NRM')),
+                    dbc.CardHeader(
+                        html.Div([
+                            html.H4('Competing Risks Analysis - NRM', className='mb-0 d-inline'),
+                            html.Span(layouts.create_info_tooltip(NRM_INFO_TEXT, "toxicity-main-info"))
+                        ])
+                    ),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-toxicity-nrm",

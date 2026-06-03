@@ -365,6 +365,29 @@ def create_filter_controls(categorical_columns, years_options, pediatric_view=Fa
     
     return html.Div(controls)
 
+
+def create_info_tooltip(tooltip_text, tooltip_id):
+    """Crée un icône info-circle avec un tooltip dbc au survol"""
+    return [
+        html.I(
+            className="bi bi-info-circle",
+            id=tooltip_id,
+            style={
+                'cursor': 'pointer',
+                'fontSize': '16px',
+                'marginLeft': '10px',
+                'color': '#77ACF2',
+                'verticalAlign': 'middle'
+            }
+        ),
+        dbc.Tooltip(
+            tooltip_text,
+            target=tooltip_id,
+            placement="top",
+            style={'maxWidth': '400px', 'textAlign': 'left', 'fontSize': '13px', 'whiteSpace': 'pre-line'}
+        )
+    ]
+
 def create_hemopathies_filter_controls(categorical_columns, years_options, pediatric_view=False):
     """
     Crée les contrôles de filtrage spécifiques pour la page Hemopathies.

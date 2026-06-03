@@ -10,6 +10,10 @@ from modules.dashboard_layout import apply_malignancy_filter
 import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
+RELAPSE_INFO_TEXT = """Event = Relapse
+Competing = Death"""
+
+
 def get_layout():
     """
     Retourne le layout de la page Rechute
@@ -19,7 +23,12 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Competing Risks Analysis')),
+                    dbc.CardHeader(
+                        html.Div([
+                            html.H4('Competing Risks Analysis', className='mb-0 d-inline'),
+                            html.Span(layouts.create_info_tooltip(RELAPSE_INFO_TEXT, "relapse-main-info"))
+                        ])
+                    ),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",

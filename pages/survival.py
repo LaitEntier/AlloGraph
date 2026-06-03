@@ -23,6 +23,13 @@ except ImportError:
     print("Warning: lifelines not available. Survival analyses will not work.")
     LIFELINES_AVAILABLE = False
 
+KM_INFO_TEXT = """Event = Death
+Censored = Alive at last follow-up"""
+
+GRFS_INFO_TEXT = """Event = Relapse or GvHD
+Censored = No relapse and no GvHD"""
+
+
 def get_layout():
     """
     Retourne le layout de la page Survie avec graphiques empilés verticalement
@@ -34,7 +41,12 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Kaplan-Meier overall survival curve')),
+                    dbc.CardHeader(
+                        html.Div([
+                            html.H5('Kaplan-Meier overall survival curve', className='mb-0 d-inline'),
+                            html.Span(layouts.create_info_tooltip(KM_INFO_TEXT, "survival-global-info"))
+                        ])
+                    ),
                     dbc.CardBody([
                         html.Div(
                             id='survival-global-curve'
@@ -48,7 +60,12 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Kaplan-Meier survival curves by year')),
+                    dbc.CardHeader(
+                        html.Div([
+                            html.H5('Kaplan-Meier survival curves by year', className='mb-0 d-inline'),
+                            html.Span(layouts.create_info_tooltip(KM_INFO_TEXT, "survival-by-year-info"))
+                        ])
+                    ),
                     dbc.CardBody([
                         html.Div(
                             id='survival-curves-by-year'
@@ -77,7 +94,12 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('GRFS (GvH & Relapse Free Survival)')),
+                    dbc.CardHeader(
+                        html.Div([
+                            html.H5('GRFS (GvH & Relapse Free Survival)', className='mb-0 d-inline'),
+                            html.Span(layouts.create_info_tooltip(GRFS_INFO_TEXT, "survival-grfs-info"))
+                        ])
+                    ),
                     dbc.CardBody([
                         html.Div(
                             id='survival-grfs-graph'

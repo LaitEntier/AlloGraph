@@ -10,6 +10,15 @@ from modules.dashboard_layout import apply_malignancy_filter
 import visualizations.allogreffes.graphs as gr
 import modules.data_processing as data_processing
 
+GVH_INFO_TEXT = """Acute GvH:
+  Event = Acute GvHD
+  Competing = Death
+
+Chronic GvH:
+  Event = Chronic GvHD
+  Competing = Death"""
+
+
 def get_layout():
     """
     Retourne le layout de la page GvH avec uniquement le graphique de risques compétitifs
@@ -19,7 +28,12 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H4('Competing Risks Analysis')),
+                    dbc.CardHeader(
+                        html.Div([
+                            html.H4('Competing Risks Analysis', className='mb-0 d-inline'),
+                            html.Span(layouts.create_info_tooltip(GVH_INFO_TEXT, "gvh-main-info"))
+                        ])
+                    ),
                     dbc.CardBody([
                         dcc.Loading(
                             id="loading-patients-normalized",
