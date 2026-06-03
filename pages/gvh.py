@@ -139,7 +139,7 @@ def create_gvh_sidebar_content(data, pediatric_view=False):
         
         # Filtres de grade/score dynamiques
         html.Div([
-            html.H6('Grade filters for aGvH', className='mb-2'),
+            html.H6(id='gvh-grade-filter-title', children='Grade filters for aGvH', className='mb-2'),
             dcc.Checklist(
                 id='gvh-grade-filter',
                 options=[],
@@ -147,7 +147,8 @@ def create_gvh_sidebar_content(data, pediatric_view=False):
                 inline=False,
                 className='mb-3',
                 style={'fontSize': '12px'}
-            )
+            ),
+            html.Div(id='gvh-grade-filter-message', className='text-muted small')
         ], id='gvh-grade-filter-container'),
         
         html.Hr(),
@@ -257,7 +258,10 @@ def register_callbacks(app):
     
     # Callback pour mettre à jour les filtres de grade/score selon le type de GvH
     @app.callback(
-        Output('gvh-grade-filter-container', 'children'),
+        [Output('gvh-grade-filter-title', 'children'),
+         Output('gvh-grade-filter', 'options'),
+         Output('gvh-grade-filter', 'value'),
+         Output('gvh-grade-filter-message', 'children')],
         [Input('gvh-type-selection', 'value'),
          Input('data-store', 'data')],
         prevent_initial_call=False
@@ -265,7 +269,7 @@ def register_callbacks(app):
     def update_grade_filters(gvh_type, data):
         """Met à jour les filtres de grade/score selon le type de GvH sélectionné"""
         if data is None:
-            return html.Div()
+            return '', [], [], ''
     
         df = pd.DataFrame(data)
         
@@ -277,7 +281,6 @@ def register_callbacks(app):
             # Filtres pour GvH Aiguë (inchangé)
             column_name = 'First aGvHD Maximum Score'
             title = 'Grade filters for aGvH'
-            filter_id = 'gvh-grade-filter'
             
             grade_order = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
             
@@ -304,7 +307,6 @@ def register_callbacks(app):
             # Filtres pour GvH Chronique (MISE À JOUR : Limited et Extensive retirés)
             column_name = 'First cGvHD Maximum NIH Score'
             title = 'Score filters for cGvH'
-            filter_id = 'gvh-grade-filter'
             
             # Ordre mis à jour sans Limited et Extensive (car transformés)
             score_order = ['Mild', 'Moderate', 'Severe', 'Not done', 'Unknown']
@@ -328,22 +330,9 @@ def register_callbacks(app):
 
         
         if not grade_options:
-            return html.Div([
-                html.H6(title, className='mb-2'),
-                html.P(f'Column "{column_name}" not available', className='text-muted small')
-            ])
+            return title, [], [], f'Column "{column_name}" not available'
         
-        return html.Div([
-            html.H6(title, className='mb-2'),
-            dcc.Checklist(
-                id='gvh-grade-filter',  # ID unique pour les deux types
-                options=grade_options,
-                value=default_values,
-                inline=False,
-                className='mb-3',
-                style={'fontSize': '12px'}
-            )
-        ])
+        return title, grade_options, default_values, ''
     
     # Callback principal pour le graphique GvH (mis à jour avec les nouveaux filtres)
     @app.callback(
