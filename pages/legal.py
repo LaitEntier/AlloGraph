@@ -31,6 +31,13 @@ def get_layout():
                             html.Br(),
                             "France"
                         ]),
+                        html.P([
+                            "With the support of our partners: ",
+                            html.Strong("Association Leucémie Espoir 72"),
+                            " and ",
+                            html.Strong("SFGM-TC"),
+                            "."
+                        ]),
 
                         html.H5("Contact", style={'color': '#0D3182', 'fontWeight': '700', 'marginTop': '25px'}),
                         html.P([
