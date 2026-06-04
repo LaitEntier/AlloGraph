@@ -91,6 +91,67 @@ def create_upload_zone():
         multiple=False
     )
 
+def create_import_template_section():
+    """Crée la section pour télécharger le template de données"""
+    return html.Div([
+        # Header cliquable
+        dbc.Button([
+            html.I(className="bi bi-download me-2"),
+            "Import your own data",
+            html.I(className="bi bi-chevron-down ms-2", id="template-chevron")
+        ],
+        id="template-collapse-btn",
+        color="light",
+        className="w-100 text-start",
+        style={
+            'backgroundColor': '#f8f9fa',
+            'border': '1px solid #dee2e6',
+            'borderRadius': '12px',
+            'color': '#0D3182',
+            'fontWeight': '600',
+            'padding': '15px 20px',
+            'boxShadow': 'none'
+        }),
+
+        # Contenu collapsible
+        dbc.Collapse([
+            html.Div([
+                # Introduction
+                html.P([
+                    "If your data does not come from a european registry, you can use our template to format your data so that it is compatible with AlloGraph.",
+                ], style={'marginBottom': '20px', 'color': '#495057'}),
+
+                # Download card
+                html.Div([
+                    html.P([
+                        "Download the Excel template, fill it with your patient data, and upload it using the drag-and-drop zone above.",
+                    ], style={'color': '#6c757d', 'fontSize': '14px', 'marginBottom': '15px', 'textAlign': 'center'}),
+                    html.Div([
+                        dbc.Button([
+                            html.I(className="bi bi-download me-2"),
+                            "Download Template"
+                        ],
+                        id="download-template-btn",
+                        color="success",
+                        style={
+                            'borderRadius': '10px',
+                            'fontWeight': '600'
+                        })
+                    ], style={'textAlign': 'center'})
+                ], style={'maxWidth': '500px', 'margin': '0 auto', 'marginBottom': '20px'}),
+            ], style={
+                'padding': '25px',
+                'backgroundColor': '#ffffff',
+                'border': '1px solid #dee2e6',
+                'borderTop': 'none',
+                'borderRadius': '0 0 12px 12px'
+            })
+        ], id="template-collapse", is_open=False),
+
+        # Hidden download component
+        dcc.Download(id="download-template")
+    ])
+
 def create_how_to_get_data_section():
     """Crée la section "Comment obtenir vos données" avec l'image EBMT"""
     return html.Div([
@@ -403,6 +464,13 @@ def create_welcome_content():
             })
         ]),
         
+        # Section "Import your own data"
+        dbc.Row([
+            dbc.Col([
+                create_import_template_section()
+            ], width=12)
+        ], style={'marginBottom': '20px'}),
+
         # Section "How to get your data"
         dbc.Row([
             dbc.Col([
@@ -539,6 +607,33 @@ def register_callbacks(app):
             # Pas de données : afficher le nouveau design d'accueil
             return create_welcome_content()
     
+    @app.callback(
+        Output("template-collapse", "is_open"),
+        Output("template-chevron", "className"),
+        Input("template-collapse-btn", "n_clicks"),
+        State("template-collapse", "is_open"),
+        prevent_initial_call=True
+    )
+    def toggle_template_collapse(n_clicks, is_open):
+        """Toggle the template section open/closed"""
+        if n_clicks:
+            if is_open:
+                return False, "bi bi-chevron-down ms-2"
+            else:
+                return True, "bi bi-chevron-up ms-2"
+        return is_open, "bi bi-chevron-down ms-2"
+
+    @app.callback(
+        Output("download-template", "data"),
+        Input("download-template-btn", "n_clicks"),
+        prevent_initial_call=True
+    )
+    def download_template(n_clicks):
+        """Download the data import template"""
+        if n_clicks:
+            return dcc.send_file("data/import_template_allograph.xlsx")
+        return None
+
     @app.callback(
         Output("tutorial-collapse", "is_open"),
         Output("tutorial-chevron", "className"),
