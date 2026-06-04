@@ -1659,8 +1659,7 @@ def register_callbacks(app):
         acute_filter = []
         if acute_col in df.columns:
             available = df[acute_col].dropna().unique().tolist()
-            available = [g for g in available if g != 'Grade 0 (none)']
-            grade_order = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
+            grade_order = ['Grade 0 (none)', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Unknown']
             options = []
             for g in grade_order:
                 if g in available:
@@ -1688,7 +1687,14 @@ def register_callbacks(app):
             import modules.data_processing as data_processing
             df = data_processing.transform_gvhc_scores(df)
             available = df[chronic_col].dropna().unique().tolist()
-            score_order = ['Mild', 'Moderate', 'Severe', 'Not done', 'Unknown']
+            
+            # Add 'No cGvHD' for patients without chronic GvHD
+            if 'First Cgvhd Occurrence' in df.columns:
+                has_no_cgvhd = (df['First Cgvhd Occurrence'] == 'No evidence of').sum() > 0
+                if has_no_cgvhd:
+                    available.append('No cGvHD')
+            
+            score_order = ['No cGvHD', 'Mild', 'Moderate', 'Severe', 'Not done', 'Unknown']
             options = []
             for s in score_order:
                 if s in available:
@@ -2031,11 +2037,37 @@ def register_callbacks(app):
             
             # Appliquer les filtres de grade GvHD
             if selected_agvh_grades and 'First aGvHD Maximum Score' in df.columns:
-                df = df[df['First aGvHD Maximum Score'].isin(selected_agvh_grades)]
+                effective_score = df['First aGvHD Maximum Score'].copy()
+                no_agvhd = pd.Series(False, index=df.index)
+                if 'First Agvhd Occurrence' in df.columns:
+                    no_agvhd = (df['First Agvhd Occurrence'] == 'No evidence of') & df['First aGvHD Maximum Score'].isna()
+                    effective_score = effective_score.where(~no_agvhd, 'Grade 0 (none)')
+                
+                mask = effective_score.isin(selected_agvh_grades)
+                
+                # Per summary rules, a score is only missing if occurrence='Yes'.
+                # Patients with unknown occurrence are not missing, so always include them.
+                not_truly_missing = df['First aGvHD Maximum Score'].isna() & (df['First Agvhd Occurrence'] != 'Yes') & (~no_agvhd)
+                mask = mask | not_truly_missing
+                
+                df = df[mask]
             
             if selected_cgvh_scores and 'First cGvHD Maximum NIH Score' in df.columns:
                 df = data_processing.transform_gvhc_scores(df)
-                df = df[df['First cGvHD Maximum NIH Score'].isin(selected_cgvh_scores)]
+                effective_score = df['First cGvHD Maximum NIH Score'].copy()
+                no_cgvhd = pd.Series(False, index=df.index)
+                if 'First Cgvhd Occurrence' in df.columns:
+                    no_cgvhd = (df['First Cgvhd Occurrence'] == 'No evidence of') & df['First cGvHD Maximum NIH Score'].isna()
+                    effective_score = effective_score.where(~no_cgvhd, 'No cGvHD')
+                
+                mask = effective_score.isin(selected_cgvh_scores)
+                
+                # Per summary rules, a score is only missing if occurrence='Yes'.
+                # Patients with unknown occurrence are not missing, so always include them.
+                not_truly_missing = df['First cGvHD Maximum NIH Score'].isna() & (df['First Cgvhd Occurrence'] != 'Yes') & (~no_cgvhd)
+                mask = mask | not_truly_missing
+                
+                df = df[mask]
             
             data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
@@ -2126,10 +2158,11 @@ def register_callbacks(app):
          Input('survival-age-filter', 'value'),
          Input('survival-custom-age-switch', 'value'),
          Input('survival-custom-age-slider', 'value'),
-         Input('survival-malignancy-filter', 'value')],
+         Input('survival-malignancy-filter', 'value'),
+         Input('survival-tabs-0', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, active_tab):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -2152,15 +2185,28 @@ def register_callbacks(app):
                 return html.Div('No data for the selected years', className='text-warning text-center')
             
             # Variables spécifiques à analyser pour Survie
-            columns_to_analyze = [
-                # Variables principales pour l'analyse de survie
-                'Treatment Date',
-                'Date Of Last Follow Up',
-                'Status Last Follow Up',
-                
-                # Variable pour stratification
-                'Year'
-            ]
+            if active_tab == 'tab-grfs':
+                columns_to_analyze = [
+                    'Treatment Date',
+                    'Date Of Last Follow Up',
+                    'Status Last Follow Up',
+                    'First Agvhd Occurrence',
+                    'First Agvhd Occurrence Date',
+                    'First Cgvhd Occurrence',
+                    'First Cgvhd Occurrence Date',
+                    'First Relapse',
+                    'First Relapse Date',
+                    'First aGvHD Maximum Score',
+                    'First cGvHD Maximum NIH Score',
+                    'Year'
+                ]
+            else:
+                columns_to_analyze = [
+                    'Treatment Date',
+                    'Date Of Last Follow Up',
+                    'Status Last Follow Up',
+                    'Year'
+                ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
@@ -2218,10 +2264,11 @@ def register_callbacks(app):
          Input('survival-age-filter', 'value'),
          Input('survival-custom-age-switch', 'value'),
          Input('survival-custom-age-slider', 'value'),
-         Input('survival-malignancy-filter', 'value')],
+         Input('survival-malignancy-filter', 'value'),
+         Input('survival-tabs-0', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, active_tab):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -2244,15 +2291,28 @@ def register_callbacks(app):
                 return html.Div('No data for the selected years', className='text-warning text-center'), True, None
             
             # Variables spécifiques à analyser pour Survie
-            columns_to_analyze = [
-                # Variables principales pour l'analyse de survie
-                'Treatment Date',
-                'Date Of Last Follow Up',
-                'Status Last Follow Up',
-                
-                # Variable pour stratification
-                'Year'
-            ]
+            if active_tab == 'tab-grfs':
+                columns_to_analyze = [
+                    'Treatment Date',
+                    'Date Of Last Follow Up',
+                    'Status Last Follow Up',
+                    'First Agvhd Occurrence',
+                    'First Agvhd Occurrence Date',
+                    'First Cgvhd Occurrence',
+                    'First Cgvhd Occurrence Date',
+                    'First Relapse',
+                    'First Relapse Date',
+                    'First aGvHD Maximum Score',
+                    'First cGvHD Maximum NIH Score',
+                    'Year'
+                ]
+            else:
+                columns_to_analyze = [
+                    'Treatment Date',
+                    'Date Of Last Follow Up',
+                    'Status Last Follow Up',
+                    'Year'
+                ]
             existing_columns = [col for col in columns_to_analyze if col in df.columns]
             
             if not existing_columns:
