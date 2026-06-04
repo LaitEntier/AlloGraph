@@ -539,7 +539,7 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
         'First Cgvhd Occurrence', 'First Cgvhd Occurrence Date',
         'First Relapse', 'First Relapse Date',
         'First aGvHD Maximum Score', 'First cGvHD Maximum NIH Score',
-        'Age Group Detailed', 'Diagnosis Category'
+        'Age At Diagnosis', 'Age Group Detailed', 'Diagnosis Category'
     ]
     survival_cols = core_cols + survival_needed
     survival_cols = [c for c in survival_cols if c in df_full.columns]
@@ -551,7 +551,7 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
         'Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up',
         'First Agvhd Occurrence', 'First Agvhd Occurrence Date', 'First aGvHD Maximum Score',
         'First Cgvhd Occurrence', 'First Cgvhd Occurrence Date', 'First cGvHD Maximum NIH Score',
-        'Age Group Detailed', 'Diagnosis Category'
+        'Age At Diagnosis', 'Age Group Detailed', 'Diagnosis Category'
     ]
     gvh_cols = core_cols + gvh_needed
     gvh_cols = [c for c in gvh_cols if c in df_full.columns]

@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import visualizations.allogreffes.graphs as gr
 import modules.data_processing as data_processing
 
@@ -186,12 +186,19 @@ def register_callbacks(app):
     """
     Enregistre les callbacks pour la page GvH
     """
+    # Register age filter toggle callback
+    layouts.register_age_toggle_callback(
+        app, 
+        switch_id='gvh-custom-age-switch',
+        wrapper_id='gvh-age-filter-wrapper',
+        slider_id='gvh-custom-age-slider'
+    )
     # Import caching utility
     from modules.cache_utils import cache_gvh_result
     
     # Cached version of competing risks calculation
     @cache_gvh_result
-    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple, malignancy_filter):
+    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple, malignancy_filter, use_custom_age=False, custom_age_range_tuple=None):
         """Cached version of GvH competing risks calculation"""
         import json
         # Convert JSON string back to DataFrame
@@ -212,8 +219,7 @@ def register_callbacks(app):
             return None
         
         # Filter by age groups
-        if selected_age_groups_tuple and 'Age Group Detailed' in df.columns:
-            df = df[df['Age Group Detailed'].isin(list(selected_age_groups_tuple))]
+        df = apply_age_filter(df, list(selected_age_groups_tuple) if selected_age_groups_tuple else [], use_custom_age, list(custom_age_range_tuple) if custom_age_range_tuple else None)
         
         if df.empty:
             return None
@@ -342,12 +348,14 @@ def register_callbacks(app):
          Input('gvh-year-filter', 'value'),
          Input('gvh-grade-filter', 'value'),
          Input('gvh-age-filter', 'value'),
+         Input('gvh-custom-age-switch', 'value'),
+         Input('gvh-custom-age-slider', 'value'),
          Input('gvh-malignancy-filter', 'value'),
          Input('data-store-gvh', 'data'),  # Use slim store
          Input('current-page', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, malignancy_filter, data, current_page):
+    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, malignancy_filter, data, current_page, use_custom_age, custom_age_range):
         """Met à jour le graphique principal d'analyse des risques compétitifs"""
         # Ne rien afficher si on n'est pas sur la page GvH
         if current_page != 'GvH':
@@ -363,8 +371,9 @@ def register_callbacks(app):
             years_tuple = tuple(selected_years) if selected_years else tuple()
             grades_tuple = tuple(selected_grades) if selected_grades else tuple()
             age_groups_tuple = tuple(selected_age_groups) if selected_age_groups else tuple()
+            custom_age_tuple = tuple(custom_age_range) if custom_age_range else tuple()
             
-            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple, age_groups_tuple, malignancy_filter)
+            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple, age_groups_tuple, malignancy_filter, use_custom_age, custom_age_tuple)
             
             if fig_dict is None:
                 return dbc.Alert("No data available with selected filters", color="warning")
@@ -389,10 +398,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
          Input('gvh-age-filter', 'value'),
+         Input('gvh-custom-age-switch', 'value'),
+         Input('gvh-custom-age-slider', 'value'),
          Input('gvh-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Gère le tableau de résumé des données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
@@ -405,9 +416,7 @@ def register_callbacks(app):
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
             
-            # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -508,10 +517,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
          Input('gvh-age-filter', 'value'),
+         Input('gvh-custom-age-switch', 'value'),
+         Input('gvh-custom-age-slider', 'value'),
          Input('gvh-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
@@ -524,9 +535,7 @@ def register_callbacks(app):
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
             
-            # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)

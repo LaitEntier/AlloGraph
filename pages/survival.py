@@ -12,7 +12,7 @@ import traceback
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import modules.data_processing as data_processing
 import visualizations.allogreffes.graphs as gr
 
@@ -1543,6 +1543,14 @@ def register_callbacks(app):
     Enregistre tous les callbacks spécifiques à la page Survie
     """
     
+    # Register age filter toggle callback
+    layouts.register_age_toggle_callback(
+        app, 
+        switch_id='survival-custom-age-switch',
+        wrapper_id='survival-age-filter-wrapper',
+        slider_id='survival-custom-age-slider'
+    )
+    
     # Import caching utility
     from modules.cache_utils import cache_survival_result
     
@@ -1708,10 +1716,12 @@ def register_callbacks(app):
          Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),
+         Input('survival-custom-age-switch', 'value'),
+         Input('survival-custom-age-slider', 'value'),
          Input('survival-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_global_survival_curve(data, current_page, max_duration, selected_years, selected_age_groups, malignancy_filter):
+    def update_global_survival_curve(data, current_page, max_duration, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour la courbe de survie globale"""
         if current_page != 'Survival' or data is None:
             return html.Div()
@@ -1728,8 +1738,7 @@ def register_callbacks(app):
             # Filtrer les données par âge et malignité avant de les passer au cache
             import json
             df = pd.DataFrame(data)
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -1791,10 +1800,12 @@ def register_callbacks(app):
          Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),
+         Input('survival-custom-age-switch', 'value'),
+         Input('survival-custom-age-slider', 'value'),
          Input('survival-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_survival_curves_by_year(data, current_page, max_duration, selected_years, selected_age_groups, malignancy_filter):
+    def update_survival_curves_by_year(data, current_page, max_duration, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour les courbes de survie par année et le tableau des statistiques"""
         if current_page != 'Survival' or data is None:
             return html.Div(), html.Div()
@@ -1812,8 +1823,7 @@ def register_callbacks(app):
             # Filtrer les données par âge et malignité avant de les passer au cache
             import json
             df = pd.DataFrame(data)
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -1951,11 +1961,13 @@ def register_callbacks(app):
          Input('survival-max-duration', 'value'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),
+         Input('survival-custom-age-switch', 'value'),
+         Input('survival-custom-age-slider', 'value'),
          Input('survival-malignancy-filter', 'value'),
          Input('survival-agvh-grade-filter', 'value'),
          Input('survival-cgvh-grade-filter', 'value')]
     )
-    def update_survival_grfs_graph(data, current_page, max_duration, selected_years, selected_age_groups, malignancy_filter, selected_agvh_grades, selected_cgvh_scores):
+    def update_survival_grfs_graph(data, current_page, max_duration, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, selected_agvh_grades, selected_cgvh_scores):
         """Met à jour le graphique GRFS (Kaplan-Meier), les courbes par année et le tableau"""
         if current_page != 'Survival' or data is None:
             return html.Div(), html.Div(), html.Div()
@@ -1972,8 +1984,7 @@ def register_callbacks(app):
         try:
             import json
             df = pd.DataFrame(data)
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             df = apply_malignancy_filter(df, malignancy_filter)
             
@@ -2072,10 +2083,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),
+         Input('survival-custom-age-switch', 'value'),
+         Input('survival-custom-age-slider', 'value'),
          Input('survival-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -2089,8 +2102,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -2163,10 +2175,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),
+         Input('survival-custom-age-switch', 'value'),
+         Input('survival-custom-age-slider', 'value'),
          Input('survival-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
         if current_page != 'Survival' or not data:
@@ -2180,8 +2194,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)

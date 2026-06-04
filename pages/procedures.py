@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import visualizations.allogreffes.graphs as gr
 import visualizations.allogreffes.upsetjs_embed as upsetjs
 
@@ -258,6 +258,14 @@ def get_main_chart_variable_options(data):
 def register_callbacks(app):
     """Enregistre tous les callbacks spécifiques à la page Procedures"""
     
+    # Register age filter toggle callback
+    layouts.register_age_toggle_callback(
+        app, 
+        switch_id='procedures-custom-age-switch',
+        wrapper_id='procedures-age-filter-wrapper',
+        slider_id='procedures-custom-age-slider'
+    )
+    
     # Nouveau callback pour initialiser les options du dropdown intégré
     @app.callback(
         [Output('procedures-main-variable-integrated', 'options'),
@@ -299,9 +307,11 @@ def register_callbacks(app):
         Input('procedures-main-variable-integrated', 'value'),  
         Input('procedures-year-filter', 'value'),
         Input('procedures-age-filter', 'value'),
+        Input('procedures-custom-age-switch', 'value'),
+        Input('procedures-custom-age-slider', 'value'),
         Input('procedures-malignancy-filter', 'value')]
     )
-    def update_main_chart(data, current_page, main_variable, selected_years, selected_age_groups, malignancy_filter):
+    def update_main_chart(data, current_page, main_variable, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour le graphique principal avec effectifs cumulés par catégorie"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -330,8 +340,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -380,9 +389,11 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
+         Input('procedures-custom-age-switch', 'value'),
+         Input('procedures-custom-age-slider', 'value'),
          Input('procedures-malignancy-filter', 'value')]
     )
-    def update_cmv_charts(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def update_cmv_charts(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour les pie charts d'analyse du statut CMV"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -395,8 +406,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -428,9 +438,11 @@ def register_callbacks(app):
         Input('current-page', 'data'),
         Input('procedures-year-filter', 'value'),
         Input('procedures-age-filter', 'value'),
+        Input('procedures-custom-age-switch', 'value'),
+        Input('procedures-custom-age-slider', 'value'),
         Input('procedures-malignancy-filter', 'value')]
     )
-    def update_aplasia_tab_content(active_tab, data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def update_aplasia_tab_content(active_tab, data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour le contenu de l'onglet sélectionné pour l'analyse d'aplasie et thrombopénie"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -443,8 +455,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -630,9 +641,11 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
+         Input('procedures-custom-age-switch', 'value'),
+         Input('procedures-custom-age-slider', 'value'),
          Input('procedures-malignancy-filter', 'value')]
     )
-    def update_treatment_chart(active_tab, data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def update_treatment_chart(active_tab, data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour le contenu des onglets de traitement de préparation (barplot ou UpSet)"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -671,8 +684,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -736,9 +748,11 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
+         Input('procedures-custom-age-switch', 'value'),
+         Input('procedures-custom-age-slider', 'value'),
          Input('procedures-malignancy-filter', 'value')]
     )
-    def update_prophylaxis_chart(active_tab, data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def update_prophylaxis_chart(active_tab, data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour le contenu des onglets de prophylaxie (barplot ou UpSet)"""
         if current_page != 'Procedures' or data is None:
             return html.Div()
@@ -777,8 +791,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -833,10 +846,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
+         Input('procedures-custom-age-switch', 'value'),
+         Input('procedures-custom-age-slider', 'value'),
          Input('procedures-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def procedures_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def procedures_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
@@ -850,8 +865,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -948,10 +962,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
+         Input('procedures-custom-age-switch', 'value'),
+         Input('procedures-custom-age-slider', 'value'),
          Input('procedures-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def procedures_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def procedures_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Procedures"""
         
         if current_page != 'Procedures' or not data:
@@ -965,8 +981,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             if df.empty:
                 return html.Div('No data for the selected years', className='text-warning text-center'), True, None

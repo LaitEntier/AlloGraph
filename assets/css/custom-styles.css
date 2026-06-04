@@ -469,3 +469,11 @@ a:hover {
     scrollbar-width: thin;
     scrollbar-color: rgba(2, 31, 89, 0.25) transparent;
 }
+
+/* Age filter disabled state - visually gray out and prevent interaction */
+.age-filter-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    filter: grayscale(100%);
+    transition: opacity 0.2s ease;
+}

@@ -506,6 +506,7 @@ def create_hemopathies_filter_controls(categorical_columns, years_options, pedia
 def create_age_filter_component(component_id='age-filter-checklist', title='Age groups', pediatric_only=False, hidden=False):
     """
     Crée un composant de filtrage par tranches d'âge détaillées.
+    Inclut un switch pour basculer vers un slider de plage d'âge personnalisée.
     
     Args:
         component_id (str): ID du composant dcc.Checklist
@@ -514,7 +515,7 @@ def create_age_filter_component(component_id='age-filter-checklist', title='Age 
         hidden (bool): Si True, cache le composant dans le DOM (style display: none)
         
     Returns:
-        html.Div: Composant contenant le filtre d'âge
+        html.Div: Composant contenant le filtre d'âge et le slider personnalisé
     """
     if pediatric_only:
         age_options = [
@@ -538,13 +539,58 @@ def create_age_filter_component(component_id='age-filter-checklist', title='Age 
     if hidden:
         container_style['display'] = 'none'
     
+    # Derive slider IDs from checklist ID (e.g., 'patients-age-filter' -> 'patients-custom-age-slider')
+    base_id = component_id.replace('-age-filter', '')
+    switch_id = f"{base_id}-custom-age-switch"
+    slider_id = f"{base_id}-custom-age-slider"
+    wrapper_id = f"{base_id}-age-filter-wrapper"
+    
     return html.Div([
         html.H5(title, className='mb-2'),
-        dcc.Checklist(
-            id=component_id,
-            options=age_options,
-            value=[opt['value'] for opt in age_options],  # Toutes les tranches sélectionnées par défaut
-            inline=False,
+        html.Div(
+            id=wrapper_id,
+            className='mb-3',
+            children=[
+                dcc.Checklist(
+                    id=component_id,
+                    options=age_options,
+                    value=[opt['value'] for opt in age_options],  # Toutes les tranches sélectionnées par défaut
+                    inline=False
+                )
+            ]
+        ),
+        html.Div(
+            className='mb-2',
+            style={
+                'display': 'flex',
+                'alignItems': 'center',
+                'textAlign': 'center',
+                'color': '#6c757d',
+                'fontSize': '11px',
+                'fontWeight': '500',
+                'textTransform': 'uppercase'
+            },
+            children=[
+                html.Div(style={'flex': '1', 'height': '1px', 'backgroundColor': '#dee2e6'}),
+                html.Span('OR', style={'padding': '0 10px'}),
+                html.Div(style={'flex': '1', 'height': '1px', 'backgroundColor': '#dee2e6'})
+            ]
+        ),
+        dbc.Switch(
+            id=switch_id,
+            label='Use custom age range',
+            value=False,
+            className='mb-2'
+        ),
+        html.Label('Age range (years):', className='mb-1', style={'fontSize': '12px', 'color': '#6c757d'}),
+        dcc.RangeSlider(
+            id=slider_id,
+            min=0,
+            max=30,
+            step=1,
+            value=[0, 30],
+            disabled=True,
+            marks={i: str(i) for i in range(0, 31, 5)},
             className='mb-3'
         )
     ], style=container_style)
@@ -597,6 +643,53 @@ def apply_malignancy_filter(df, malignancy_filter_value):
         return df[df['Diagnosis Category'] == malignancy_filter_value]
     
     return df
+
+
+def apply_age_filter(df, selected_age_groups, use_custom_age=False, custom_age_range=None):
+    """
+    Applique le filtre d'âge sur un DataFrame.
+    Si use_custom_age est True, filtre par la plage numérique Age At Diagnosis.
+    Sinon, filtre par les tranches catégorielles Age Group Detailed.
+    
+    Args:
+        df (pd.DataFrame): DataFrame à filtrer
+        selected_age_groups (list): Liste des tranches d'âge sélectionnées
+        use_custom_age (bool): Si True, utilise custom_age_range
+        custom_age_range (list/tuple): [min_age, max_age]
+        
+    Returns:
+        pd.DataFrame: DataFrame filtré
+    """
+    if use_custom_age and custom_age_range is not None and len(custom_age_range) == 2 and 'Age At Diagnosis' in df.columns:
+        min_age, max_age = custom_age_range
+        return df[(df['Age At Diagnosis'] >= min_age) & (df['Age At Diagnosis'] <= max_age)]
+    elif selected_age_groups and 'Age Group Detailed' in df.columns:
+        return df[df['Age Group Detailed'].isin(selected_age_groups)]
+    return df
+
+
+def register_age_toggle_callback(app, switch_id, wrapper_id, slider_id):
+    """
+    Enregistre un callback pour activer/désactiver le slider d'âge personnalisé
+    et désactiver/activer les checkboxes de tranches d'âge.
+    Utilise une classe CSS sur le wrapper car dcc.Checklist ne supporte pas disabled.
+    
+    Args:
+        app: L'application Dash
+        switch_id (str): ID du dbc.Switch qui contrôle le mode
+        wrapper_id (str): ID du html.Div wrapper autour du dcc.Checklist
+        slider_id (str): ID du dcc.RangeSlider de plage d'âge
+    """
+    @app.callback(
+        [Output(wrapper_id, 'className'),
+         Output(slider_id, 'disabled')],
+        Input(switch_id, 'value'),
+        prevent_initial_call=True
+    )
+    def toggle_age_filter_mode(use_custom_age):
+        """Active le slider et désactive les checkboxes quand le switch est ON"""
+        wrapper_class = 'mb-3 age-filter-disabled' if use_custom_age else 'mb-3'
+        return wrapper_class, not bool(use_custom_age)
 
 
 def create_procedures_sidebar_content(data, pediatric_view=False):

@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
@@ -342,16 +342,26 @@ def register_callbacks(app):
     Enregistre les callbacks pour la page Rechute
     """
     
+    # Register age filter toggle callback
+    layouts.register_age_toggle_callback(
+        app, 
+        switch_id='relapse-custom-age-switch',
+        wrapper_id='relapse-age-filter-wrapper',
+        slider_id='relapse-custom-age-slider'
+    )
+    
     # Callback principal pour le graphique Rechute
     @app.callback(
         Output('relapse-main-graph', 'children'),
         [Input('relapse-year-filter', 'value'),
          Input('relapse-age-filter', 'value'),
+         Input('relapse-custom-age-switch', 'value'),
+         Input('relapse-custom-age-slider', 'value'),
          Input('relapse-malignancy-filter', 'value'),
          Input('data-store', 'data'),
          Input('current-page', 'data')]  # Ajouter current-page comme input
     )
-    def update_relapse_main_graph(selected_years, selected_age_groups, malignancy_filter, data, current_page):
+    def update_relapse_main_graph(selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs pour les rechutes"""
         
         # Ne rien afficher si on n'est pas sur la page Rechute
@@ -368,8 +378,7 @@ def register_callbacks(app):
             df = df[df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         df = apply_malignancy_filter(df, malignancy_filter)
@@ -386,10 +395,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('relapse-year-filter', 'value'),
          Input('relapse-age-filter', 'value'),
+         Input('relapse-custom-age-switch', 'value'),
+         Input('relapse-custom-age-slider', 'value'),
          Input('relapse-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -403,8 +414,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -498,10 +508,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('relapse-year-filter', 'value'),
          Input('relapse-age-filter', 'value'),
+         Input('relapse-custom-age-switch', 'value'),
+         Input('relapse-custom-age-slider', 'value'),
          Input('relapse-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
         
         if current_page != 'Relapse' or not data:
@@ -515,8 +527,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)

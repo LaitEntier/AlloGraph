@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
@@ -362,16 +362,26 @@ def register_callbacks(app):
     Enregistre les callbacks pour la page Toxicity
     """
 
+    # Register age filter toggle callback
+    layouts.register_age_toggle_callback(
+        app, 
+        switch_id='toxicity-custom-age-switch',
+        wrapper_id='toxicity-age-filter-wrapper',
+        slider_id='toxicity-custom-age-slider'
+    )
+
     # Callback principal pour le graphique NRM
     @app.callback(
         Output('toxicity-nrm-graph', 'children'),
         [Input('toxicity-year-filter', 'value'),
          Input('toxicity-age-filter', 'value'),
+         Input('toxicity-custom-age-switch', 'value'),
+         Input('toxicity-custom-age-slider', 'value'),
          Input('toxicity-malignancy-filter', 'value'),
          Input('data-store', 'data'),
          Input('current-page', 'data')]
     )
-    def update_toxicity_nrm_graph(selected_years, selected_age_groups, malignancy_filter, data, current_page):
+    def update_toxicity_nrm_graph(selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
         """Met à jour le graphique d'analyse des risques compétitifs pour la TRM"""
 
         if current_page != 'Toxicity':
@@ -386,9 +396,7 @@ def register_callbacks(app):
         if selected_years and 'Year' in df.columns:
             df = df[df['Year'].isin(selected_years)]
 
-        # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
 
         # Filtrer par type de diagnostic
         df = apply_malignancy_filter(df, malignancy_filter)
@@ -405,10 +413,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('toxicity-year-filter', 'value'),
          Input('toxicity-age-filter', 'value'),
+         Input('toxicity-custom-age-switch', 'value'),
+         Input('toxicity-custom-age-slider', 'value'),
          Input('toxicity-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def toxicity_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def toxicity_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Toxicity"""
 
         if current_page != 'Toxicity' or not data:
@@ -421,9 +431,7 @@ def register_callbacks(app):
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
 
-            # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
 
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -519,10 +527,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('toxicity-year-filter', 'value'),
          Input('toxicity-age-filter', 'value'),
+         Input('toxicity-custom-age-switch', 'value'),
+         Input('toxicity-custom-age-slider', 'value'),
          Input('toxicity-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def toxicity_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def toxicity_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Toxicity"""
 
         if current_page != 'Toxicity' or not data:
@@ -535,9 +545,7 @@ def register_callbacks(app):
             if selected_years and 'Year' in df.columns:
                 df = df[df['Year'].isin(selected_years)]
 
-            # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
 
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)

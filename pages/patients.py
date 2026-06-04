@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 
 # Import des modules communs
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter
+from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import visualizations.allogreffes.graphs as gr
 
 def get_layout():
@@ -180,6 +180,14 @@ def get_layout():
 def register_callbacks(app):
     """Enregistre tous les callbacks spécifiques à la page Patients"""
     
+    # Register age filter toggle callback
+    layouts.register_age_toggle_callback(
+        app, 
+        switch_id='patients-custom-age-switch',
+        wrapper_id='patients-age-filter-wrapper',
+        slider_id='patients-custom-age-slider'
+    )
+    
     def create_color_map(data, color_column):
         """Crée un mapping de couleurs cohérent pour une variable"""
         if color_column not in data.columns:
@@ -209,10 +217,12 @@ def register_callbacks(app):
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
          Input('patients-malignancy-filter', 'value'),
-         Input('pediatric-view', 'data')]
+         Input('pediatric-view', 'data'),
+         Input('patients-custom-age-switch', 'value'),
+         Input('patients-custom-age-slider', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view):
+    def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view, use_custom_age, custom_age_range):
         """Graphique 1: Barplot normalisé à 100%"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -232,8 +242,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -250,9 +259,10 @@ def register_callbacks(app):
             # Adapter pour la vue pédiatrique
             if pediatric_view and x_axis == 'Age Groups':
                 x_axis = 'Age Group Detailed'
-                pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
-                filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
-                order = pediatric_categories
+                if not use_custom_age:
+                    pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+                    filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
+                order = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
             else:
                 # Définir l'ordre personnalisé pour Age Groups
                 order = None
@@ -308,10 +318,12 @@ def register_callbacks(app):
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
          Input('patients-malignancy-filter', 'value'),
-         Input('pediatric-view', 'data')]
+         Input('pediatric-view', 'data'),
+         Input('patients-custom-age-switch', 'value'),
+         Input('patients-custom-age-slider', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view):
+    def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view, use_custom_age, custom_age_range):
         """Graphique 2: Barplot distribution"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -331,8 +343,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -349,9 +360,10 @@ def register_callbacks(app):
             # Adapter pour la vue pédiatrique
             if pediatric_view and x_axis == 'Age Groups':
                 x_axis = 'Age Group Detailed'
-                pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
-                filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
-                order = pediatric_categories
+                if not use_custom_age:
+                    pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+                    filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
+                order = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
             else:
                 # Définir l'ordre personnalisé pour Age Groups
                 order = None
@@ -407,10 +419,12 @@ def register_callbacks(app):
          Input('stack-variable-dropdown', 'value'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
-         Input('patients-malignancy-filter', 'value')]
+         Input('patients-malignancy-filter', 'value'),
+         Input('patients-custom-age-switch', 'value'),
+         Input('patients-custom-age-slider', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_boxplot_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter):
+    def update_boxplot_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Graphique 3: Boxplot Age At Diagnosis par variable de stratification"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -437,8 +451,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -489,9 +502,11 @@ def register_callbacks(app):
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
         Input('patients-age-filter', 'value'),
-        Input('patients-malignancy-filter', 'value')]
+        Input('patients-malignancy-filter', 'value'),
+        Input('patients-custom-age-switch', 'value'),
+        Input('patients-custom-age-slider', 'value')]
     )
-    def update_datatable(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def update_datatable(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Graphique 4: DataTable avec statistiques par année incluant la répartition par sexe"""
         if current_page != 'Patients' or data is None:
             return html.Div(), True, None
@@ -502,8 +517,7 @@ def register_callbacks(app):
         if selected_years and 'Year' in df.columns:
             df = df[df['Year'].isin(selected_years)]
         
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+        df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         df = apply_malignancy_filter(df, malignancy_filter)
@@ -751,10 +765,12 @@ def register_callbacks(app):
         Input('year-filter-checklist', 'value'),
         Input('patients-age-filter', 'value'),
         Input('patients-malignancy-filter', 'value'),
-        Input('pediatric-view', 'data')]
+        Input('pediatric-view', 'data'),
+        Input('patients-custom-age-switch', 'value'),
+        Input('patients-custom-age-slider', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_patients_performance_scores_boxplot(data, current_page, selected_years, selected_age_groups, malignancy_filter, pediatric_view):
+    def update_patients_performance_scores_boxplot(data, current_page, selected_years, selected_age_groups, malignancy_filter, pediatric_view, use_custom_age, custom_age_range):
         """Boxplot des Performance Scores par Age Groups avec boutons pour switcher entre les échelles"""
         if current_page != 'Patients' or data is None:
             return html.Div()
@@ -767,8 +783,7 @@ def register_callbacks(app):
             filtered_df = filtered_df[filtered_df['Year'].isin(selected_years)]
         
         # Filtrer par tranches d'âge
-        if selected_age_groups and 'Age Group Detailed' in df.columns:
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(selected_age_groups)]
+        filtered_df = apply_age_filter(filtered_df, selected_age_groups, use_custom_age, custom_age_range)
         
         # Filtrer par type de diagnostic
         filtered_df = apply_malignancy_filter(filtered_df, malignancy_filter)
@@ -777,9 +792,10 @@ def register_callbacks(app):
         if pediatric_view:
             age_col = 'Age Group Detailed'
             age_order = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
-            # Filtrer pour ne garder que les groupes pédiatriques
-            pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
-            filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
+            # Filtrer pour ne garder que les groupes pédiatriques si pas de plage personnalisée
+            if not use_custom_age:
+                pediatric_categories = ['<1 year', '1-5 years', '6-10 years', '11-15 years', '16-18 years']
+                filtered_df = filtered_df[filtered_df['Age Group Detailed'].isin(pediatric_categories)]
         else:
             age_col = 'Age Groups'
             age_order = ['18-', '18-39', '40-64', '65-74', '75+']
@@ -947,10 +963,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
-         Input('patients-malignancy-filter', 'value')],
+         Input('patients-malignancy-filter', 'value'),
+         Input('patients-custom-age-switch', 'value'),
+         Input('patients-custom-age-slider', 'value')],
         prevent_initial_call=False
     )
-    def patients_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def patients_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Gère le tableau de résumé des données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
@@ -964,8 +982,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -1037,10 +1054,12 @@ def register_callbacks(app):
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
-         Input('patients-malignancy-filter', 'value')],
+         Input('patients-malignancy-filter', 'value'),
+         Input('patients-custom-age-switch', 'value'),
+         Input('patients-custom-age-slider', 'value')],
         prevent_initial_call=False
     )
-    def patients_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter):
+    def patients_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Gère le tableau détaillé des patients avec données manquantes pour Patients"""
         
         if current_page != 'Patients' or not data:
@@ -1054,8 +1073,7 @@ def register_callbacks(app):
                 df = df[df['Year'].isin(selected_years)]
             
             # Filtrer par tranches d'âge
-            if selected_age_groups and 'Age Group Detailed' in df.columns:
-                df = df[df['Age Group Detailed'].isin(selected_age_groups)]
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
