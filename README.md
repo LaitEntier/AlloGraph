@@ -1,4 +1,6 @@
-# AlloGraph
+<p align="left">
+  <img src="assets/images/logo.svg" alt="AlloGraph logo" width="450">
+</p>
 
 ## Overview
 
