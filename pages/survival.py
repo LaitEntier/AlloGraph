@@ -45,7 +45,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Survival curve')),
+                    dbc.CardHeader(html.Div(id='survival-header-0')),
                     dbc.CardBody([
                         dcc.Tabs(
                             id='survival-tabs-0',
@@ -68,7 +68,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Survival by year')),
+                    dbc.CardHeader(html.Div(id='survival-header-1')),
                     dbc.CardBody([
                         dcc.Tabs(
                             id='survival-tabs-1',
@@ -91,7 +91,7 @@ def get_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5('Statistics')),
+                    dbc.CardHeader(html.Div(id='survival-header-2')),
                     dbc.CardBody([
                         dcc.Tabs(
                             id='survival-tabs-2',
@@ -1597,6 +1597,47 @@ def register_callbacks(app):
         set_props('survival-tabs-0', {'value': value})
         set_props('survival-tabs-1', {'value': value})
         return value
+    
+    # ------------------------------------------------------------------
+    # Dynamic card header info tooltips based on active tab
+    # ------------------------------------------------------------------
+    @app.callback(
+        [Output('survival-header-0', 'children'),
+         Output('survival-header-1', 'children'),
+         Output('survival-header-2', 'children')],
+        Input('survival-tab-store', 'data')
+    )
+    def update_survival_headers(tab_value):
+        if tab_value == 'tab-os':
+            return [
+                html.Div([
+                    html.H5('Survival curve', className='mb-0 d-inline'),
+                    html.Span(layouts.create_info_tooltip(KM_INFO_TEXT, 'survival-header-info-0'))
+                ]),
+                html.Div([
+                    html.H5('Survival by year', className='mb-0 d-inline'),
+                    html.Span(layouts.create_info_tooltip(KM_INFO_TEXT, 'survival-header-info-1'))
+                ]),
+                html.Div([
+                    html.H5('Statistics', className='mb-0 d-inline'),
+                    html.Span(layouts.create_info_tooltip(KM_INFO_TEXT, 'survival-header-info-2'))
+                ])
+            ]
+        else:
+            return [
+                html.Div([
+                    html.H5('Survival curve', className='mb-0 d-inline'),
+                    html.Span(layouts.create_info_tooltip(GRFS_INFO_TEXT, 'survival-header-info-0'))
+                ]),
+                html.Div([
+                    html.H5('Survival by year', className='mb-0 d-inline'),
+                    html.Span(layouts.create_info_tooltip(GRFS_INFO_TEXT, 'survival-header-info-1'))
+                ]),
+                html.Div([
+                    html.H5('Statistics', className='mb-0 d-inline'),
+                    html.Span(layouts.create_info_tooltip(GRFS_INFO_TEXT, 'survival-header-info-2'))
+                ])
+            ]
     
     # ------------------------------------------------------------------
     # Dynamic GvHD grade filters in sidebar (visible only for GRFS)
