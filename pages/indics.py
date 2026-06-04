@@ -2021,29 +2021,12 @@ def create_prise_greffe_quarterly_visualization(year_data, selected_year):
             textposition='auto'
         ))
         
-        # Ajouter la ligne horizontale rouge à 80%
-        fig.add_hline(
-            y=80,
-            line_dash="dash",
-            line_color="red",
-            line_width=3,
-            annotation_text="Target: 80%",
-            annotation_position="top right",
-            annotation=dict(
-                font_size=12,
-                font_color="red",
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="red",
-                borderwidth=1
-            )
-        )
-        
         fig.update_layout(
             title=f'Platelet Transplant Success by Quarter - {selected_year} (≤100 days)',
             xaxis_title='Quarter',
             yaxis_title='Percentage (%)',
             height=450,
-            yaxis=dict(range=[0, 105]),
+            yaxis=dict(range=[0, 100]),
             template='plotly_white'
         )
         
@@ -2137,27 +2120,10 @@ def create_prise_greffe_barplot(result_df):
             textposition='auto'
         ))
         
-        # Ajouter la ligne horizontale rouge à 80%
-        fig.add_hline(
-            y=80,
-            line_dash="dash",
-            line_color="red",
-            line_width=3,
-            annotation_text="Target: 80%",
-            annotation_position="top right",
-            annotation=dict(
-                font_size=12,
-                font_color="red",
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="red",
-                borderwidth=1
-            )
-        )
-        
         fig.update_layout(
             title='Transplant Success by Year (≤100 days)',
             yaxis_title='Percentage (%)',
-            yaxis=dict(range=[0, 105]),  # 0-105% pour bien voir la ligne à 80%
+            yaxis=dict(range=[0, 100]),
             template="plotly_white"
         )
         
@@ -2406,28 +2372,11 @@ def create_sortie_aplasie_quarterly_visualization(year_data, selected_year):
             textposition='auto'
         ))
         
-        # Ajouter la ligne horizontale rouge à 80%
-        fig.add_hline(
-            y=80,
-            line_dash="dash",
-            line_color="red",
-            line_width=3,
-            annotation_text="Target: 80%",
-            annotation_position="top right",
-            annotation=dict(
-                font_size=12,
-                font_color="red",
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="red",
-                borderwidth=1
-            )
-        )
-        
         fig.update_layout(
             title=f'ANC Recovery by Quarter - {selected_year} (≤28 days)',
             xaxis_title='Quarter',
             yaxis_title='Percentage (%)',
-            yaxis=dict(range=[0, 105]),
+            yaxis=dict(range=[0, 100]),
             template='plotly_white'
         )
         
@@ -2521,27 +2470,10 @@ def create_sortie_aplasie_barplot(result_df):
             textposition='auto'
         ))
         
-        # Ajouter la ligne horizontale rouge à 80%
-        fig.add_hline(
-            y=80,
-            line_dash="dash",
-            line_color="red",
-            line_width=3,
-            annotation_text="Target: 80%",
-            annotation_position="top right",
-            annotation=dict(
-                font_size=12,
-                font_color="red",
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="red",
-                borderwidth=1
-            )
-        )
-        
         fig.update_layout(
             title='ANC Recovery (≤28 days) by Year',
             yaxis_title='Percentage (%)',
-            yaxis=dict(range=[0, 105]),  # 0-105% pour bien voir la ligne à 80%
+            yaxis=dict(range=[0, 100]),
             template='plotly_white'
         )
         
