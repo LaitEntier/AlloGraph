@@ -355,7 +355,7 @@ def register_callbacks(app):
          Input('current-page', 'data')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
-    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, malignancy_filter, data, current_page, use_custom_age, custom_age_range):
+    def update_gvh_main_graph(gvh_type, selected_years, selected_grades, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs"""
         # Ne rien afficher si on n'est pas sur la page GvH
         if current_page != 'GvH':
@@ -403,7 +403,7 @@ def register_callbacks(app):
          Input('gvh-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
+    def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
@@ -522,7 +522,7 @@ def register_callbacks(app):
          Input('gvh-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
-    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
+    def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
         if current_page != 'GvH' or not data:
