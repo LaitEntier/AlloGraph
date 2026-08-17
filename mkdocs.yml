@@ -1,0 +1,52 @@
+site_name: AlloGraph — Developer Documentation
+site_description: Developer documentation for AlloGraph, a Dash/Plotly application for allogeneic HSCT data analysis.
+
+theme:
+  name: material
+  palette:
+    primary: blue grey
+    accent: red
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+          options:
+            docstring_style: google
+            members_order: source
+            show_source: true
+            show_root_heading: true
+            heading_level: 2
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/installation.md
+      - getting-started/architecture.md
+  - How-to guides:
+      - guides/add-page.md
+      - guides/add-visualization.md
+      - guides/data-processing.md
+  - Data format: data-format.md
+  - Deployment & performance: deployment.md
+  - API reference:
+      - reference/index.md
+      - Core modules: reference/modules.md
+      - Pages: reference/pages.md
+      - Visualizations: reference/visualizations.md
+      - Utilities: reference/utils.md

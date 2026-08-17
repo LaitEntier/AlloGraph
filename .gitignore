@@ -61,6 +61,9 @@ AGENTS.md
 MISSING_DATA_REWORK.md
 data/external.csv
 
+# Documentation build output
+site/
+
 # Audit / generated reports
 DATA_AUDIT_REPORT.md
 audit_data_privacy.py
