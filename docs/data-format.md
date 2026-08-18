@@ -70,7 +70,7 @@ Matching is **case-insensitive**: `treatment date`, `Treatment Date`, and `TREAT
 
 ## Derived variables
 
-`process_data()` adds: `Year`, `Age At Diagnosis`, `Age Groups`, `Greffes`, `Blood + Rh`, `Compatibilité HLA`, `Main Diagnosis Category`, binary indicators for conditioning/prophylaxis agents, and remapped chronic GvHD scores. See [Architecture](../getting-started/architecture.md#key-data-transformations) for details.
+`process_data()` adds: `Year`, `Age At Diagnosis`, `Age Groups`, `Greffes`, `Blood + Rh`, `Compatibilité HLA`, `Main Diagnosis Category`, binary indicators for conditioning/prophylaxis agents, and remapped chronic GvHD scores. See [Architecture](getting-started/architecture.md#key-data-transformations) for details.
 
 !!! warning "Sensitive data"
-    These files contain patient data. Everything is processed in memory and stored client-side only (see [Deployment](../deployment.md#security-gdpr)) — never commit real patient files to the repository. `data/test_sample.csv` is de-identified and safe.
+    These files contain patient data. Everything is processed in memory and stored client-side only (see [Deployment](deployment.md#security-gdpr)) — never commit real patient files to the repository. `data/test_sample.csv` is de-identified and safe.

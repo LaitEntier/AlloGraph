@@ -20,7 +20,7 @@ Network latency between client and server dominates on VM setups. The app mitiga
 
 ### 1. Slim data stores
 
-The dataset is split into specialized `dcc.Store`s (`data-store-survival`, `data-store-gvh`, `data-store-viz`) so callbacks only transfer the columns they need. Keep them in mind when adding derived columns — see [Architecture](../getting-started/architecture.md#slim-data-stores).
+The dataset is split into specialized `dcc.Store`s (`data-store-survival`, `data-store-gvh`, `data-store-viz`) so callbacks only transfer the columns they need. Keep them in mind when adding derived columns — see [Architecture](getting-started/architecture.md#slim-data-stores).
 
 ### 2. In-memory caching
 

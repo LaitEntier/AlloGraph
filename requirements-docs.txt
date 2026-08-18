@@ -1,5 +1,7 @@
 # Documentation tooling (not needed to run the app)
 # Install with: pip install -r requirements-docs.txt
-mkdocs>=1.6
-mkdocs-material>=9.5
-mkdocstrings-python>=1.12
+# Versions are pinned so the docs keep building reproducibly
+# (the MkDocs ecosystem is heading toward a breaking 2.0 — stay on 1.6.x)
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mkdocstrings-python==2.0.6
