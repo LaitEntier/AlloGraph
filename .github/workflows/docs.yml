@@ -1,0 +1,55 @@
+name: Deploy documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      # Source docstrings feed the API reference
+      - 'modules/**'
+      - 'pages/**'
+      - 'visualizations/**'
+      - 'utils/**'
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      # Runtime deps are needed because mkdocstrings imports the app modules
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-docs.txt
+
+      - name: Build documentation
+        run: mkdocs build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
