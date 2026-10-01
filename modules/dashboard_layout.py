@@ -58,6 +58,17 @@ def create_header_with_logo():
                     html.Div([
                         dbc.Button(
                             [
+                                html.I(className="bi me-2"),
+                                "Export Missing CSV"
+                            ],
+                            id="export-all-missing-button",
+                            color="primary",
+                            size="sm",
+                            outline=True,
+                            style={'display': 'none'}  # Caché par défaut, visible seulement quand des données sont chargées
+                        ),
+                        dbc.Button(
+                            [
                                 html.I(className="bi bi-trash me-2"),
                                 "Void data"
                             ],
@@ -66,8 +77,11 @@ def create_header_with_logo():
                             size="sm",
                             outline=True,
                             style={'display': 'none'}  # Caché par défaut, visible seulement quand des données sont chargées
-                        )
-                    ], style={'marginLeft': 'auto'})  # Push vers la droite
+                        ),
+                        dcc.Download(id="download-all-missing-excel")
+                        
+                    ], style={'marginLeft': 'auto', 'display': 'flex','justifyContent': 'space-between', 'width': '15%'}),  # Push vers la droite
+
                     
                 ], style={
                     'display': 'flex', 

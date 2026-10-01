@@ -1,6 +1,9 @@
+from io import BytesIO
+
 import dash
 from dash import dcc, html, Input, Output, State, dash_table
 import dash_bootstrap_components as dbc
+import docx
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -336,7 +339,24 @@ def create_indicators_sidebar_content(data, pediatric_view=False):
                         html.Span(f"{df['Year'].min() if 'Year' in df.columns else 'N/A'} - {df['Year'].max() if 'Year' in df.columns else 'N/A'}")
                     ], className='mb-0')
                 ], className="py-2")
-            ], color="light", outline=True)
+            ], color="light", outline=True),
+
+            html.Hr(),
+
+            # Section avec bouton de download des tableaux de indics vers DOCX
+            html.Label('Export indicators to DOCX', className='mb-2 fw-bold', style={'color': '#021F59'}),
+            dcc.Store(
+                id="indicators-df-store",
+                data=df.to_dict("records")
+            ),
+            dbc.Button(
+                [html.I(className="fas fa-download me-2"), "Export DOCX"],
+                id="download-indicators-docx",
+                color="primary",
+                size="sm",
+                disabled=False,
+            ),
+            dcc.Download(id="download-indicators-table-docx")
         ])
         
         return html.Div(controls)
@@ -4188,6 +4208,81 @@ def register_callbacks(app):
         except Exception as e:
             print(f"Error during Excel export Indicators: {e}")
             return dash.no_update
+
+    
+    @app.callback(
+        Output("download-indicators-table-docx", "data"),
+        Input("download-indicators-docx", "n_clicks"),
+        State("indicators-df-store", "data"),
+        State('indicators-name-store', 'data'),
+        prevent_initial_call=True
+    )
+    def export_indicators_to_docx(n_clicks, indicators_df, indicator_name):
+        """Gère l'export docx des tableaux d'Indicators"""
+        if n_clicks is None:
+            return dash.no_update
+        
+        try:
+            indicator_df = pd.DataFrame(indicators_df)
+            doc = docx.Document()
+
+            result_dic = {
+                "TRM": process_trm_data,
+                "Survie globale": process_survie_data,
+                "Prise de greffe":  process_prise_greffe_data,
+                "Sortie d'aplasie": process_sortie_aplasie_data,
+                "Rechute": process_rechute_data,
+                "GVH aiguë": process_gvha_data,
+                "GVH chronique": process_gvhc_data,
+            }
+        
+            for name, func in result_dic.items():
+                res = None
+                try :
+                    _, res = func(indicator_df)
+                except :
+                    res = func(indicator_df)
+
+                print(res)
+        
+                heading = doc.add_heading(name, 1)
+        
+                heading.style.element.rPr.color.set(docx.oxml.ns.qn("w:val"), "0000BB")
+                heading.style.element.rPr.rFonts.set(docx.oxml.ns.qn("w:asciiTheme"), "Arial")
+                # add a table to the end and create a reference variable
+                # extra row is so we can add the header row
+                t = doc.add_table(res.shape[0]+1, res.shape[1])
+                t.style = "Light Grid Accent 1"
+                
+        
+                # add the header rows.
+                for j in range(res.shape[-1]):
+                    t.cell(0,j).text = res.columns[j]
+        
+                # add the rest of the data frame
+                for i in range(res.shape[0]):
+                    for j in range(res.shape[-1]):
+                        if res.columns[j] == '0' or res.columns[j] == '30' or res.columns[j] == '100' or res.columns[j] == '365' or 'pourcentage' in res.columns[j] :
+                            t.cell(i+1,j).text = str(res.values[i,j]) + " %"
+                        else : 
+                            t.cell(i+1,j).text = str(res.values[i,j])
+            # Enregistrement du fichier docx sous forme de bytes pour le téléchargement
+            import base64
+            out = BytesIO()
+            doc.save(out)
+            content = base64.b64encode(out.getvalue()).decode("utf-8")
+
+            # Générer un nom de fichier avec la date et l'indicateur
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"indicators_tables_{current_date}.docx"
+
+            return dict(content=content, filename=filename, base64=True, type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+        except Exception as e:
+            print(f"Error during DOCX export Indicators: {e}")
+            return dash.no_update    
         
 def process_gvha_data(df):
     """

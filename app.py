@@ -692,6 +692,8 @@ def toggle_purge_modal(purge_clicks, cancel_clicks, confirm_clicks, is_open):
     
     return is_open
 
+# TODO : fonction export csv all missing data
+
 # Callback pour effectuer la purge des données
 @app.callback(
     [Output('data-store', 'data', allow_duplicate=True),
@@ -716,6 +718,17 @@ def purge_data(confirm_clicks):
 )
 def toggle_purge_button_visibility(data):
     """Affiche le bouton Purge data seulement quand des données sont chargées"""
+    if data is not None:
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
+
+@app.callback(
+    Output("export-all-missing-button", "style"),
+    [Input("data-store", "data")]
+)
+def toggle_export_all_missing_button_visibility(data):
+    """Affiche le bouton d'export de toutes les missing data seulement quand des données sont chargées"""
     if data is not None:
         return {'display': 'block'}
     else:
