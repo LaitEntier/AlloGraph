@@ -69,3 +69,6 @@ DATA_AUDIT_REPORT.md
 audit_data_privacy.py
 generate_audit_pdf.py
 AlloGraph_Data_Audit_Report.pdf
+
+# Jeu synthétique de perf (régénérable via scripts/perf/synthetic_data.py)
+data/synthetic_16k.csv
