@@ -394,9 +394,11 @@ def create_welcome_content():
                         "Developed in collaboration with ",
                         html.Strong("Association Leucémie Espoir 72"), ", ",
                         html.Strong("SFGM-TC"), ", ",
-                        html.Strong("CHRU de Tours"), 
-                        " and ",
+                        html.Strong("CHRU de Tours"),
+                        ", ",
                         html.Strong("Université de Tours"),
+                        " and ",
+                        html.Strong("Agence de la biomédecine"),
                         "."
                     ], style={
                         'color': '#6c757d',

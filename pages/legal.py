@@ -34,8 +34,10 @@ def get_layout():
                         html.P([
                             "With the support of our partners: ",
                             html.Strong("Association Leucémie Espoir 72"),
-                            " and ",
+                            ", ",
                             html.Strong("SFGM-TC"),
+                            " and ",
+                            html.Strong("Agence de la biomédecine"),
                             "."
                         ]),
 
