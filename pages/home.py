@@ -1,12 +1,17 @@
 # pages/home.py
+from io import BytesIO
+
 import dash
 from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
+import docx
 import pandas as pd
 from dash_extensions import Lottie
 
 # Import des modules communs
 import visualizations.allogreffes.graphs as gr
+
+import pages.indics as indics
 
 def get_layout():
     """Retourne le layout de la page d'accueil"""
@@ -649,3 +654,79 @@ def register_callbacks(app):
             else:
                 return True, "bi bi-chevron-up ms-2"
         return is_open, "bi bi-chevron-down ms-2"
+
+    @app.callback(
+        Output("download-indicators-table-docx", "data"),
+        Input("download-indicators-docx", "n_clicks"),
+        State("year-selection-sidebar", "value"),
+        State("indicators-df-store", "data"),
+        prevent_initial_call=True
+    )
+    def export_indicators_to_docx(n_clicks, year_selection, indicators_df):
+        """Gère l'export docx des tableaux d'Indicators"""
+        if n_clicks is None:
+            return dash.no_update
+        
+        try:
+            indicator_df = pd.DataFrame(indicators_df)
+            doc = docx.Document()
+
+            # On ne garde que les données de l'année selectionner, si y'en a une. Sinon on prend toutes les années
+            if year_selection != 0:
+                indicator_df = indicator_df[indicator_df['Year'].isin([year_selection])]
+
+            result_dic = {
+                "TRM": indics.process_trm_data,
+                "Survie globale": indics.process_survie_data,
+                "Prise de greffe":  indics.process_prise_greffe_data,
+                "Sortie d'aplasie": indics.process_sortie_aplasie_data,
+                "Rechute": indics.process_rechute_data,
+                "GVH aiguë": indics.process_gvha_data,
+                "GVH chronique": indics.process_gvhc_data,
+            }
+        
+            for name, func in result_dic.items():
+                res = None
+                try :
+                    _, res = func(indicator_df)
+                except :
+                    res = func(indicator_df)
+        
+                heading = doc.add_heading(name, 1)
+
+                heading.style.element.rPr.color.set(docx.oxml.ns.qn("w:val"), "0000BB")
+                heading.style.element.rPr.rFonts.set(docx.oxml.ns.qn("w:asciiTheme"), "Arial")
+
+                t = doc.add_table(res.shape[1],res.shape[0]+1)
+                t.style = "Light Grid Accent 1"
+                
+                # add the header rows.
+                for j in range(res.shape[-1]):
+                    t.cell(j,0).text = res.columns[j]
+        
+                # add the rest of the data frame
+                for i in range(res.shape[0]):
+                    for j in range(res.shape[-1]):
+                        if res.columns[j] == '0' or res.columns[j] == '30' or res.columns[j] == '100' or res.columns[j] == '365' or 'pourcentage' in res.columns[j] :
+                            t.cell(j,i+1).text = str(res.values[i,j]) + " %"
+                        else : 
+                            t.cell(j,i+1).text = str(res.values[i,j])
+
+            # Enregistrement du fichier docx sous forme de bytes pour le téléchargement
+            import base64
+            out = BytesIO()
+            doc.save(out)
+            content = base64.b64encode(out.getvalue()).decode("utf-8")
+
+            # Générer un nom de fichier avec la date
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"indicators_tables_{current_date}.docx"
+
+            return dict(content=content, filename=filename, base64=True, type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+
+        except Exception as e:
+            print(f"Error during DOCX export Indicators: {e}")
+            return dash.no_update    
+        

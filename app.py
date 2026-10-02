@@ -305,7 +305,15 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             return layouts.create_sidebar_layout('Data', content)
         else:
             df = pd.DataFrame(data)
-            
+
+             # Options d'années disponibles
+            years_options = []
+            available_years = []
+            if 'Year' in df.columns:
+                available_years = sorted(df['Year'].unique().tolist())
+                years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+                years_options.insert(0,{'label': 'All', 'value': 0})
+        
             # Utiliser les métadonnées si disponibles
             if metadata:
                 original_shape = metadata.get('original_shape', (0, 0))
@@ -313,6 +321,36 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             else:
                 original_shape = (len(df), len(df.columns))
                 filename = 'Data loaded'
+
+            export_docx_section = html.Div([
+                # Sélection d'année pour Yearly (dropdown - single year)
+                html.Hr(),
+                html.Div([
+                    html.Label('Year for analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
+                    html.Small("Select a year for badges", className='text-muted d-block mb-2'),
+                    dcc.Dropdown(
+                        id='year-selection-sidebar',
+                        options=years_options,
+                        value=0,
+                        className='mb-3',
+                        placeholder="Select a year..."
+                    )
+                ], id='yearly-controls', style={'display': 'block'}),
+                
+                html.Label('Export indicators to DOCX', className='mb-2 fw-bold', style={'color': '#021F59'}),
+                dcc.Store(
+                    id="indicators-df-store",
+                    data=df.to_dict("records")
+                ),
+                dbc.Button(
+                    [html.I(className="fas fa-download me-2"), "Export DOCX"],
+                    id="download-indicators-docx",
+                    color="primary",
+                    size="sm",
+                    disabled=False,
+                ),
+                dcc.Download(id="download-indicators-table-docx")
+            ])
                 
             content = html.Div([
                 dbc.Alert([
@@ -332,6 +370,11 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
                     layouts.create_upload_component(),
                     html.Div(id='upload-status')
                 ])
+            ])
+
+            content = html.Div([
+                content,
+                export_docx_section
             ])
             
             return layouts.create_sidebar_layout('Data', content)
