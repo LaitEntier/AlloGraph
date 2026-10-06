@@ -271,6 +271,23 @@ def create_hla_compatibility_variable(df):
     return df
 
 
+def _to_datetime_fast(series):
+    """
+    Parse une colonne de dates de façon vectorisée : tente d'abord le format
+    le plus courant ('%d/%m/%Y %H:%M', chemin rapide de pandas), puis repasse
+    en 'mixed' (dateutil, élément par élément) sur les valeurs non reconnues.
+
+    Équivalent à pd.to_datetime(dayfirst=True, format='mixed', errors='coerce')
+    mais bien plus rapide quand le format est homogène.
+    """
+    parsed = pd.to_datetime(series, format='%d/%m/%Y %H:%M', errors='coerce')
+    mask = parsed.isna() & series.notna()
+    if mask.any():
+        parsed.loc[mask] = pd.to_datetime(
+            series[mask], dayfirst=True, format='mixed', errors='coerce')
+    return parsed
+
+
 def process_data(df):
     """
     Fonction qui prend en entrée un DataFrame et qui applique un traitement sur les données
@@ -285,11 +302,11 @@ def process_data(df):
     df = normalize_column_names(df)
 
     # Créer une colonne 'Year' à partir de 'Date Diagnosis'
-    df['Treatment Date'] = pd.to_datetime(df['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
+    df['Treatment Date'] = _to_datetime_fast(df['Treatment Date'])
     df['Year'] = df['Treatment Date'].dt.year.astype(str)
 
-    df['Date Diagnosis'] = pd.to_datetime(df['Date Diagnosis'], dayfirst=True, format='mixed', errors='coerce')
-    df['Date Of Birth'] = pd.to_datetime(df['Date Of Birth'], dayfirst=True, format='mixed', errors='coerce')
+    df['Date Diagnosis'] = _to_datetime_fast(df['Date Diagnosis'])
+    df['Date Of Birth'] = _to_datetime_fast(df['Date Of Birth'])
     # Calculer l'age au diagnostic en années
     df['Age At Diagnosis'] = (df['Date Diagnosis'] - df['Date Of Birth']).dt.days // 365.25
 
