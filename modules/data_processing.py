@@ -517,61 +517,41 @@ def process_prophylaxis_drugs(df):
         'antilymphocyte immunoglobulin': 'ALTG'
     }
     
-    # Collecter tous les traitements uniques
-    all_drugs = set()
-    
-    for col in existing_cols:
-        # Remplacer les valeurs NaN/None par des chaînes vides
-        drugs_in_col = df[col].fillna('').astype(str)
-        
-        # Appliquer le mapping et collecter les traitements non vides
-        for drug in drugs_in_col:
-            if drug and drug.lower() != 'nan' and drug.strip():
-                # Appliquer le mapping si nécessaire (insensible à la casse)
-                mapped_drug = None
-                for original, mapped in drug_mapping.items():
-                    if original.lower() in drug.lower():
-                        mapped_drug = mapped
-                        break
-                
-                if mapped_drug is None:
-                    mapped_drug = drug
-                
-                all_drugs.add(mapped_drug)
-    
-    # Supprimer les valeurs vides
-    all_drugs = {drug for drug in all_drugs if drug.strip()}
-    
-    # Créer les nouvelles colonnes binaires
-    for drug in sorted(all_drugs):
-        df[drug] = 'Non'
-    
-    # Remplir les colonnes binaires
-    for idx, row in df.iterrows():
-        patient_drugs = []
-        
-        # Collecter tous les traitements du patient
-        for col in existing_cols:
-            drug_value = row[col]
-            if pd.notna(drug_value) and str(drug_value).strip():
-                # Appliquer le mapping si nécessaire (insensible à la casse)
-                mapped_drug = None
-                drug_str = str(drug_value)
-                
-                for original, mapped in drug_mapping.items():
-                    if original.lower() in drug_str.lower():
-                        mapped_drug = mapped
-                        break
-                
-                if mapped_drug is None:
-                    mapped_drug = drug_str
-                
-                patient_drugs.append(mapped_drug)
-        
-        # Marquer 'Oui' pour tous les traitements du patient
-        for drug in patient_drugs:
-            if drug in df.columns:
-                df.at[idx, drug] = 'Oui'
+    # --- Version vectorisée (équivalente à l'ancienne boucle iterrows) ---
+
+    # 1. Empiler les colonnes de prophylaxie en format long et filtrer les vides
+    stacked = df[existing_cols].stack()
+    drug_str = stacked.astype(str)
+    keep = stacked.notna() & drug_str.str.strip().ne('') & drug_str.str.lower().ne('nan')
+    stacked = stacked[keep]
+
+    # 2. Appliquer le mapping sur les valeurs uniques seulement (insensible à la casse,
+    #    première clé du dictionnaire contenue dans la valeur gagne, comme avant)
+    def _map_drug(drug):
+        drug_lower = drug.lower()
+        for original, mapped in drug_mapping.items():
+            if original.lower() in drug_lower:
+                return mapped
+        return drug
+
+    unique_values = stacked.unique()
+    value_to_drug = dict(zip(unique_values, [_map_drug(d) for d in unique_values]))
+
+    # Supprimer les valeurs vides (comme avant)
+    all_drugs = sorted({d for d in value_to_drug.values() if d.strip()})
+
+    # 3. Paires (ligne, médicament) uniques puis colonnes binaires Oui/Non
+    mapped = stacked.map(value_to_drug)
+    pairs = pd.DataFrame({
+        'row': mapped.index.get_level_values(0),
+        'drug': mapped.values,
+    }).drop_duplicates()
+
+    for drug in all_drugs:
+        column = pd.Series('Non', index=df.index)
+        row_idx = pairs.loc[pairs['drug'] == drug, 'row']
+        column.loc[row_idx] = 'Oui'
+        df[drug] = column
 
     return df
 
