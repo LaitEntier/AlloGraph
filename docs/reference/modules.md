@@ -18,12 +18,6 @@ Competing risks statistical analysis (cumulative incidence), used by the GvH and
 
 ::: modules.competing_risks
 
-## `modules.cache_utils`
-
-In-memory caching decorator for expensive computations (see [Deployment & performance](../deployment.md#2-in-memory-caching)).
-
-::: modules.cache_utils
-
 ## `modules.validation`
 
 Placeholder for data validation.

@@ -22,13 +22,9 @@ Network latency between client and server dominates on VM setups. The app mitiga
 
 The dataset is split into specialized `dcc.Store`s (`data-store-survival`, `data-store-gvh`, `data-store-viz`) so callbacks only transfer the columns they need. Keep them in mind when adding derived columns — see [Architecture](getting-started/architecture.md#slim-data-stores).
 
-### 2. In-memory caching
+### 2. No server-side caching
 
-Expensive statistics (lifelines fits, competing risks) are cached via `modules/cache_utils.py`:
-
-- in-memory only, cleared on restart — no disk persistence (GDPR-friendly)
-- cache keys are content hashes — no PHI in keys
-- session-scoped
+The application deliberately has **no server-side cache** (compliance: nothing is persisted server-side). Lifelines fits and competing risks computations run in under 100 ms on a full dataset, so no caching is needed.
 
 ### 3. Response compression
 

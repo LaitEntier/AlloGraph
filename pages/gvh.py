@@ -193,19 +193,12 @@ def register_callbacks(app):
         wrapper_id='gvh-age-filter-wrapper',
         slider_id='gvh-custom-age-slider'
     )
-    # Import caching utility
-    from modules.cache_utils import cache_gvh_result
-    
-    # Cached version of competing risks calculation
-    @cache_gvh_result
-    def _cached_competing_risks(data_json_str, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple, malignancy_filter, use_custom_age=False, custom_age_range_tuple=None):
-        """Cached version of GvH competing risks calculation"""
-        import json
-        # Convert JSON string back to DataFrame
-        data_list = json.loads(data_json_str)
-        df = pd.DataFrame(data_list)
+    # Calcul des risques compétitifs GvH (sans cache serveur — conformité : rien de persistant côté serveur)
+    def _compute_competing_risks(data, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple, malignancy_filter, use_custom_age=False, custom_age_range_tuple=None):
+        """Calcule l'analyse de risques compétitifs GvH"""
+        df = pd.DataFrame(data)
         
-        print(f"DEBUG _cached_competing_risks: Columns in df: {list(df.columns)}")
+        print(f"DEBUG _compute_competing_risks: Columns in df: {list(df.columns)}")
         
         # Apply GVHc transformation for chronic
         if gvh_type == 'chronic':
@@ -365,15 +358,13 @@ def register_callbacks(app):
             return dbc.Alert("No data available", color="warning")
         
         try:
-            # Use cached calculation for better VM performance
-            import json
-            data_json = json.dumps(data) if isinstance(data, list) else '[]'
+            # Calcul direct (sans cache serveur — conformité)
             years_tuple = tuple(selected_years) if selected_years else tuple()
             grades_tuple = tuple(selected_grades) if selected_grades else tuple()
             age_groups_tuple = tuple(selected_age_groups) if selected_age_groups else tuple()
             custom_age_tuple = tuple(custom_age_range) if custom_age_range else tuple()
             
-            fig_dict = _cached_competing_risks(data_json, gvh_type, years_tuple, grades_tuple, age_groups_tuple, malignancy_filter, use_custom_age, custom_age_tuple)
+            fig_dict = _compute_competing_risks(data, gvh_type, years_tuple, grades_tuple, age_groups_tuple, malignancy_filter, use_custom_age, custom_age_tuple)
             
             if fig_dict is None:
                 return dbc.Alert("No data available with selected filters", color="warning")

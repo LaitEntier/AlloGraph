@@ -1551,9 +1551,6 @@ def register_callbacks(app):
         slider_id='survival-custom-age-slider'
     )
     
-    # Import caching utility
-    from modules.cache_utils import cache_survival_result
-    
     # ------------------------------------------------------------------
     # Linked tabs sync using dash.set_props (avoids circular callbacks)
     # ------------------------------------------------------------------
@@ -1725,16 +1722,10 @@ def register_callbacks(app):
             html.P('Filter patients by GvHD grade', className='text-muted small mb-2'),
         ] + acute_filter + chronic_filter)
     
-    # Create cached versions of expensive lifelines calculations
-    @cache_survival_result
-    def _cached_prepare_survival_data(data_json_str, max_duration, selected_years_tuple):
-        """Cached version of survival data preparation + curve generation"""
-        import json
-        # Convert JSON string back to DataFrame
-        data_list = json.loads(data_json_str)
-        df = pd.DataFrame(data_list)
-        
-        print(f"DEBUG _cached_prepare_survival_data: Columns in cached df: {list(df.columns)}")
+    # Calculs lifelines directs (sans cache serveur — conformité : rien de persistant côté serveur)
+    def _compute_global_survival_curve(df, max_duration, selected_years_tuple):
+        """Prépare les données de survie et génère la courbe globale"""
+        print(f"DEBUG _compute_global_survival_curve: Columns in df: {list(df.columns)}")
         
         # Filtrer par années
         if selected_years_tuple and 'Year' in df.columns:
@@ -1782,19 +1773,16 @@ def register_callbacks(app):
             ], color="warning")
         
         try:
-            # Filtrer les données par âge et malignité avant de les passer au cache
-            import json
+            # Filtrer les données par âge et malignité
             df = pd.DataFrame(data)
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
             
-            # Convert data to JSON string for caching (preserves structure)
-            data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
             
-            fig = _cached_prepare_survival_data(data_json, max_duration, years_tuple)
+            fig = _compute_global_survival_curve(df, max_duration, years_tuple)
             
             if fig is None:
                 return dbc.Alert('No valid data for survival analysis', color='warning')
@@ -1810,15 +1798,9 @@ def register_callbacks(app):
             traceback.print_exc()
             return dbc.Alert(f'Error during survival curve creation: {str(e)}', color='danger')
     
-    # Cached version for multi-year survival curves
-    @cache_survival_result
-    def _cached_survival_by_year(data_json_str, max_duration, selected_years_tuple):
-        """Cached version of multi-year survival calculation"""
-        import json
-        # Convert JSON string back to DataFrame
-        data_list = json.loads(data_json_str)
-        df = pd.DataFrame(data_list)
-        
+    # Courbes de survie par année (sans cache serveur)
+    def _compute_survival_by_year(df, max_duration, selected_years_tuple):
+        """Calcule les courbes de survie par année"""
         if selected_years_tuple and 'Year' in df.columns:
             df = df[df['Year'].isin(list(selected_years_tuple))]
         
@@ -1836,7 +1818,7 @@ def register_callbacks(app):
             max_years=max_years
         )
         
-        # Convert fig to dict for caching
+        # Convertir la figure en dict pour le callback
         return fig.to_dict() if fig else None, stats_df.to_dict('records') if not stats_df.empty else []
     
     @app.callback(
@@ -1867,18 +1849,16 @@ def register_callbacks(app):
             return warning_alert, warning_alert
         
         try:
-            # Filtrer les données par âge et malignité avant de les passer au cache
-            import json
+            # Filtrer les données par âge et malignité
             df = pd.DataFrame(data)
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
             
-            data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
             
-            fig_dict, stats_records = _cached_survival_by_year(data_json, max_duration, years_tuple)
+            fig_dict, stats_records = _compute_survival_by_year(df, max_duration, years_tuple)
             
             if fig_dict is None:
                 no_data_alert = dbc.Alert('No valid data for survival analysis', color='warning')
@@ -1947,14 +1927,9 @@ def register_callbacks(app):
             ], color='danger')
             return error_alert, error_alert
     
-    # Cached version of GRFS by year calculation
-    @cache_survival_result
-    def _cached_grfs_by_year(data_json_str, max_duration, selected_years_tuple):
-        """Cached version of multi-year GRFS calculation"""
-        import json
-        data_list = json.loads(data_json_str)
-        df = pd.DataFrame(data_list)
-        
+    # Calcul GRFS par année (sans cache serveur)
+    def _compute_grfs_by_year(df, max_duration, selected_years_tuple):
+        """Calcule les courbes GRFS par année"""
         if selected_years_tuple and 'Year' in df.columns:
             df = df[df['Year'].isin(list(selected_years_tuple))]
         
@@ -1974,14 +1949,9 @@ def register_callbacks(app):
         
         return fig.to_dict() if fig else None, stats_df.to_dict('records') if not stats_df.empty else []
     
-    # Cached version of GRFS calculation
-    @cache_survival_result
-    def _cached_grfs_km(data_json_str, selected_years_tuple, max_years):
-        """Cached version of GRFS Kaplan-Meier calculation"""
-        import json
-        data_list = json.loads(data_json_str)
-        df = pd.DataFrame(data_list)
-        
+    # Calcul GRFS Kaplan-Meier (sans cache serveur)
+    def _compute_grfs_km(df, selected_years_tuple, max_years):
+        """Calcule la courbe GRFS Kaplan-Meier"""
         # Filter by years
         if selected_years_tuple and 'Year' in df.columns:
             df = df[df['Year'].isin(list(selected_years_tuple))]
@@ -2029,7 +1999,6 @@ def register_callbacks(app):
             return warning_alert, warning_alert, warning_alert
         
         try:
-            import json
             df = pd.DataFrame(data)
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
@@ -2069,12 +2038,11 @@ def register_callbacks(app):
                 
                 df = df[mask]
             
-            data_json = json.dumps(df.to_dict('records')) if len(df) > 0 else '[]'
             years_tuple = tuple(selected_years) if selected_years else tuple()
             
             # Global GRFS curve (no artificial limit)
             max_years = None
-            fig_dict_global = _cached_grfs_km(data_json, years_tuple, max_years)
+            fig_dict_global = _compute_grfs_km(df, years_tuple, max_years)
             
             if fig_dict_global is None:
                 no_data = dbc.Alert('No valid data for GRFS analysis', color='warning')
@@ -2089,7 +2057,7 @@ def register_callbacks(app):
             )
             
             # GRFS by year
-            fig_dict_by_year, stats_records = _cached_grfs_by_year(data_json, max_duration, years_tuple)
+            fig_dict_by_year, stats_records = _compute_grfs_by_year(df, max_duration, years_tuple)
             
             if fig_dict_by_year is None:
                 no_data = dbc.Alert('No valid data for GRFS by year analysis', color='warning')

@@ -20,7 +20,6 @@ AlloGraph/
 │   ├── data_processing.py    # Data loading, cleaning, derived variables
 │   ├── dashboard_layout.py   # Shared UI components (sidebar builders, filters)
 │   ├── competing_risks.py    # Competing risks statistical analysis
-│   ├── cache_utils.py        # In-memory caching for expensive computations
 │   ├── validation.py         # Data validation (placeholder)
 │   └── callbacks.py          # Shared callbacks (placeholder)
 ├── pages/                  # One module per analysis page
@@ -99,17 +98,7 @@ Column names are normalized case-insensitively against `EXPECTED_COLUMNS` (see [
 
 ## Caching
 
-Expensive computations (lifelines survival fits, competing risks) are wrapped with the decorator from `modules/cache_utils.py`:
-
-```python
-from modules.cache_utils import cache_survival_result
-
-@cache_survival_result
-def expensive_calculation(data, params):
-    ...
-```
-
-Characteristics: **in-memory only** (no disk persistence), cleared on restart, cache keys use content hashes (no PHI), session-scoped.
+None. The application has **no server-side cache** by design (compliance: nothing is persisted server-side). Expensive computations (lifelines survival fits, competing risks) run in under 100 ms on a full dataset, so caching is unnecessary.
 
 ## Styling conventions
 
