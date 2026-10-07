@@ -5,15 +5,15 @@ Machine : poste de développement (Windows). Médiane sur N répétitions, `time
 
 | Fonction | Entrée | Rép. | Médiane (ms) | Min (ms) | Max (ms) |
 |---|---|---|---|---|---|
-| `process_data` | raw | 5 | 416.9 | 407.3 | 434.1 |
-| `create_greffes_variable` | raw | 5 | 63.2 | 61.8 | 64.5 |
-| `create_blood_rh_variable` | raw | 5 | 66.5 | 65.0 | 67.6 |
-| `create_hla_compatibility_variable` | raw | 5 | 65.7 | 64.9 | 68.9 |
-| `process_prep_regimen_variables` | raw | 5 | 26.8 | 25.8 | 29.4 |
-| `process_prophylaxis_drugs` | raw | 5 | 29.8 | 27.9 | 30.1 |
-| `process_upset_plot` | raw | 5 | 594.3 | 574.8 | 617.5 |
-| `competing_risks_agvhd_100d` | processed | 3 | 996.8 | 994.7 | 1008.3 |
-| `km_survival_lifelines` | processed | 5 | 61.8 | 60.7 | 644.0 |
-| `json_store_roundtrip` | processed | 5 | 267.5 | 253.2 | 279.4 |
+| `process_data` | raw | 5 | 415.1 | 404.5 | 461.2 |
+| `create_greffes_variable` | raw | 5 | 65.5 | 63.0 | 66.4 |
+| `create_blood_rh_variable` | raw | 5 | 67.6 | 66.5 | 86.6 |
+| `create_hla_compatibility_variable` | raw | 5 | 65.6 | 64.8 | 68.2 |
+| `process_prep_regimen_variables` | raw | 5 | 31.1 | 26.3 | 37.1 |
+| `process_prophylaxis_drugs` | raw | 5 | 30.2 | 30.1 | 34.3 |
+| `process_upset_plot` | raw | 5 | 29.3 | 28.9 | 30.8 |
+| `competing_risks_agvhd_100d` | processed | 3 | 1390.3 | 1383.2 | 1394.3 |
+| `km_survival_lifelines` | processed | 5 | 61.8 | 60.3 | 696.7 |
+| `json_store_roundtrip` | processed | 5 | 287.1 | 272.3 | 311.5 |
 
 Taille de la sérialisation JSON `orient='split'` du DataFrame traité : 14.5 Mo (hypothèse H4).
