@@ -209,65 +209,45 @@ def create_hla_compatibility_variable(df):
         df['Donor Match Category'] = 'Unknown + Unknown'
         return df
     
-    # Créer la variable combinée
-    def combine_hla_compatibility(row):
-        donor_type_raw = row.get('Donor Type', '')
-        match_type_raw = row.get('Match Type', '')
-        
-        # Nettoyer et standardiser les valeurs
-        if pd.isna(donor_type_raw) or str(donor_type_raw).strip() == '':
-            donor_type = None
-        else:
-            donor_type = str(donor_type_raw).strip()
-        
-        if pd.isna(match_type_raw) or str(match_type_raw).strip() == '':
-            match_type = None
-        else:
-            match_type = str(match_type_raw).strip()
-        
-        # Cas où les deux colonnes sont vides/manquantes
-        if donor_type is None and match_type is None:
-            return 'Unknown + Unknown'
-        
-        # Cas où seulement Donor Type est vide/manquant
-        if donor_type is None:
-            return f'Unknown + {match_type}'
-        
-        # Cas où seulement Match Type est vide/manquant
-        if match_type is None:
-            # Extraire le type de base (Related ou Unrelated) pour un affichage plus propre
-            donor_lower = donor_type.lower()
-            if 'related' in donor_lower and 'un' not in donor_lower:
-                return 'Related + Unknown'
-            elif 'unrelated' in donor_lower or ('un' in donor_lower and 'related' in donor_lower):
-                return 'Unrelated + Unknown'
-            else:
-                return f'{donor_type} + Unknown'
-        
-        # Normaliser le donor_type (accepter 'Related', 'Related donor', 'Unrelated', 'Unrelated donor')
-        donor_lower = donor_type.lower()
-        if 'related' in donor_lower and 'un' not in donor_lower:
-            donor_normalized = 'Related donor'
-        elif 'unrelated' in donor_lower or ('un' in donor_lower and 'related' in donor_lower):
-            donor_normalized = 'Unrelated donor'
-        else:
-            donor_normalized = donor_type  # Garder la valeur originale si non reconnue
-        
-        # Logique de combinaison selon les spécifications
-        if donor_normalized == 'Related donor' and match_type == 'Match':
-            return 'Genoidentical'
-        elif donor_normalized == 'Related donor' and match_type == 'Mismatch':
-            return 'MRD (Haplo)'
-        elif donor_normalized == 'Unrelated donor' and match_type == 'Match':
-            return 'MUD'
-        elif donor_normalized == 'Unrelated donor' and match_type == 'Mismatch':
-            return 'MMUD'
-        else:
-            # Pour toute autre combinaison non prévue (valeurs inattendues)
-            return f'{donor_normalized} + {match_type}'
-    
-    df['Donor Match Category'] = df.apply(combine_hla_compatibility, axis=1)
-    
+    # Créer la variable combinée (vectorisé)
+    d_raw = df['Donor Type']
+    m_raw = df['Match Type']
+
+    d_none = d_raw.isna() | (d_raw.astype(str).str.strip() == '')
+    m_none = m_raw.isna() | (m_raw.astype(str).str.strip() == '')
+
+    donor = d_raw.astype(str).str.strip()
+    match = m_raw.astype(str).str.strip()
+
+    # Normalisation du type de donneur (mêmes règles qu'avant)
+    dl = donor.str.lower()
+    is_related = dl.str.contains('related', regex=False) & ~dl.str.contains('un', regex=False)
+    is_unrelated = dl.str.contains('unrelated', regex=False) | (
+        dl.str.contains('un', regex=False) & dl.str.contains('related', regex=False))
+    donor_norm = donor.mask(is_related, 'Related donor').mask(is_unrelated, 'Unrelated donor')
+
+    # Combinaisons quand les deux colonnes sont renseignées
+    out = donor_norm + ' + ' + match
+    rel = donor_norm == 'Related donor'
+    unrel = donor_norm == 'Unrelated donor'
+    out = out.mask(rel & (match == 'Match'), 'Genoidentical')
+    out = out.mask(rel & (match == 'Mismatch'), 'MRD (Haplo)')
+    out = out.mask(unrel & (match == 'Match'), 'MUD')
+    out = out.mask(unrel & (match == 'Mismatch'), 'MMUD')
+
+    # Match Type manquant : base Related/Unrelated pour un affichage plus propre
+    match_unknown = (donor + ' + Unknown').mask(is_related, 'Related + Unknown') \
+        .mask(is_unrelated, 'Unrelated + Unknown')
+    out = out.mask(~d_none & m_none, match_unknown)
+
+    # Donor Type manquant
+    out = out.where(~(d_none & ~m_none), 'Unknown + ' + match)
+
+    # Les deux manquants
+    out = out.where(~(d_none & m_none), 'Unknown + Unknown')
+
+    df['Donor Match Category'] = out
+
     return df
 
 
@@ -370,29 +350,19 @@ def create_greffes_variable(df):
         df['Greffes'] = 'Non défini'
         return df
     
-    # Créer la variable combinée
-    def combine_greffe_info(row):
-        donor_type = row.get('Donor Type', '')
-        stem_cells = row.get('Source Stem Cells', '')
-        
-        # Gérer les valeurs nulles ou vides
-        if pd.isna(donor_type) or donor_type == '':
-            donor_type = 'Inconnu'
-        if pd.isna(stem_cells) or stem_cells == '':
-            stem_cells = 'Inconnu'
-        
-        # Combinaison intelligente
-        if donor_type == 'Inconnu' and stem_cells == 'Inconnu':
-            return 'Non défini'
-        elif donor_type == 'Inconnu':
-            return f"Greffe {stem_cells}"
-        elif stem_cells == 'Inconnu':
-            return f"Greffe {donor_type}"
-        else:
-            return f"{donor_type} - {stem_cells}"
-    
-    df['Greffes'] = df.apply(combine_greffe_info, axis=1)
-    
+    # Créer la variable combinée (vectorisé)
+    donor = df['Donor Type'].astype(object)
+    stem = df['Source Stem Cells'].astype(object)
+    d_unk = donor.isna() | (donor == '')
+    s_unk = stem.isna() | (stem == '')
+
+    out = donor + ' - ' + stem
+    out = out.where(~(d_unk & ~s_unk), 'Greffe ' + stem)
+    out = out.where(~(~d_unk & s_unk), 'Greffe ' + donor)
+    out = out.where(~(d_unk & s_unk), 'Non défini')
+
+    df['Greffes'] = out
+
     return df
 
 def create_blood_rh_variable(df):
@@ -413,40 +383,24 @@ def create_blood_rh_variable(df):
         df['Blood + Rh'] = 'unknown'
         return df
     
-    # Créer la variable combinée
-    def combine_blood_rh(row):
-        blood_group = row.get('Blood Group', '')
-        rhesus_factor = row.get('Rhesus Factor', '')
-        
-        # Nettoyer et standardiser les valeurs
-        if pd.isna(blood_group) or str(blood_group).strip() == '':
-            blood_group = 'unknown'
-        else:
-            blood_group = str(blood_group).strip()
-        
-        if pd.isna(rhesus_factor) or str(rhesus_factor).strip() == '':
-            rhesus_factor = 'unknown'
-        else:
-            rhesus_factor = str(rhesus_factor).strip().lower()
-        
-        # Exception spéciale : si les deux sont unknown
-        if blood_group.lower() == 'unknown' and rhesus_factor == 'unknown':
-            return 'unknown'
-        
-        # Mapper les valeurs de Rhesus Factor
-        if rhesus_factor == 'positive':
-            rh_symbol = '+'
-        elif rhesus_factor == 'negative':
-            rh_symbol = '-'
-        else:
-            # Pour 'unknown' ou toute autre valeur
-            rh_symbol = rhesus_factor
-        
-        # Concaténer Blood Group + Rhesus Factor
-        return f"{blood_group}{rh_symbol}"
-    
-    df['Blood + Rh'] = df.apply(combine_blood_rh, axis=1)
-    
+    # Créer la variable combinée (vectorisé)
+    bg_raw = df['Blood Group']
+    rh_raw = df['Rhesus Factor']
+
+    bg_unk = bg_raw.isna() | (bg_raw.astype(str).str.strip() == '')
+    rh_unk = rh_raw.isna() | (rh_raw.astype(str).str.strip() == '')
+
+    blood_group = bg_raw.astype(str).str.strip().where(~bg_unk, 'unknown')
+    rhesus = rh_raw.astype(str).str.strip().str.lower().where(~rh_unk, 'unknown')
+
+    # Symbole Rhesus : '+'/'-', sinon la valeur brute ('unknown' ou autre)
+    rh_symbol = rhesus.mask(rhesus == 'positive', '+').mask(rhesus == 'negative', '-')
+
+    # Exception spéciale : si les deux sont unknown
+    both_unknown = (blood_group.str.lower() == 'unknown') & (rhesus == 'unknown')
+
+    df['Blood + Rh'] = (blood_group + rh_symbol).where(~both_unknown, 'unknown')
+
     return df
 
 def process_prep_regimen_variables(df):
@@ -477,8 +431,8 @@ def process_prep_regimen_variables(df):
         if col in df.columns:
             # Standardiser les valeurs : Yes pour "Yes", "yes", "Y", etc.
             # No pour tout le reste (vide, NaN, "No", etc.)
-            df[col] = df[col].astype(str).str.strip().str.lower()
-            df[col] = df[col].apply(lambda x: 'Yes' if x in ['yes', 'y', '1', 'true'] else 'No')
+            normalized = df[col].astype(str).str.strip().str.lower()
+            df[col] = np.where(normalized.isin(['yes', 'y', '1', 'true']), 'Yes', 'No')
         else:
             print(f"Attention: Colonne '{col}' non trouvée dans les données")
     
