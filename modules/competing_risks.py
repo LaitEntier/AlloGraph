@@ -3,6 +3,8 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
+from modules.data_processing import _to_datetime_fast
+
 class CompetingRisksAnalyzer:
     """
     Classe pour l'analyse des risques compétitifs avec événements personnalisables
@@ -18,7 +20,7 @@ class CompetingRisksAnalyzer:
         """
         self.data = data.copy()
         self.reference_date_col = reference_date_col
-        self.data[reference_date_col] = pd.to_datetime(self.data[reference_date_col], format='mixed', errors='coerce')
+        self.data[reference_date_col] = _to_datetime_fast(self.data[reference_date_col])
         
     def create_competing_risks_plot_original(self, results_df, patient_data, events_config, 
                                            title="Analyse de Risques Compétitifs", 
@@ -233,10 +235,10 @@ class CompetingRisksAnalyzer:
         df = self.data.copy()
         
         # Convertir les dates
-        df[followup_config['date_col']] = pd.to_datetime(df[followup_config['date_col']], format='mixed', errors='coerce')
-        
+        df[followup_config['date_col']] = _to_datetime_fast(df[followup_config['date_col']])
+
         for event_name, config in events_config.items():
-            df[config['date_col']] = pd.to_datetime(df[config['date_col']], format='mixed', errors='coerce')
+            df[config['date_col']] = _to_datetime_fast(df[config['date_col']])
 
         # Calculer les temps d'événement avec validation
         df['time_to_last_followup'] = (df[followup_config['date_col']] - df[self.reference_date_col]).dt.days
@@ -252,201 +254,97 @@ class CompetingRisksAnalyzer:
             time_col = f'time_to_{event_name}'
             df[time_col] = df[time_col].fillna(-1)
         
-        # Déterminer l'événement et le temps pour chaque patient
-        events = []
-        times = []
-        
-        # Variables de debug
-        debug_stats = {
-            'total_patients': len(df),
-            'gvh_yes_count': 0,
-            'gvh_valid_time_count': 0,
-            'gvh_invalid_time_count': 0,
-            'death_count': 0,
-            'censored_count': 0,
-            'negative_times': 0,
-            'times_over_max': 0
+        # Déterminer l'événement et le temps pour chaque patient (vectorisé)
+        n = len(df)
+        event_names = list(events_config.keys())
+
+        # Occurrence 'yes' par événement (strip + casse insensible, comme avant)
+        occ_yes = {
+            name: (df[cfg['occurrence_col']].fillna('').astype(str)
+                   .str.strip().str.lower() == 'yes').to_numpy()
+            for name, cfg in events_config.items()
         }
-        
-        for idx, row in df.iterrows():
-            patient_events = []
-            
-            # Vérifier chaque événement d'intérêt
-            for event_name, config in events_config.items():
-                time_col = f'time_to_{event_name}'
-                occurrence_value = str(row[config['occurrence_col']]).strip() if pd.notna(row[config['occurrence_col']]) else ""
-                
-                # Debug : compter les "Yes"
-                if occurrence_value.lower() == 'yes':
-                    debug_stats['gvh_yes_count'] += 1
-                    
-                    # Vérifier le temps
-                    if pd.isna(row[time_col]):
-                        debug_stats['gvh_invalid_time_count'] += 1
-                        print(f"Patient {idx}: GvH 'Yes' mais temps NaN")
-                    elif row[time_col] < 0:
-                        debug_stats['negative_times'] += 1
-                        print(f"Patient {idx}: GvH 'Yes' mais temps négatif: {row[time_col]}")
-                    elif row[time_col] > max_days:
-                        debug_stats['times_over_max'] += 1
-                        print(f"Patient {idx}: GvH 'Yes' mais temps > {max_days}: {row[time_col]}")
-                
-                # Vérifier les conditions pour ajouter l'événement
-                if (not pd.isna(row[time_col]) and 
-                    occurrence_value.lower() == 'yes' and 
-                    row[time_col] >= 0 and  # Temps positif ou nul
-                    row[time_col] <= max_days):
-                    debug_stats['gvh_valid_time_count'] += 1
-                    patient_events.append((event_name, row[time_col]))
-            
-            # Vérifier le décès si configuré comme risque compétitif
-            death_added = False
-            if death_as_competing:
-                death_status = str(row[followup_config['status_col']]).strip() if pd.notna(row[followup_config['status_col']]) else ""
-                if (death_status.lower() == followup_config['death_value'].lower() and 
-                    not pd.isna(row['time_to_last_followup']) and
-                    row['time_to_last_followup'] >= 0 and  # Temps positif ou nul
-                    row['time_to_last_followup'] <= max_days):
-                    
-                    # Vérifier si décès avant tout autre événement GvH
-                    death_before_events = True
-                    for event_name, config in events_config.items():
-                        time_col = f'time_to_{event_name}'
-                        occurrence_value = str(row[config['occurrence_col']]).strip() if pd.notna(row[config['occurrence_col']]) else ""
-                        # Un événement GvH s'est produit avant le décès
-                        if (not pd.isna(row[time_col]) and 
-                            occurrence_value.lower() == 'yes' and
-                            row[time_col] >= 0 and
-                            row[time_col] < row['time_to_last_followup']):  # Strictement avant le décès
-                            death_before_events = False
-                            break
-                    
-                    if death_before_events:
-                        debug_stats['death_count'] += 1
-                        patient_events.append(('Décès', row['time_to_last_followup']))
-                        death_added = True
-            
-            # Prendre le premier événement (temps le plus court)
-            if patient_events:
-                first_event = min(patient_events, key=lambda x: x[1])
-                events.append(first_event[0])
-                times.append(first_event[1])
-            else:
-                # Censuré - utiliser le temps de suivi disponible
-                debug_stats['censored_count'] += 1
-                censoring_time = row['time_to_last_followup']
-                
-                # Gestion robuste du temps de censure
-                if pd.isna(censoring_time) or censoring_time < 0:
-                    censoring_time = max_days  # Si temps invalide, censurer à la fin de la période
-                elif censoring_time > max_days:
-                    censoring_time = max_days  # Limiter au maximum
-                    
-                events.append('Censuré')
-                times.append(censoring_time)
-        
-        # Afficher les statistiques de debug
-        print(f"\n=== DEBUG COMPETING RISKS ===")
-        print(f"Total patients: {debug_stats['total_patients']}")
-        print(f"Patients avec GvH 'Yes': {debug_stats['gvh_yes_count']}")
-        print(f"Patients avec GvH 'Yes' et temps valide (0-{max_days}j): {debug_stats['gvh_valid_time_count']}")
-        print(f"Patients avec GvH 'Yes' mais temps invalide: {debug_stats['gvh_invalid_time_count']}")
-        print(f"Patients avec GvH 'Yes' mais temps négatif: {debug_stats['negative_times']}")
-        print(f"Patients avec GvH 'Yes' mais temps > {max_days}j: {debug_stats['times_over_max']}")
-        print(f"Décès détectés: {debug_stats['death_count']}")
-        print(f"Patients censurés: {debug_stats['censored_count']}")
-        print(f"Somme vérification: {debug_stats['gvh_valid_time_count'] + debug_stats['death_count'] + debug_stats['censored_count']}")
-        
-        # Afficher la répartition des événements finaux
-        from collections import Counter
-        event_counts = Counter(events)
-        print(f"Répartition finale des événements: {dict(event_counts)}")
-        
-        # Calculer les pourcentages attendus
-        total = len(events)
-        for event, count in event_counts.items():
-            percentage = (count / total) * 100 if total > 0 else 0
-            print(f"  {event}: {count}/{total} = {percentage:.1f}%")
-        print(f"===============================\n")
-        
-        df['event_type'] = events
-        df['event_time'] = times
-        
-        # Calculer les incidences cumulées
-        days = np.arange(0, max_days + 1)
-        n_at_risk = []
-        event_counts = {event_name: [] for event_name in events_config.keys()}
+        times_np = {name: df[f'time_to_{name}'].to_numpy() for name in event_names}
+        time_fu = df['time_to_last_followup'].to_numpy()
+
+        # Premier événement par patient : parcours dans l'ordre de la config, le
+        # décès en dernier ; égalité de temps -> priorité au premier de la liste
+        # (même comportement que min() sur la liste chaînée d'avant)
+        best_time = np.full(n, np.inf)
+        event_type = np.full(n, 'Censuré', dtype=object)
+        for name in event_names:
+            t = times_np[name]
+            valid = occ_yes[name] & (t >= 0) & (t <= max_days)
+            take = valid & (t < best_time)
+            best_time[take] = t[take]
+            event_type[take] = name
+
         if death_as_competing:
-            event_counts['Décès'] = []
-        event_counts['Censuré'] = []
-        
-        for day in days:
-            # Patients encore à risque au début du jour
-            at_risk = df[df['event_time'] >= day].shape[0]
-            n_at_risk.append(at_risk)
-            
-            # Événements ce jour-là
-            day_events = df[df['event_time'] == day]
-            
-            for event_name in event_counts.keys():
-                count = day_events[day_events['event_type'] == event_name].shape[0]
-                event_counts[event_name].append(count)
-        
+            death_value = followup_config['death_value'].lower()
+            dead = (df[followup_config['status_col']].fillna('').astype(str)
+                    .str.strip().str.lower() == death_value).to_numpy()
+            # Un événement strictement avant le décès (sans borne max_days,
+            # comme avant) empêche le décès d'être compté comme premier événement
+            event_before_death = np.zeros(n, dtype=bool)
+            for name in event_names:
+                t = times_np[name]
+                event_before_death |= occ_yes[name] & (t >= 0) & (t < time_fu)
+            death_mask = (dead & (time_fu >= 0) & (time_fu <= max_days)
+                          & ~event_before_death & (time_fu < best_time))
+            best_time[death_mask] = time_fu[death_mask]
+            event_type[death_mask] = 'Décès'
+
+        # Patients censurés : temps de suivi borné à max_days (comme avant)
+        censored = event_type == 'Censuré'
+        censor_time = np.where(time_fu < 0, max_days, np.minimum(time_fu, max_days))
+        event_time = np.where(censored, censor_time, best_time)
+
+        df['event_type'] = event_type
+        df['event_time'] = event_time
+
+        # Comptages par jour (vectorisés) — int Python pour rester en int64
+        days = np.arange(0, max_days + 1)
+        n_at_risk = [int((event_time >= day).sum()) for day in days]
+
+        count_names = event_names + (['Décès'] if death_as_competing else []) + ['Censuré']
+        event_counts = {
+            name: [int(((event_time == day) & (event_type == name)).sum()) for day in days]
+            for name in count_names
+        }
+
         # Calculer les incidences cumulées selon la méthode des risques compétitifs
         cum_incidences = {event_name: np.zeros(len(days)) for event_name in events_config.keys()}
         if death_as_competing:
             cum_incidences['Décès'] = np.zeros(len(days))
-        
+
         survival = np.ones(len(days))  # Probabilité de survie sans événement
-        
-        print(f"\n=== DEBUG CALCUL INCIDENCES ===")
-        print(f"Nombre de jours à analyser: {len(days)} (0 à {max_days})")
-        
+
         for i in range(1, len(days)):
-            day = days[i]
-            
             if n_at_risk[i-1] > 0:
-                # Calculer le total des événements ce jour
-                total_events_today = sum(event_counts[event][i-1] for event in event_counts.keys() 
+                # Total des événements du jour précédent
+                total_events_today = sum(event_counts[event][i-1] for event in event_counts.keys()
                                        if event != 'Censuré')
-                
-                if total_events_today > 0:
-                    print(f"Jour {day}: {n_at_risk[i-1]} à risque, {total_events_today} événements")
-                
+
                 # Probabilité de survie sans événement ce jour
-                if n_at_risk[i-1] > 0:
-                    daily_survival = (n_at_risk[i-1] - total_events_today) / n_at_risk[i-1]
-                else:
-                    daily_survival = 1.0
-                
-                # Hazard spécifique pour chaque événement et calcul de l'incidence cumulative
+                daily_survival = (n_at_risk[i-1] - total_events_today) / n_at_risk[i-1]
+
+                # Hazard spécifique pour chaque événement et incidence cumulative
                 for event_name in cum_incidences.keys():
                     if event_name in event_counts:
                         hazard = event_counts[event_name][i-1] / n_at_risk[i-1] if n_at_risk[i-1] > 0 else 0
                         # Formule de Gray pour les risques compétitifs
                         cum_incidences[event_name][i] = cum_incidences[event_name][i-1] + survival[i-1] * hazard
-                        
-                        if hazard > 0:
-                            print(f"  {event_name}: hazard={hazard:.4f}, incidence_cum={cum_incidences[event_name][i]:.4f}")
-                
+
                 # Mise à jour de la survie globale
                 survival[i] = survival[i-1] * daily_survival
-                
+
             else:
                 # Pas de patients à risque : maintenir les valeurs précédentes
                 for event_name in cum_incidences.keys():
                     cum_incidences[event_name][i] = cum_incidences[event_name][i-1]
                 survival[i] = survival[i-1]
-        
-        # Afficher les incidences finales
-        print(f"\nIncidences cumulées finales (à J{max_days}):")
-        for event_name in cum_incidences.keys():
-            final_incidence = cum_incidences[event_name][-1] * 100
-            print(f"  {event_name}: {final_incidence:.1f}%")
-        print(f"Survie sans événement: {survival[-1]*100:.1f}%")
-        print(f"Total (vérification): {sum(cum_incidences[e][-1] for e in cum_incidences.keys()) + survival[-1]:.3f}")
-        print(f"===============================\n")
-        
+
+
         # Créer le DataFrame de résultats
         results_data = {
             'jour': days,

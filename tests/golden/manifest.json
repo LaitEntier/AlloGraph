@@ -1,6 +1,6 @@
 {
   "description": "Sorties de r\u00e9f\u00e9rence phase 0 (donn\u00e9es 100 % synth\u00e9tiques)",
-  "captured_on": "2026-10-03",
+  "captured_on": "2026-10-07",
   "n_rows": 16000,
   "seed": 42,
   "pandas": "2.1.4",
