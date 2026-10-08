@@ -217,24 +217,20 @@ def get_layout():
         ])
     ], fluid=True)
 
-def create_indicators_sidebar_content(data, pediatric_view=False):
+def create_indicators_sidebar_content(metadata, pediatric_view=False):
     """Sidebar avec sélection Yearly/Quarterly et contrôles d'années dynamiques"""
-    if data is None or len(data) == 0:
+    if metadata is None:
         return html.Div([
             html.P('No data available', className='text-warning'),
             html.Hr(),
             html.P('Please load data to access indicators analysis.', className='text-muted')
         ])
-    
+
     try:
-        df = pd.DataFrame(data)
-        
         # Options d'années disponibles
-        years_options = []
-        available_years = []
-        if 'Year' in df.columns:
-            available_years = sorted(df['Year'].unique().tolist())
-            years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+        available_years = metadata.get('years', [])
+        years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+        n_patients = metadata.get('n_patients', 0)
         
         # Dernière année pour les valeurs par défaut
         latest_year = available_years[-1] if available_years else None
@@ -328,12 +324,12 @@ def create_indicators_sidebar_content(data, pediatric_view=False):
             dbc.Card([
                 dbc.CardBody([
                     html.P([
-                        html.Strong("Total patients: "), 
-                        html.Span(f"{len(df)}")
+                        html.Strong("Total patients: "),
+                        html.Span(f"{n_patients}")
                     ], className='mb-2'),
                     html.P([
-                        html.Strong("Years range: "), 
-                        html.Span(f"{df['Year'].min() if 'Year' in df.columns else 'N/A'} - {df['Year'].max() if 'Year' in df.columns else 'N/A'}")
+                        html.Strong("Years range: "),
+                        html.Span(f"{available_years[0] if available_years else 'N/A'} - {available_years[-1] if available_years else 'N/A'}")
                     ], className='mb-0')
                 ], className="py-2")
             ], color="light", outline=True)

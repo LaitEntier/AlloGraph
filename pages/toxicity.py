@@ -91,30 +91,25 @@ def get_layout():
     ], fluid=True)
 
 
-def create_toxicity_sidebar_content(data, pediatric_view=False):
+def create_toxicity_sidebar_content(metadata, pediatric_view=False):
     """
     Crée le contenu de la sidebar spécifique à la page Toxicity.
 
     Args:
-        data (list): Liste de dictionnaires (format store Dash) avec les données
+        metadata (dict): Métadonnées du dataset (store 'metadata-store' : years, n_patients...)
         pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
 
     Returns:
         html.Div: Contenu de la sidebar
     """
-    if data is None or len(data) == 0:
+    if metadata is None:
         return html.Div([
             html.P('No data available', className='text-warning')
         ])
 
-    # Convertir la liste en DataFrame
-    df = pd.DataFrame(data)
-
     # Obtenir les années disponibles pour les filtres
-    years_options = []
-    if 'Year' in df.columns:
-        available_years = sorted(df['Year'].unique().tolist())
-        years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+    available_years = metadata.get('years', [])
+    years_options = [{'label': f'{year}', 'value': year} for year in available_years]
 
     controls = [
         layouts.create_pediatric_switch_component(pediatric_view),

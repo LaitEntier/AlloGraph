@@ -692,31 +692,26 @@ def register_age_toggle_callback(app, switch_id, wrapper_id, slider_id):
         return wrapper_class, not bool(use_custom_age)
 
 
-def create_procedures_sidebar_content(data, pediatric_view=False):
+def create_procedures_sidebar_content(metadata, pediatric_view=False):
     """
     Crée le contenu de la sidebar spécifique à la page Procedures.
     Simplifié car le sélecteur de variable principale est maintenant intégré dans l'interface.
-    
+
     Args:
-        data (list): Liste de dictionnaires (format store Dash) avec les données
+        metadata (dict): Métadonnées du dataset (store 'metadata-store' : years, n_patients...)
         pediatric_view (bool): Si True, affiche le filtre d'âge pédiatrique
-        
+
     Returns:
         html.Div: Contenu de la sidebar
     """
-    if data is None or len(data) == 0:
+    if metadata is None:
         return html.Div([
             html.P('Aucune donnée disponible', className='text-warning')
         ])
-    
-    # Convertir la liste en DataFrame
-    df = pd.DataFrame(data)
-    
+
     # Obtenir les années disponibles pour les filtres
-    years_options = []
-    if 'Year' in df.columns:
-        available_years = sorted(df['Year'].unique().tolist())
-        years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+    available_years = metadata.get('years', [])
+    years_options = [{'label': f'{year}', 'value': year} for year in available_years]
     
     controls = [
         create_pediatric_switch_component(pediatric_view),
@@ -748,10 +743,10 @@ def create_procedures_sidebar_content(data, pediatric_view=False):
         html.Div([
             html.H6("📊 Informations", className="mb-2"),
             html.P([
-                "Patients: ", html.Strong(f"{len(df):,}")
+                "Patients: ", html.Strong(f"{metadata.get('n_patients', 0):,}")
             ], className="mb-1", style={'fontSize': '12px'}),
             html.P([
-                "Années: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
+                "Années: ", html.Strong(f"{len(available_years)}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
     ]

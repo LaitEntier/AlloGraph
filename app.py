@@ -144,14 +144,14 @@ app.layout = html.Div([
      Input('footer-nav-legal', 'n_clicks'),
      Input('footer-nav-privacy', 'n_clicks'),
      Input('footer-nav-cookies', 'n_clicks'),
-     Input('data-store', 'data')],
+     Input('metadata-store', 'data')],
     [State('current-page', 'data')]
 )
-def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, toxicity_clicks, indics_clicks, legal_clicks, privacy_clicks, cookies_clicks, data, current_page):
+def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_clicks, rechute_clicks, surv_clicks, toxicity_clicks, indics_clicks, legal_clicks, privacy_clicks, cookies_clicks, metadata, current_page):
     ctx = dash.callback_context
     
     if not ctx.triggered:
-        disabled = data is None
+        disabled = metadata is None
         if current_page is None:
             current_page = 'Home'
         
@@ -173,8 +173,8 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
-    if button_id == 'data-store':
-        disabled = data is None
+    if button_id == 'metadata-store':
+        disabled = metadata is None
         current_page = current_page or 'Home'
         
         styles = {
@@ -227,7 +227,7 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
     for page, btn_id in btn_styles.items():
         styles[btn_id] = 'btn btn-primary me-2 nav-button' if new_page == page else 'btn btn-secondary me-2 nav-button'
 
-    disabled = data is None
+    disabled = metadata is None
 
     return (new_page, styles['nav-home'], styles['nav-patients'],
             styles['nav-hemopathies'], styles['nav-procedures'], styles['nav-gvh'], styles['nav-relapse'], styles['nav-survival'], styles['nav-toxicity'], styles['nav-indics'],
@@ -236,12 +236,11 @@ def navigate(acc_clicks, logo_clicks, pat_clicks, p1_clicks, proc_clicks, gvh_cl
 @app.callback(
     Output('sidebar-content', 'children'),
     [Input('current-page', 'data'),
-     Input('data-store', 'data'),
      Input('metadata-store', 'data'),
      Input('pediatric-view', 'data')]
 )
-def update_sidebar(current_page, data, metadata, pediatric_view):
-    """Gère la sidebar selon la page active"""
+def update_sidebar(current_page, metadata, pediatric_view):
+    """Gère la sidebar selon la page active (basée sur les métadonnées, pas le dataset complet)"""
     if current_page in ('Legal', 'Privacy', 'Cookies'):
         content = html.Div([
             html.P('Legal and privacy information.', className='text-muted')
@@ -250,7 +249,7 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
 
     if current_page == 'Home':
         # Sidebar pour l'upload sur la page d'accueil
-        if data is None:
+        if metadata is None:
             # Pas de données : afficher l'upload ET le bouton test sample
             content = html.Div([
                 # Section upload classique
@@ -304,15 +303,9 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             ])
             return layouts.create_sidebar_layout('Data', content)
         else:
-            df = pd.DataFrame(data)
-            
-            # Utiliser les métadonnées si disponibles
-            if metadata:
-                original_shape = metadata.get('original_shape', (0, 0))
-                filename = metadata.get('filename', 'Unknown')
-            else:
-                original_shape = (len(df), len(df.columns))
-                filename = 'Data loaded'
+            # Utiliser les métadonnées (store léger) au lieu du dataset complet
+            original_shape = metadata.get('original_shape', (0, 0))
+            filename = metadata.get('filename', 'Unknown')
                 
             content = html.Div([
                 dbc.Alert([
@@ -337,84 +330,53 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             return layouts.create_sidebar_layout('Data', content)
 
     # Le reste du callback reste inchangé pour les autres pages
-    elif current_page == 'Patients' and data is not None:
+    elif current_page == 'Patients' and metadata is not None:
         # Sidebar avec filtres pour la page Patients
-        df = pd.DataFrame(data)
-        categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
-        if 'Year' in categorical_columns:
-            categorical_columns.remove('Year')
+        # categorical_columns est un paramètre mort de create_filter_controls : on passe []
+        years_options = [{'label': f'{year}', 'value': year} for year in metadata.get('years', [])]
         
-        years_options = []
-        if 'Year' in df.columns:
-            available_years = sorted(df['Year'].unique().tolist())
-            years_options = [{'label': f'{year}', 'value': year} for year in available_years]
-        
-        content = layouts.create_filter_controls(categorical_columns, years_options, pediatric_view)
+        content = layouts.create_filter_controls([], years_options, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
 
-    elif current_page == 'Patients' and data is not None:
-        # Sidebar avec filtres pour la page Patients
-        df = pd.DataFrame(data)
-        categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
-        if 'Year' in categorical_columns:
-            categorical_columns.remove('Year')
-        
-        years_options = []
-        if 'Year' in df.columns:
-            available_years = sorted(df['Year'].unique().tolist())
-            years_options = [{'label': f'{year}', 'value': year} for year in available_years]
-        
-        content = layouts.create_filter_controls(categorical_columns, years_options, pediatric_view)
-        return layouts.create_sidebar_layout('Parameters', content)
-    
-    elif current_page == 'Indications' and data is not None:
+    elif current_page == 'Indications' and metadata is not None:
         # Sidebar avec filtres pour la page Hemopathies
-        df = pd.DataFrame(data)
-        categorical_columns = df.select_dtypes(include=['object', 'category']).columns.tolist()
-        # Retirer les colonnes spéciales
-        for col in ['Year', 'Main Diagnosis', 'Subclass Diagnosis']:
-            if col in categorical_columns:
-                categorical_columns.remove(col)
+        # categorical_columns est un paramètre mort de create_hemopathies_filter_controls : on passe []
+        years_options = [{'label': f'{year}', 'value': year} for year in metadata.get('years', [])]
         
-        years_options = []
-        if 'Year' in df.columns:
-            available_years = sorted(df['Year'].unique().tolist())
-            years_options = [{'label': f'{year}', 'value': year} for year in available_years]
-        
-        content = layouts.create_hemopathies_filter_controls(categorical_columns, years_options, pediatric_view)
+        content = layouts.create_hemopathies_filter_controls([], years_options, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
     
-    elif current_page == 'Procedures' and data is not None:
-        content = layouts.create_procedures_sidebar_content(data, pediatric_view)
+    elif current_page == 'Procedures' and metadata is not None:
+        content = layouts.create_procedures_sidebar_content(metadata, pediatric_view)
         return layouts.create_sidebar_layout('Parameters', content)
 
-    elif current_page == 'GvH' and data is not None:  
+    elif current_page == 'GvH' and metadata is not None:  
         # Sidebar spécifique pour la page GvH
-        content = gvh_page.create_gvh_sidebar_content(data, pediatric_view)
+        content = gvh_page.create_gvh_sidebar_content(metadata, pediatric_view)
         return layouts.create_sidebar_layout('Parameters GvH', content)
     
-    elif current_page == 'Relapse' and data is not None:
+    elif current_page == 'Relapse' and metadata is not None:
         # Sidebar spécifique pour la page Rechute
-        content = relapse_page.create_relapse_sidebar_content(data, pediatric_view)
+        content = relapse_page.create_relapse_sidebar_content(metadata, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Relapse', content)
 
-    elif current_page == 'Survival' and data is not None:
+    elif current_page == 'Survival' and metadata is not None:
         # Sidebar spécifique pour la page Survie
-        content = survival_page.create_survival_sidebar_content(data, pediatric_view)
+        content = survival_page.create_survival_sidebar_content(metadata, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Survival', content)
 
-    elif current_page == 'Toxicity' and data is not None:
+    elif current_page == 'Toxicity' and metadata is not None:
         # Sidebar spécifique pour la page Toxicity
-        content = toxicity_page.create_toxicity_sidebar_content(data, pediatric_view)
+        content = toxicity_page.create_toxicity_sidebar_content(metadata, pediatric_view)
         return layouts.create_sidebar_layout('Parameters Toxicity', content)
 
-    elif current_page == 'Indicators' and data is not None:
-        content = indic_page.create_indicators_sidebar_content(data, pediatric_view)
+    elif current_page == 'Indicators' and metadata is not None:
+        content = indic_page.create_indicators_sidebar_content(metadata, pediatric_view)
         return layouts.create_sidebar_layout('Indicators', content)
 
     else:
         # Sidebar par défaut
-        if data is None:
+        if metadata is None:
             content = html.Div([
                 html.P('Return to the Home page to load data.', className='text-warning')
             ])
@@ -439,11 +401,11 @@ def update_pediatric_view(is_pediatric):
     [Output('sidebar-content', 'style'),
      Output('main-content', 'width')],
     [Input('current-page', 'data'),
-     Input('data-store', 'data')]
+     Input('metadata-store', 'data')]
 )
-def toggle_sidebar_visibility(current_page, data):
+def toggle_sidebar_visibility(current_page, metadata):
     """Cache la sidebar sur la page d'accueil quand aucune donnée n'est chargée"""
-    if current_page == 'Home' and data is None:
+    if current_page == 'Home' and metadata is None:
         # Cacher la sidebar et élargir le contenu principal
         return {'display': 'none'}, 12
     else:
@@ -454,6 +416,23 @@ def toggle_sidebar_visibility(current_page, data):
             'height': 'fit-content',
             'z-index': '1000'
         }, 10
+
+
+def _build_metadata(df_original, df_processed, filename):
+    """
+    Construit les métadonnées légères envoyées au navigateur (jamais de données patient).
+    'years' et 'n_patients' suffisent aux sidebars et à la navigation.
+    """
+    years = []
+    if 'Year' in df_processed.columns:
+        years = sorted(df_processed['Year'].astype(str).unique().tolist())
+    return {
+        'original_shape': df_original.shape,
+        'processed_shape': df_processed.shape,
+        'filename': filename,
+        'years': years,
+        'n_patients': len(df_processed),
+    }
 
 
 @app.callback(
@@ -491,11 +470,7 @@ def process_uploaded_file(contents, filename):
         processed_shape = df_processed.shape
         
         # Créer les métadonnées
-        metadata = {
-            'original_shape': original_shape,
-            'processed_shape': processed_shape,
-            'filename': filename
-        }
+        metadata = _build_metadata(df_original, df_processed, filename)
         
         # Message de succès avec les deux dimensions
         success_message = dbc.Alert([
@@ -712,11 +687,11 @@ def purge_data(confirm_clicks):
   
 @app.callback(
     Output("purge-data-button", "style"),
-    [Input("data-store", "data")]
+    [Input("metadata-store", "data")]
 )
-def toggle_purge_button_visibility(data):
+def toggle_purge_button_visibility(metadata):
     """Affiche le bouton Purge data seulement quand des données sont chargées"""
-    if data is not None:
+    if metadata is not None:
         return {'display': 'block'}
     else:
         return {'display': 'none'}
@@ -755,11 +730,7 @@ def load_test_sample(n_clicks):
         processed_shape = df_processed.shape
         
         # Créer les métadonnées
-        metadata = {
-            'original_shape': original_shape,
-            'processed_shape': processed_shape,
-            'filename': 'test_sample.csv (sample data)'
-        }
+        metadata = _build_metadata(df_original, df_processed, 'test_sample.csv (sample data)')
         
         # Message de succès
         success_message = dbc.Alert([
