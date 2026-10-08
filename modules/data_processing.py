@@ -659,3 +659,95 @@ def transform_gvhc_scores(df):
             print(f"Transformation GVHc appliquée: {before_limited} 'Limited' -> 'Mild', {before_extensive} 'Extensive' -> 'Severe'")
     
     return df_transformed
+
+
+# ---------------------------------------------------------------------------
+# Codec compact pour les dcc.Store (phase 4 perf)
+# ---------------------------------------------------------------------------
+# Format records (to_dict('records')) répète les noms de colonnes et les
+# valeurs texte sur chaque ligne : ~43 Mo pour 16 000 lignes. Le payload
+# compact utilise l'orientation 'split' et un codebook pour les colonnes
+# texte répétitives. Aucune donnée n'est conservée côté serveur : ces
+# fonctions ne font que transformer le DataFrame à la volée.
+
+# Au-delà de ce ratio cardinalité/lignes, un codebook ne compresse rien
+# (ex : identifiants patients) : la colonne reste en clair.
+_CODEBOOK_MAX_RATIO = 0.5
+
+
+def _json_safe(value):
+    """Convertit les scalaires numpy en types Python natifs (JSON-sérialisables)."""
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def df_to_store_payload(df, columns=None):
+    """
+    Sérialise un DataFrame en payload JSON compact pour un dcc.Store.
+
+    - orientation 'split' : {'columns', 'data'} (noms de colonnes une seule fois)
+    - colonnes texte répétitives encodées en entiers + 'codebook'
+    - dates en ISO 8601 (non ambigu ; les pages re-parsent via pd.to_datetime)
+    - valeurs manquantes : None (sérialisé null)
+
+    Args:
+        df (pd.DataFrame): DataFrame à sérialiser
+        columns (list[str] | None): sous-ensemble de colonnes (None = toutes)
+
+    Returns:
+        dict: payload JSON-compatible
+    """
+    if columns is not None:
+        cols = [c for c in columns if c in df.columns]
+        df = df[cols]
+
+    n_rows = max(len(df), 1)
+    codebook = {}
+    encoded_cols = {}
+
+    for col in df.columns:
+        series = df[col]
+        if pd.api.types.is_datetime64_any_dtype(series):
+            # ISO complet pour ne pas perdre une éventuelle composante horaire
+            as_str = series.dt.strftime('%Y-%m-%dT%H:%M:%S')
+            encoded_cols[col] = as_str.where(series.notna(), None).tolist()
+        elif series.dtype == object and 0 < series.nunique(dropna=True) <= _CODEBOOK_MAX_RATIO * n_rows:
+            cat = pd.Categorical(series)
+            codebook[col] = [_json_safe(v) for v in cat.categories]
+            encoded_cols[col] = [None if code < 0 else int(code) for code in cat.codes]
+        else:
+            encoded_cols[col] = [_json_safe(v) if pd.notna(v) else None for v in series.tolist()]
+
+    columns_list = list(df.columns)
+    rows = [list(row) for row in zip(*(encoded_cols[c] for c in columns_list))]
+
+    return {'columns': columns_list, 'data': rows, 'codebook': codebook}
+
+
+def store_payload_to_df(payload):
+    """
+    Reconstruit un DataFrame depuis un payload créé par df_to_store_payload.
+
+    Les colonnes encodées (codebook) redeviennent des colonnes texte (object)
+    avec None pour les valeurs manquantes, comme après un pd.DataFrame(records).
+    Les dates restent des chaînes ISO : les pages les parsent déjà elles-mêmes.
+
+    Args:
+        payload (dict | None): payload du store (None si pas de données)
+
+    Returns:
+        pd.DataFrame | None
+    """
+    if payload is None:
+        return None
+
+    df = pd.DataFrame(payload['data'], columns=payload['columns'])
+
+    for col, values in (payload.get('codebook') or {}).items():
+        if col in df.columns:
+            # Après reconstruction, une colonne de codes contenant des None
+            # est typée float (NaN) : normaliser avant indexation.
+            df[col] = [None if pd.isna(code) else values[int(code)] for code in df[col]]
+
+    return df
