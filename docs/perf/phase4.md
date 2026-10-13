@@ -34,6 +34,20 @@ Date : 2025 (branche `perf/phase-0-baseline`). Jeu de mesure : données **synth�
 - Page GvH : les 3 callbacks restants sur le store complet basculent sur `data-store-gvh` (colonnes vérifiées suffisantes).
 - Décodage codebook vectorisé numpy (commit `ba33766`) : 380 → 88 ms.
 
+### 4.6 — Stores allégés par page (commit `80f1461`)
+
+- 6 nouveaux stores dédiés : `data-store-home` (0,08 Mo), `-hemopathies` (1,15), `-procedures` (3,83), `-relapse` (1,40), `-toxicity` (1,40), `-indics` (2,42), contre 7,1 Mo pour le store complet.
+- Patients utilise `data-store-viz` (1,52 Mo) pour tous ses callbacks, Survival `data-store-survival` (1,94), GvH `data-store-gvh` (1,76).
+- **Plus aucun callback de page n'utilise le store complet** (test de régression `test_no_page_callback_uses_full_store`).
+- Page Procedures : les colonnes de prophylaxie, détectées dynamiquement par scan Oui/Non dans le callback, sont incluses au chargement en appliquant la même règle.
+- Sécurité contre les omissions silencieuses (`'Col' in df.columns`) : `tests/test_page_stores.py` exécute chaque callback avec le store complet puis le store de page (2 combos de filtres) et compare les sorties sérialisées.
+
+### 4.7 — Fusion des callbacks à Inputs identiques (commits `dd1de3c`, `296af30`, `295085e`)
+
+Inventaire via `app.callback_map` : 8 groupes de callbacks (15 callbacks) partageaient strictement les mêmes Inputs → fusionnés en 8 callbacks (une requête au lieu de 2-3 par changement de filtre) : relapse (3→1), toxicity (3→1), patients (2→1), hemopathies (2→1), gvh manquants (2→1), survival courbes (2→1), survival manquants (2→1), indicators manquants (2→1).
+
+Équivalence prouvée : sorties sérialisées capturées **avant** fusion (`tests/golden/callback_outputs.json.gz`), comparées après fusion dans `tests/test_merged_callbacks.py`.
+
 ## Mesures avant/après (16 000 lignes synthétiques)
 
 | Store | Avant (records) | Après (codec) | Ratio |
@@ -43,6 +57,21 @@ Date : 2025 (branche `perf/phase-0-baseline`). Jeu de mesure : données **synth�
 | `data-store-gvh` | 8,0 Mo | 1,8 Mo | 4,5× |
 | `data-store-viz` | 11,8 Mo | 1,5 Mo | 7,7× |
 | navigation / sidebars | 43,8 Mo | ~0,3 ko | — |
+
+Volume par requête de callback selon la page (avant : 43,8 Mo partout) :
+
+| Page | Store utilisé | Taille |
+|---|---|---|
+| Home | `data-store-home` | 0,08 Mo |
+| Patients | `data-store-viz` | 1,5 Mo |
+| Indications | `data-store-hemopathies` | 1,2 Mo |
+| Procedures | `data-store-procedures` | 3,8 Mo |
+| GvH | `data-store-gvh` | 1,8 Mo |
+| Relapse / Toxicity | stores dédiés | 1,4 Mo |
+| Survival | `data-store-survival` | 1,9 Mo |
+| Indicators | `data-store-indics` | 2,4 Mo |
+
+Requêtes par changement de filtre : réduites par les fusions (ex. Relapse : 3 → 1 ; Survival : 4 → 2). Navigation/sidebar/purge : ~0,3 ko. **À re-mesurer dans les devtools en conditions réelles.**
 
 Coût CPU par callback (médiane, machine de dev) :
 
@@ -55,15 +84,15 @@ Requêtes par changement d'onglet : les callbacks de navigation/sidebar/purge ne
 
 ## Points du plan évalués et écartés
 
-- **Agrégats pré-calculés au chargement (item 1)** : écarté. Les onglets appliquent des filtres dynamiques (année, âge, diagnostic) et affichent des données ligne à ligne (boxplots, datatables de données manquantes, courbes KM/risques compétitifs) : l'agrégat pré-calculé ne peut pas remplacer les lignes. Le codec + stores slim apportent l'essentiel du gain sans figer les agrégations.
-- **Clientside callbacks (item 4)** : écarté pour l'instant. Après la phase 3, les calculs serveur sont de l'ordre de 30–90 ms ; le coût dominant était le transfert (résolu par le codec). Réévaluer si les mesures réelles montrent un calcul > 500 ms.
-- **Stores par page dédiés** : écarté (risque/récompense défavorable). Déduire statiquement les colonnes de chaque page risque d'omettre une colonne utilisée via un garde-fou `'Col' in df.columns`, ce qui changerait silencieusement les résultats. Les slim stores existants (survival/gvh/viz) couvrent déjà les pages les plus lourdes.
+- **Agrégats pré-calculés au chargement (item 1)** : écarté. Les onglets appliquent des filtres dynamiques (année, âge, diagnostic) et affichent des données ligne à ligne (boxplots, datatables de données manquantes, courbes KM/risques compétitifs) : l'agrégat pré-calculé ne peut pas remplacer les lignes. Le codec + stores par page apportent l'essentiel du gain sans figer les agrégations.
+- **Clientside callbacks (item 4)** : écarté pour l'instant. Après la phase 3, les calculs serveur sont de l'ordre de 30–90 ms ; le coût dominant était le transfert (résolu par le codec + stores par page). Réévaluer si les mesures réelles montrent un calcul > 500 ms.
+- **Stores par page** : implémenté (4.6) avec harnais d'équivalence, contrairement à l'estimation initiale de risque — le risque d'omission de colonne est couvert par `tests/test_page_stores.py`.
 
 ## Vérifications
 
-- Tests : **10 passed** (4 golden masters + 6 codec) après chaque commit.
+- Tests : **28 passed** (4 golden masters + 6 codec + 10 stores par page + 8 callbacks fusionnés) après chaque commit.
 - `import app` OK (Dash valide les signatures de callbacks au chargement).
-- Comportement fonctionnel : équivalence du codec prouvée par test ; aucun calcul modifié dans cette phase.
+- Comportement fonctionnel : équivalence du codec et des fusions prouvée par tests ; calculs inchangés (phase 3).
 - Conformité : aucune persistance serveur ajoutée ; tous les stores restent en `memory`.
 
 ## Reste à faire (validation terrain)
