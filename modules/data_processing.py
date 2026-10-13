@@ -747,7 +747,13 @@ def store_payload_to_df(payload):
     for col, values in (payload.get('codebook') or {}).items():
         if col in df.columns:
             # Après reconstruction, une colonne de codes contenant des None
-            # est typée float (NaN) : normaliser avant indexation.
-            df[col] = [None if pd.isna(code) else values[int(code)] for code in df[col]]
+            # est typée float (NaN) : indexation vectorisée avec masque.
+            codes = df[col].to_numpy()
+            mask = pd.isna(codes)
+            decoded = np.empty(len(codes), dtype=object)
+            decoded[mask] = None
+            if (~mask).any():
+                decoded[~mask] = np.asarray(values, dtype=object)[codes[~mask].astype(np.int64)]
+            df[col] = decoded
 
     return df
