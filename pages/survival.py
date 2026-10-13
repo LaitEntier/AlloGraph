@@ -1743,18 +1743,7 @@ def register_callbacks(app):
         )
         return fig
     
-    @app.callback(
-        Output('survival-global-curve', 'children'),
-        [Input('data-store-survival', 'data'),  # Use slim store
-         Input('current-page', 'data'),
-         Input('survival-max-duration', 'value'),
-         Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value'),
-         Input('survival-custom-age-switch', 'value'),
-         Input('survival-custom-age-slider', 'value'),
-         Input('survival-malignancy-filter', 'value')]
-        # Note: No prevent_initial_call - must run when page loads with data
-    )
+    # Helpers du callback fusionné update_survival_curves (phase 4 perf)
     def update_global_survival_curve(data, current_page, max_duration, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour la courbe de survie globale"""
         if current_page != 'Survival' or data is None:
@@ -1817,8 +1806,11 @@ def register_callbacks(app):
         # Convertir la figure en dict pour le callback
         return fig.to_dict() if fig else None, stats_df.to_dict('records') if not stats_df.empty else []
     
+    # Callback fusionné (phase 4 perf) : les 2 helpers (global + par année)
+    # avaient des Inputs identiques — une seule requête au lieu de deux.
     @app.callback(
-        [Output('survival-curves-by-year', 'children'),
+        [Output('survival-global-curve', 'children'),
+         Output('survival-curves-by-year', 'children'),
          Output('survival-stats-table', 'children')],
         [Input('data-store-survival', 'data'),  # Use slim store
          Input('current-page', 'data'),
@@ -1830,6 +1822,16 @@ def register_callbacks(app):
          Input('survival-malignancy-filter', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
+    def update_survival_curves(data, current_page, max_duration, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+        """Courbe de survie globale + courbes par année + tableau de stats"""
+        global_curve = update_global_survival_curve(
+            data, current_page, max_duration, selected_years,
+            selected_age_groups, use_custom_age, custom_age_range, malignancy_filter)
+        by_year, stats_table = update_survival_curves_by_year(
+            data, current_page, max_duration, selected_years,
+            selected_age_groups, use_custom_age, custom_age_range, malignancy_filter)
+        return global_curve, by_year, stats_table
+
     def update_survival_curves_by_year(data, current_page, max_duration, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Met à jour les courbes de survie par année et le tableau des statistiques"""
         if current_page != 'Survival' or data is None:
@@ -2114,18 +2116,7 @@ def register_callbacks(app):
             ], color='danger')
             return error_alert, error_alert, error_alert
     
-    @app.callback(
-        Output('survival-missing-summary-table', 'children'),
-        [Input('data-store-survival', 'data'), 
-         Input('current-page', 'data'),
-         Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value'),
-         Input('survival-custom-age-switch', 'value'),
-         Input('survival-custom-age-slider', 'value'),
-         Input('survival-malignancy-filter', 'value'),
-         Input('survival-tabs-0', 'value')],
-        prevent_initial_call=False
-    )
+    # Helpers du callback fusionné update_survival_missing_panels (phase 4 perf)
     def survival_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, active_tab):
         """Gère le tableau de résumé des données manquantes pour Survie"""
         
@@ -2218,20 +2209,6 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
-    @app.callback(
-        [Output('survival-missing-detail-table', 'children'),
-         Output('export-missing-survival-button', 'disabled'),
-         Output('survival-missing-store', 'data')],
-        [Input('data-store-survival', 'data'), 
-         Input('current-page', 'data'),
-         Input('survival-year-filter', 'value'),
-         Input('survival-age-filter', 'value'),
-         Input('survival-custom-age-switch', 'value'),
-         Input('survival-custom-age-slider', 'value'),
-         Input('survival-malignancy-filter', 'value'),
-         Input('survival-tabs-0', 'value')],
-        prevent_initial_call=False
-    )
     def survival_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, active_tab):
         """Gère le tableau détaillé des patients avec données manquantes pour Survie"""
         
@@ -2319,6 +2296,33 @@ def register_callbacks(app):
             
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
+
+    # Callback fusionné (phase 4 perf) : les 2 helpers ci-dessus avaient des
+    # Inputs identiques — une seule requête au lieu de deux par changement de filtre.
+    @app.callback(
+        [Output('survival-missing-summary-table', 'children'),
+         Output('survival-missing-detail-table', 'children'),
+         Output('export-missing-survival-button', 'disabled'),
+         Output('survival-missing-store', 'data')],
+        [Input('data-store-survival', 'data'),
+         Input('current-page', 'data'),
+         Input('survival-year-filter', 'value'),
+         Input('survival-age-filter', 'value'),
+         Input('survival-custom-age-switch', 'value'),
+         Input('survival-custom-age-slider', 'value'),
+         Input('survival-malignancy-filter', 'value'),
+         Input('survival-tabs-0', 'value')],
+        prevent_initial_call=False
+    )
+    def update_survival_missing_panels(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, active_tab):
+        """Tableaux résumé + détail des données manquantes Survie"""
+        summary = survival_missing_summary_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter, active_tab)
+        detail, export_disabled, missing_store = survival_missing_detail_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter, active_tab)
+        return summary, detail, export_disabled, missing_store
 
     @app.callback(
         Output("download-missing-survival-excel", "data"),

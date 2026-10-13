@@ -3961,20 +3961,7 @@ def register_callbacks(app):
         _, indicator_name = get_variables_for_indicator(selected_indicator)
         return f"for {indicator_name}"
     
-    @app.callback(
-        Output('indicators-missing-summary-table', 'children'),
-        [Input('data-store-indics', 'data'), 
-         Input('current-page', 'data'),
-         Input('selected-indicator-store', 'data'),
-         Input('analysis-mode-store', 'data'),
-         Input('year-selection-sidebar', 'value'),
-         Input('years-radio-sidebar', 'value'),
-         Input('indicators-age-filter', 'value'),
-         Input('indicators-custom-age-switch', 'value'),
-         Input('indicators-custom-age-slider', 'value'),
-         Input('indicators-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
+    # Helpers du callback fusionné update_indicators_missing_panels (phase 4 perf)
     def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Indicators"""
         
@@ -4054,12 +4041,15 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
         
+    # Callback fusionné (phase 4 perf) : les 2 helpers ci-dessous avaient des
+    # Inputs identiques — une seule requête au lieu de deux par changement de filtre.
     @app.callback(
-        [Output('indicators-missing-detail-table', 'children'),
+        [Output('indicators-missing-summary-table', 'children'),
+         Output('indicators-missing-detail-table', 'children'),
          Output('export-missing-indicators-button', 'disabled'),
          Output('indicators-missing-store', 'data'),
          Output('indicators-name-store', 'data')],
-        [Input('data-store-indics', 'data'), 
+        [Input('data-store-indics', 'data'),
          Input('current-page', 'data'),
          Input('selected-indicator-store', 'data'),
          Input('analysis-mode-store', 'data'),
@@ -4071,6 +4061,18 @@ def register_callbacks(app):
          Input('indicators-malignancy-filter', 'value')],
         prevent_initial_call=False
     )
+    def update_indicators_missing_panels(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+        """Tableaux résumé + détail des données manquantes Indicators"""
+        summary = indicators_missing_summary_callback(
+            data, current_page, selected_indicator, analysis_mode, selected_year,
+            selected_years, selected_age_groups, use_custom_age, custom_age_range,
+            malignancy_filter)
+        detail, export_disabled, missing_store, name_store = indicators_missing_detail_callback(
+            data, current_page, selected_indicator, analysis_mode, selected_year,
+            selected_years, selected_age_groups, use_custom_age, custom_age_range,
+            malignancy_filter)
+        return summary, detail, export_disabled, missing_store, name_store
+
     def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         

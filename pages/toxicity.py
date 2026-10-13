@@ -366,17 +366,7 @@ def register_callbacks(app):
         slider_id='toxicity-custom-age-slider'
     )
 
-    # Callback principal pour le graphique NRM
-    @app.callback(
-        Output('toxicity-nrm-graph', 'children'),
-        [Input('toxicity-year-filter', 'value'),
-         Input('toxicity-age-filter', 'value'),
-         Input('toxicity-custom-age-switch', 'value'),
-         Input('toxicity-custom-age-slider', 'value'),
-         Input('toxicity-malignancy-filter', 'value'),
-         Input('data-store-toxicity', 'data'),
-         Input('current-page', 'data')]
-    )
+    # Helper du callback fusionné update_toxicity_panels (phase 4 perf)
     def update_toxicity_nrm_graph(selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
         """Met à jour le graphique d'analyse des risques compétitifs pour la TRM"""
 
@@ -403,17 +393,6 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during TRM graph creation: {str(e)}", color="danger")
 
-    @app.callback(
-        Output('toxicity-missing-summary-table', 'children'),
-        [Input('data-store-toxicity', 'data'),
-         Input('current-page', 'data'),
-         Input('toxicity-year-filter', 'value'),
-         Input('toxicity-age-filter', 'value'),
-         Input('toxicity-custom-age-switch', 'value'),
-         Input('toxicity-custom-age-slider', 'value'),
-         Input('toxicity-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
     def toxicity_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Toxicity"""
 
@@ -515,19 +494,6 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
-    @app.callback(
-        [Output('toxicity-missing-detail-table', 'children'),
-         Output('export-missing-toxicity-button', 'disabled'),
-         Output('toxicity-missing-store', 'data')],
-        [Input('data-store-toxicity', 'data'),
-         Input('current-page', 'data'),
-         Input('toxicity-year-filter', 'value'),
-         Input('toxicity-age-filter', 'value'),
-         Input('toxicity-custom-age-switch', 'value'),
-         Input('toxicity-custom-age-slider', 'value'),
-         Input('toxicity-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
     def toxicity_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Toxicity"""
 
@@ -598,6 +564,37 @@ def register_callbacks(app):
 
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
+
+    # Callback fusionné (phase 4 perf) : les 3 helpers ci-dessus avaient des
+    # Inputs identiques — une seule requête au lieu de trois par changement de filtre.
+    @app.callback(
+        [Output('toxicity-nrm-graph', 'children'),
+         Output('toxicity-missing-summary-table', 'children'),
+         Output('toxicity-missing-detail-table', 'children'),
+         Output('export-missing-toxicity-button', 'disabled'),
+         Output('toxicity-missing-store', 'data')],
+        [Input('data-store-toxicity', 'data'),
+         Input('current-page', 'data'),
+         Input('toxicity-year-filter', 'value'),
+         Input('toxicity-age-filter', 'value'),
+         Input('toxicity-custom-age-switch', 'value'),
+         Input('toxicity-custom-age-slider', 'value'),
+         Input('toxicity-malignancy-filter', 'value')],
+        prevent_initial_call=False
+    )
+    def update_toxicity_panels(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+        """Met à jour le graphique et les tableaux de données manquantes de la page Toxicity"""
+        graph = update_toxicity_nrm_graph(
+            selected_years=selected_years, selected_age_groups=selected_age_groups,
+            use_custom_age=use_custom_age, custom_age_range=custom_age_range,
+            malignancy_filter=malignancy_filter, data=data, current_page=current_page)
+        summary = toxicity_missing_summary_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter)
+        detail, export_disabled, missing_store = toxicity_missing_detail_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter)
+        return graph, summary, detail, export_disabled, missing_store
 
     @app.callback(
         Output("download-missing-toxicity-excel", "data"),

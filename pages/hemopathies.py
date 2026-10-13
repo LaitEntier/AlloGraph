@@ -173,18 +173,7 @@ def register_callbacks(app):
         slider_id='hemopathies-custom-age-slider'
     )
     
-    @app.callback(
-        Output('hemopathies-barplot-simple', 'children'),
-        [Input('data-store-hemopathies', 'data'),
-         Input('current-page', 'data'),
-         Input('x-axis-dropdown', 'value'),
-         Input('stack-variable-dropdown', 'value'),
-         Input('year-filter-checklist', 'value'),
-         Input('hemopathies-age-filter', 'value'),
-         Input('hemopathies-malignancy-filter', 'value'),
-         Input('hemopathies-custom-age-switch', 'value'),
-         Input('hemopathies-custom-age-slider', 'value')]
-    )
+    # Helpers du callback fusionné update_hemopathies_bar_charts (phase 4 perf)
     def update_simple_barplot(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Barplot simple - distribution des diagnostics du plus au moins commun"""
         if current_page != 'Indications' or data is None:
@@ -294,8 +283,11 @@ def register_callbacks(app):
         except Exception as e:
             return html.Div(f'Erreur: {str(e)}', className='text-danger text-center')
 
+    # Callback fusionné (phase 4 perf) : les 2 helpers ci-dessus avaient des
+    # Inputs identiques — une seule requête au lieu de deux par changement de filtre.
     @app.callback(
-        Output('hemopathies-barplot-normalized', 'children'),
+        [Output('hemopathies-barplot-simple', 'children'),
+         Output('hemopathies-barplot-normalized', 'children')],
         [Input('data-store-hemopathies', 'data'),
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
@@ -306,6 +298,16 @@ def register_callbacks(app):
          Input('hemopathies-custom-age-switch', 'value'),
          Input('hemopathies-custom-age-slider', 'value')]
     )
+    def update_hemopathies_bar_charts(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
+        """Barplots simple et normalisé de la page Indications"""
+        simple = update_simple_barplot(
+            data, current_page, x_axis, stack_var, selected_years,
+            selected_age_groups, malignancy_filter, use_custom_age, custom_age_range)
+        normalized = update_normalized_barplot(
+            data, current_page, x_axis, stack_var, selected_years,
+            selected_age_groups, malignancy_filter, use_custom_age, custom_age_range)
+        return simple, normalized
+
     def update_normalized_barplot(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, use_custom_age, custom_age_range):
         """Barplot normalisé à 100% - même ordre que le barplot simple"""
         if current_page != 'Indications' or data is None:

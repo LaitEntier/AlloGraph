@@ -209,20 +209,7 @@ def register_callbacks(app):
         
         return color_map
     
-    @app.callback(
-        Output('patients-normalized-chart', 'children'),
-        [Input('data-store-viz', 'data'),  # Use slim store for faster transfer
-         Input('current-page', 'data'),
-         Input('x-axis-dropdown', 'value'),
-         Input('stack-variable-dropdown', 'value'),
-         Input('year-filter-checklist', 'value'),
-         Input('patients-age-filter', 'value'),
-         Input('patients-malignancy-filter', 'value'),
-         Input('pediatric-view', 'data'),
-         Input('patients-custom-age-switch', 'value'),
-         Input('patients-custom-age-slider', 'value')]
-        # Note: No prevent_initial_call - must run when page loads with data
-    )
+    # Helpers du callback fusionné update_patients_bar_charts (phase 4 perf)
     def update_normalized_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view, use_custom_age, custom_age_range):
         """Graphique 1: Barplot normalisé à 100%"""
         if current_page != 'Patients' or data is None:
@@ -310,8 +297,11 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f'Error: {str(e)}', color='danger')
 
+    # Callback fusionné (phase 4 perf) : les 2 helpers ci-dessus avaient des
+    # Inputs identiques — une seule requête au lieu de deux par changement de filtre.
     @app.callback(
-        Output('patients-distribution-chart', 'children'),
+        [Output('patients-normalized-chart', 'children'),
+         Output('patients-distribution-chart', 'children')],
         [Input('data-store-viz', 'data'),  # Use slim store
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
@@ -324,6 +314,18 @@ def register_callbacks(app):
          Input('patients-custom-age-slider', 'value')]
         # Note: No prevent_initial_call - must run when page loads with data
     )
+    def update_patients_bar_charts(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view, use_custom_age, custom_age_range):
+        """Barplots normalisé et distribution de la page Patients"""
+        normalized = update_normalized_chart(
+            data, current_page, x_axis, stack_var, selected_years,
+            selected_age_groups, malignancy_filter, pediatric_view,
+            use_custom_age, custom_age_range)
+        distribution = update_distribution_chart(
+            data, current_page, x_axis, stack_var, selected_years,
+            selected_age_groups, malignancy_filter, pediatric_view,
+            use_custom_age, custom_age_range)
+        return normalized, distribution
+
     def update_distribution_chart(data, current_page, x_axis, stack_var, selected_years, selected_age_groups, malignancy_filter, pediatric_view, use_custom_age, custom_age_range):
         """Graphique 2: Barplot distribution"""
         if current_page != 'Patients' or data is None:

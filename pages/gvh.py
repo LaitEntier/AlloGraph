@@ -379,17 +379,6 @@ def register_callbacks(app):
             traceback.print_exc()
             return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
     
-    @app.callback(
-        Output('gvh-missing-summary-table', 'children'),
-        [Input('data-store-gvh', 'data'), 
-         Input('current-page', 'data'),
-         Input('gvh-year-filter', 'value'),
-         Input('gvh-age-filter', 'value'),
-         Input('gvh-custom-age-switch', 'value'),
-         Input('gvh-custom-age-slider', 'value'),
-         Input('gvh-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
     def gvh_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour GvH"""
         
@@ -496,19 +485,6 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
-    @app.callback(
-        [Output('gvh-missing-detail-table', 'children'),
-         Output('export-missing-gvh-button', 'disabled'),
-         Output('gvh-missing-store', 'data')],
-        [Input('data-store-gvh', 'data'), 
-         Input('current-page', 'data'),
-         Input('gvh-year-filter', 'value'),
-         Input('gvh-age-filter', 'value'),
-         Input('gvh-custom-age-switch', 'value'),
-         Input('gvh-custom-age-slider', 'value'),
-         Input('gvh-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
     def gvh_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour GvH"""
         
@@ -588,6 +564,32 @@ def register_callbacks(app):
             
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
+
+    # Callback fusionné (phase 4 perf) : les 2 helpers ci-dessus avaient des
+    # Inputs identiques — une seule requête au lieu de deux par changement de filtre.
+    @app.callback(
+        [Output('gvh-missing-summary-table', 'children'),
+         Output('gvh-missing-detail-table', 'children'),
+         Output('export-missing-gvh-button', 'disabled'),
+         Output('gvh-missing-store', 'data')],
+        [Input('data-store-gvh', 'data'), 
+         Input('current-page', 'data'),
+         Input('gvh-year-filter', 'value'),
+         Input('gvh-age-filter', 'value'),
+         Input('gvh-custom-age-switch', 'value'),
+         Input('gvh-custom-age-slider', 'value'),
+         Input('gvh-malignancy-filter', 'value')],
+        prevent_initial_call=False
+    )
+    def update_gvh_missing_panels(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+        """Tableaux résumé + détail des données manquantes GvH"""
+        summary = gvh_missing_summary_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter)
+        detail, export_disabled, missing_store = gvh_missing_detail_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter)
+        return summary, detail, export_disabled, missing_store
 
     @app.callback(
         Output("download-missing-gvh-excel", "data"),  # ← ID changé
