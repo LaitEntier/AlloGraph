@@ -499,7 +499,7 @@ def register_callbacks(app):
         [Output('patients-datatable', 'children'),
         Output('export-csv-button', 'disabled'),
         Output('patients-stats-store', 'data')],
-        [Input('data-store', 'data'),
+        [Input('data-store-viz', 'data'),
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
         Input('patients-age-filter', 'value'),
@@ -960,7 +960,7 @@ def register_callbacks(app):
       
     @callback(
         Output('patients-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-viz', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),
@@ -1051,7 +1051,7 @@ def register_callbacks(app):
         [Output('patients-missing-detail-table', 'children'),
          Output('export-missing-patients-button', 'disabled'),
          Output('patients-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-viz', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
          Input('patients-age-filter', 'value'),

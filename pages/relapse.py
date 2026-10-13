@@ -354,7 +354,7 @@ def register_callbacks(app):
          Input('relapse-custom-age-switch', 'value'),
          Input('relapse-custom-age-slider', 'value'),
          Input('relapse-malignancy-filter', 'value'),
-         Input('data-store', 'data'),
+         Input('data-store-relapse', 'data'),
          Input('current-page', 'data')]  # Ajouter current-page comme input
     )
     def update_relapse_main_graph(selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
@@ -387,7 +387,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output('relapse-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-relapse', 'data'), 
          Input('current-page', 'data'),
          Input('relapse-year-filter', 'value'),
          Input('relapse-age-filter', 'value'),
@@ -500,7 +500,7 @@ def register_callbacks(app):
         [Output('relapse-missing-detail-table', 'children'),
          Output('export-missing-relapse-button', 'disabled'),
          Output('relapse-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-relapse', 'data'), 
          Input('current-page', 'data'),
          Input('relapse-year-filter', 'value'),
          Input('relapse-age-filter', 'value'),

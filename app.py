@@ -442,7 +442,13 @@ def _build_metadata(df_original, df_processed, filename):
      Output('upload-status', 'children'),
      Output('data-store-survival', 'data'),
      Output('data-store-gvh', 'data'),
-     Output('data-store-viz', 'data')],
+     Output('data-store-viz', 'data'),
+     Output('data-store-home', 'data'),
+     Output('data-store-hemopathies', 'data'),
+     Output('data-store-procedures', 'data'),
+     Output('data-store-relapse', 'data'),
+     Output('data-store-toxicity', 'data'),
+     Output('data-store-indics', 'data')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename'),
     prevent_initial_call=True
@@ -450,7 +456,7 @@ def _build_metadata(df_original, df_processed, filename):
 def process_uploaded_file(contents, filename):
     """Traite l'upload de fichier - callback global"""
     if contents is None:
-        return (dash.no_update,) * 6
+        return (dash.no_update,) * 12
     
     try:
         content_type, content_string = contents.split(',')
@@ -466,6 +472,8 @@ def process_uploaded_file(contents, filename):
         else:
             return (dash.no_update, dash.no_update,
                     dbc.Alert('Unsupported file format', color='danger'),
+                    dash.no_update, dash.no_update, dash.no_update,
+                    dash.no_update, dash.no_update, dash.no_update,
                     dash.no_update, dash.no_update, dash.no_update)
         
         # Stocker les dimensions originales
@@ -497,13 +505,19 @@ def process_uploaded_file(contents, filename):
         # Stores slim calculés ici (une seule fois) : plus de callback en chaîne
         # qui renverrait le dataset complet au serveur.
         survival_payload, gvh_payload, viz_payload = _create_slim_stores(df_processed)
+        page_stores = _build_page_stores(df_processed)
 
         return (df_to_store_payload(df_processed), metadata, success_message,
-                survival_payload, gvh_payload, viz_payload)
+                survival_payload, gvh_payload, viz_payload,
+                page_stores['home'], page_stores['hemopathies'],
+                page_stores['procedures'], page_stores['relapse'],
+                page_stores['toxicity'], page_stores['indics'])
 
     except Exception as e:
         return (dash.no_update, dash.no_update,
                 dbc.Alert(f'Error during loading: {str(e)}', color='danger'),
+                dash.no_update, dash.no_update, dash.no_update,
+                dash.no_update, dash.no_update, dash.no_update,
                 dash.no_update, dash.no_update, dash.no_update)
 
 
@@ -557,6 +571,88 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     return (df_to_store_payload(df_survival),
             df_to_store_payload(df_gvh),
             df_to_store_payload(df_viz))
+
+
+# Colonnes de filtrage transverses (apply_age_filter / apply_malignancy_filter)
+_FILTER_COLS = ['Age At Diagnosis', 'Age Group Detailed', 'Diagnosis Category']
+
+# Stores dédiés par page : uniquement les colonnes utilisées par chaque page.
+# Vérifié par tests/test_page_stores.py (équivalence des sorties de callbacks
+# entre store complet et store de page).
+_PAGE_STORE_COLUMNS = {
+    'home': ['Year'],
+    'hemopathies': [
+        'Long ID', 'Year', 'Main Diagnosis', 'Subclass Diagnosis', 'Age Groups',
+        'Blood Group', 'Rhesus Factor', 'Disease Status At Treatment',
+        'Performance Status At Treatment Scale', 'Performance Status At Treatment Score',
+    ] + _FILTER_COLS,
+    'procedures': [
+        'Long ID', 'Year', 'Treatment Date', 'Date Diagnosis', 'Date Of Birth',
+        'Date Of Last Follow Up', 'Status Last Follow Up', 'Age At Diagnosis',
+        'Age Groups', 'Donor Type', 'Source Stem Cells', 'Match Type',
+        'Donor Match Category', 'Conditioning Regimen Type', 'Greffes',
+        'Main Diagnosis', 'Subclass Diagnosis', 'TBI', 'Anc Recovery',
+        'Date Anc Recovery', 'Platelet Reconstitution', 'Date Platelet Reconstitution',
+        'Prep Regimen Bendamustine', 'Prep Regimen Busulfan',
+        'Prep Regimen Cyclophosphamide', 'Prep Regimen Fludarabine',
+        'Prep Regimen Melphalan', 'Prep Regimen Thiotepa', 'Prep Regimen Treosulfan',
+        'CMV Status Donor', 'CMV Status Patient',
+    ] + _FILTER_COLS,
+    'relapse': [
+        'Long ID', 'Year', 'Treatment Date', 'Date Of Last Follow Up',
+        'Status Last Follow Up', 'First Relapse', 'First Relapse Date',
+    ] + _FILTER_COLS,
+    'toxicity': [
+        'Long ID', 'Year', 'Treatment Date', 'Date Of Last Follow Up',
+        'Status Last Follow Up', 'First Relapse', 'First Relapse Date',
+    ] + _FILTER_COLS,
+    'indics': [
+        'Long ID', 'Year', 'Treatment Date', 'Date Of Last Follow Up',
+        'Status Last Follow Up', 'First Agvhd Occurrence', 'First Agvhd Occurrence Date',
+        'First aGvHD Maximum Score', 'First Cgvhd Occurrence',
+        'First Cgvhd Occurrence Date', 'First cGvHD Maximum NIH Score',
+        'First Relapse', 'First Relapse Date', 'Anc Recovery', 'Date Anc Recovery',
+        'Platelet Reconstitution', 'Date Platelet Reconstitution', 'Death Cause',
+    ] + _FILTER_COLS,
+}
+
+# Préfixes exclus par le scan de prophylaxie de la page Procedures
+# (pages/procedures.py update_prophylaxis_chart) : les colonnes binaires
+# Oui/Non restantes sont détectées dynamiquement et doivent donc être
+# incluses dans le store procedures.
+_PROPHYLAXIS_EXCLUDED_PREFIXES = [
+    'Prep Regimen', 'Age Groups', 'Year', 'Greffes', 'Treatment Date',
+    'Date Diagnosis', 'Date Of Birth', 'Age At Diagnosis', 'Donor Type',
+    'Source Stem Cells', 'Main Diagnosis', 'Subclass Diagnosis',
+]
+
+
+def _detect_prophylaxis_columns(df: pd.DataFrame) -> list:
+    """Reproduit la règle de détection de pages/procedures.py (scan dynamique)."""
+    cols = []
+    for col in df.columns:
+        if df[col].isin(['Oui', 'Non']).any():
+            if not any(col.startswith(p) for p in _PROPHYLAXIS_EXCLUDED_PREFIXES):
+                cols.append(col)
+    return cols
+
+
+def _build_page_stores(df_full: pd.DataFrame) -> dict:
+    """
+    Construit les stores allégés par page (payloads compacts).
+    Retourne {nom_de_page: payload}.
+    """
+    stores = {}
+    for page, cols in _PAGE_STORE_COLUMNS.items():
+        selected = list(cols)
+        if page == 'procedures':
+            # La page détecte les colonnes de prophylaxie dynamiquement :
+            # inclure exactement ce que son scan trouverait sur le dataset complet.
+            for col in _detect_prophylaxis_columns(df_full):
+                if col not in selected:
+                    selected.append(col)
+        stores[page] = df_to_store_payload(df_full, selected)
+    return stores
 
 
 @app.callback(
@@ -653,7 +749,13 @@ def toggle_purge_modal(purge_clicks, cancel_clicks, confirm_clicks, is_open):
      Output('metadata-store', 'data', allow_duplicate=True),
      Output('data-store-survival', 'data', allow_duplicate=True),
      Output('data-store-gvh', 'data', allow_duplicate=True),
-     Output('data-store-viz', 'data', allow_duplicate=True)],
+     Output('data-store-viz', 'data', allow_duplicate=True),
+     Output('data-store-home', 'data', allow_duplicate=True),
+     Output('data-store-hemopathies', 'data', allow_duplicate=True),
+     Output('data-store-procedures', 'data', allow_duplicate=True),
+     Output('data-store-relapse', 'data', allow_duplicate=True),
+     Output('data-store-toxicity', 'data', allow_duplicate=True),
+     Output('data-store-indics', 'data', allow_duplicate=True)],
     Input('confirm-purge', 'n_clicks'),
     prevent_initial_call=True
 )
@@ -661,9 +763,9 @@ def purge_data(confirm_clicks):
     """Purge les données du cache quand la purge est confirmée"""
     if confirm_clicks and confirm_clicks > 0:
         # Vider tous les stores de données (GDPR compliant - no persistence)
-        return None, None, None, None, None
-    
-    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return (None,) * 11
+
+    return (dash.no_update,) * 11
   
 @app.callback(
     Output("purge-data-button", "style"),
@@ -682,14 +784,20 @@ def toggle_purge_button_visibility(metadata):
      Output('upload-status', 'children', allow_duplicate=True),
      Output('data-store-survival', 'data', allow_duplicate=True),
      Output('data-store-gvh', 'data', allow_duplicate=True),
-     Output('data-store-viz', 'data', allow_duplicate=True)],
+     Output('data-store-viz', 'data', allow_duplicate=True),
+     Output('data-store-home', 'data', allow_duplicate=True),
+     Output('data-store-hemopathies', 'data', allow_duplicate=True),
+     Output('data-store-procedures', 'data', allow_duplicate=True),
+     Output('data-store-relapse', 'data', allow_duplicate=True),
+     Output('data-store-toxicity', 'data', allow_duplicate=True),
+     Output('data-store-indics', 'data', allow_duplicate=True)],
     Input('load-test-sample-btn', 'n_clicks'),
     prevent_initial_call=True
 )
 def load_test_sample(n_clicks):
     """Charge le fichier test sample quand le bouton est cliqué"""
     if n_clicks is None:
-        return (dash.no_update,) * 6
+        return (dash.no_update,) * 12
     
     try:
         # Chemin vers le fichier test sample
@@ -697,9 +805,11 @@ def load_test_sample(n_clicks):
         
         # Vérifier que le fichier existe
         if not os.path.exists(test_file_path):
-            return (dash.no_update, dash.no_update, 
-                    dbc.Alert('Test sample file not found: data/test_sample.csv', 
+            return (dash.no_update, dash.no_update,
+                    dbc.Alert('Test sample file not found: data/test_sample.csv',
                              color='danger'),
+                    dash.no_update, dash.no_update, dash.no_update,
+                    dash.no_update, dash.no_update, dash.no_update,
                     dash.no_update, dash.no_update, dash.no_update)
         
         # Charger le fichier CSV avec détection automatique du séparateur
@@ -733,13 +843,19 @@ def load_test_sample(n_clicks):
         ], color='info')
         
         survival_payload, gvh_payload, viz_payload = _create_slim_stores(df_processed)
+        page_stores = _build_page_stores(df_processed)
 
         return (df_to_store_payload(df_processed), metadata, success_message,
-                survival_payload, gvh_payload, viz_payload)
+                survival_payload, gvh_payload, viz_payload,
+                page_stores['home'], page_stores['hemopathies'],
+                page_stores['procedures'], page_stores['relapse'],
+                page_stores['toxicity'], page_stores['indics'])
 
     except Exception as e:
         return (dash.no_update, dash.no_update,
                 dbc.Alert(f'Error loading test sample: {str(e)}', color='danger'),
+                dash.no_update, dash.no_update, dash.no_update,
+                dash.no_update, dash.no_update, dash.no_update,
                 dash.no_update, dash.no_update, dash.no_update)
     
 server = app.server

@@ -93,6 +93,12 @@ def create_base_layout():
         dcc.Store(id='data-store-survival'),  # Survival analysis columns only
         dcc.Store(id='data-store-gvh'),       # GvH analysis columns only
         dcc.Store(id='data-store-viz'),       # Visualization columns (charts/tables)
+        dcc.Store(id='data-store-home'),      # Page Home (Year uniquement)
+        dcc.Store(id='data-store-hemopathies'),
+        dcc.Store(id='data-store-procedures'),
+        dcc.Store(id='data-store-relapse'),
+        dcc.Store(id='data-store-toxicity'),
+        dcc.Store(id='data-store-indics'),
         
         # Page tracking stores
         dcc.Store(id='current-page', data='Home'),

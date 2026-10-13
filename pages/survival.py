@@ -1638,7 +1638,7 @@ def register_callbacks(app):
     @app.callback(
         Output('survival-gvh-filters-container', 'children'),
         [Input('survival-tab-store', 'data'),
-         Input('data-store', 'data')]
+         Input('data-store-survival', 'data')]
     )
     def update_gvh_filters_container(active_tab, data):
         """Affiche les filtres de grade GvHD quand l'onglet GRFS est actif"""
@@ -2116,7 +2116,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output('survival-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-survival', 'data'), 
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),
@@ -2222,7 +2222,7 @@ def register_callbacks(app):
         [Output('survival-missing-detail-table', 'children'),
          Output('export-missing-survival-button', 'disabled'),
          Output('survival-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-survival', 'data'), 
          Input('current-page', 'data'),
          Input('survival-year-filter', 'value'),
          Input('survival-age-filter', 'value'),

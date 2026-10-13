@@ -271,7 +271,7 @@ def register_callbacks(app):
     @app.callback(
         [Output('procedures-main-variable-integrated', 'options'),
          Output('procedures-main-variable-integrated', 'value')],
-        [Input('data-store', 'data'),
+        [Input('data-store-procedures', 'data'),
          Input('current-page', 'data')],
         prevent_initial_call=False  # Changé à False pour permettre l'exécution initiale
     )
@@ -303,7 +303,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output('procedures-main-chart', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-procedures', 'data'),
         Input('current-page', 'data'),
         Input('procedures-main-variable-integrated', 'value'),  
         Input('procedures-year-filter', 'value'),
@@ -386,7 +386,7 @@ def register_callbacks(app):
         
     @app.callback(
         Output('procedures-cmv-charts', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-procedures', 'data'),
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
@@ -435,7 +435,7 @@ def register_callbacks(app):
     @app.callback(
         Output('procedures-aplasia-tab-content', 'children'),
         [Input('procedures-aplasia-tabs', 'value'),
-        Input('data-store', 'data'),
+        Input('data-store-procedures', 'data'),
         Input('current-page', 'data'),
         Input('procedures-year-filter', 'value'),
         Input('procedures-age-filter', 'value'),
@@ -638,7 +638,7 @@ def register_callbacks(app):
     @app.callback(
         Output('procedures-treatment-content', 'children'),
         [Input('procedures-treatment-tabs', 'value'),
-         Input('data-store', 'data'),
+         Input('data-store-procedures', 'data'),
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
@@ -745,7 +745,7 @@ def register_callbacks(app):
     @app.callback(
         Output('procedures-prophylaxis-content', 'children'),
         [Input('procedures-prophylaxis-tabs', 'value'),
-         Input('data-store', 'data'),
+         Input('data-store-procedures', 'data'),
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
@@ -843,7 +843,7 @@ def register_callbacks(app):
     
     @callback(
         Output('procedures-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-procedures', 'data'), 
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),
@@ -959,7 +959,7 @@ def register_callbacks(app):
         [Output('procedures-missing-detail-table', 'children'),
          Output('export-missing-procedures-button', 'disabled'),
          Output('procedures-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-procedures', 'data'), 
          Input('current-page', 'data'),
          Input('procedures-year-filter', 'value'),
          Input('procedures-age-filter', 'value'),

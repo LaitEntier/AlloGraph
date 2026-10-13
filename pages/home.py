@@ -541,7 +541,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output('home-main-content', 'children'),
-        Input('data-store', 'data')
+        Input('data-store-home', 'data')
     )
     def update_home_content(data):
         """Met à jour le contenu principal de la page d'accueil"""

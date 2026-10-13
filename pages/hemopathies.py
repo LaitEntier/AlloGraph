@@ -175,7 +175,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output('hemopathies-barplot-simple', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-hemopathies', 'data'),
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
@@ -296,7 +296,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output('hemopathies-barplot-normalized', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-hemopathies', 'data'),
          Input('current-page', 'data'),
          Input('x-axis-dropdown', 'value'),
          Input('stack-variable-dropdown', 'value'),
@@ -405,7 +405,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output('hemopathies-performance-scores-boxplot', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-hemopathies', 'data'),
         Input('current-page', 'data'),
         Input('x-axis-dropdown', 'value'),
         Input('year-filter-checklist', 'value'),
@@ -601,7 +601,7 @@ def register_callbacks(app):
         
     @app.callback(
         Output('hemopathies-datatable', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-hemopathies', 'data'),
         Input('current-page', 'data'),
         Input('year-filter-checklist', 'value'),
         Input('hemopathies-age-filter', 'value'),
@@ -789,7 +789,7 @@ def register_callbacks(app):
     
     @callback(
         Output('hemopathies-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-hemopathies', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
          Input('hemopathies-age-filter', 'value'),
@@ -880,7 +880,7 @@ def register_callbacks(app):
         [Output('hemopathies-missing-detail-table', 'children'),
          Output('export-missing-hemopathies-button', 'disabled'),
          Output('hemopathies-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-hemopathies', 'data'), 
          Input('current-page', 'data'),
          Input('year-filter-checklist', 'value'),
          Input('hemopathies-age-filter', 'value'),

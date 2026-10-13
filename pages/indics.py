@@ -3899,7 +3899,7 @@ def register_callbacks(app):
     @app.callback(
         Output('indicator-content', 'children'),
         [Input('current-page', 'data'),
-         Input('data-store', 'data'),
+         Input('data-store-indics', 'data'),
          Input('analysis-mode-store', 'data'),
          Input('selected-indicator-store', 'data'),
          Input('selected-year-store', 'data'),
@@ -3963,7 +3963,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output('indicators-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-indics', 'data'), 
          Input('current-page', 'data'),
          Input('selected-indicator-store', 'data'),
          Input('analysis-mode-store', 'data'),
@@ -4059,7 +4059,7 @@ def register_callbacks(app):
          Output('export-missing-indicators-button', 'disabled'),
          Output('indicators-missing-store', 'data'),
          Output('indicators-name-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-indics', 'data'), 
          Input('current-page', 'data'),
          Input('selected-indicator-store', 'data'),
          Input('analysis-mode-store', 'data'),

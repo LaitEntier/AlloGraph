@@ -699,7 +699,7 @@ def df_to_store_payload(df, columns=None):
         dict: payload JSON-compatible
     """
     if columns is not None:
-        cols = [c for c in columns if c in df.columns]
+        cols = list(dict.fromkeys(c for c in columns if c in df.columns))
         df = df[cols]
 
     n_rows = max(len(df), 1)

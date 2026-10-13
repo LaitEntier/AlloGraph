@@ -374,7 +374,7 @@ def register_callbacks(app):
          Input('toxicity-custom-age-switch', 'value'),
          Input('toxicity-custom-age-slider', 'value'),
          Input('toxicity-malignancy-filter', 'value'),
-         Input('data-store', 'data'),
+         Input('data-store-toxicity', 'data'),
          Input('current-page', 'data')]
     )
     def update_toxicity_nrm_graph(selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
@@ -405,7 +405,7 @@ def register_callbacks(app):
 
     @app.callback(
         Output('toxicity-missing-summary-table', 'children'),
-        [Input('data-store', 'data'),
+        [Input('data-store-toxicity', 'data'),
          Input('current-page', 'data'),
          Input('toxicity-year-filter', 'value'),
          Input('toxicity-age-filter', 'value'),
@@ -519,7 +519,7 @@ def register_callbacks(app):
         [Output('toxicity-missing-detail-table', 'children'),
          Output('export-missing-toxicity-button', 'disabled'),
          Output('toxicity-missing-store', 'data')],
-        [Input('data-store', 'data'),
+        [Input('data-store-toxicity', 'data'),
          Input('current-page', 'data'),
          Input('toxicity-year-filter', 'value'),
          Input('toxicity-age-filter', 'value'),
