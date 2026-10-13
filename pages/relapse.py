@@ -346,17 +346,7 @@ def register_callbacks(app):
         slider_id='relapse-custom-age-slider'
     )
     
-    # Callback principal pour le graphique Rechute
-    @app.callback(
-        Output('relapse-main-graph', 'children'),
-        [Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value'),
-         Input('relapse-custom-age-switch', 'value'),
-         Input('relapse-custom-age-slider', 'value'),
-         Input('relapse-malignancy-filter', 'value'),
-         Input('data-store-relapse', 'data'),
-         Input('current-page', 'data')]  # Ajouter current-page comme input
-    )
+    # Helper du callback fusionné update_relapse_panels (phase 4 perf)
     def update_relapse_main_graph(selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, data, current_page):
         """Met à jour le graphique principal d'analyse des risques compétitifs pour les rechutes"""
         
@@ -385,17 +375,6 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during graph creation: {str(e)}", color="danger")
     
-    @app.callback(
-        Output('relapse-missing-summary-table', 'children'),
-        [Input('data-store-relapse', 'data'), 
-         Input('current-page', 'data'),
-         Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value'),
-         Input('relapse-custom-age-switch', 'value'),
-         Input('relapse-custom-age-slider', 'value'),
-         Input('relapse-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
     def relapse_missing_summary_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau de résumé des données manquantes pour Rechute"""
         
@@ -496,19 +475,6 @@ def register_callbacks(app):
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger')
 
-    @app.callback(
-        [Output('relapse-missing-detail-table', 'children'),
-         Output('export-missing-relapse-button', 'disabled'),
-         Output('relapse-missing-store', 'data')],
-        [Input('data-store-relapse', 'data'), 
-         Input('current-page', 'data'),
-         Input('relapse-year-filter', 'value'),
-         Input('relapse-age-filter', 'value'),
-         Input('relapse-custom-age-switch', 'value'),
-         Input('relapse-custom-age-slider', 'value'),
-         Input('relapse-malignancy-filter', 'value')],
-        prevent_initial_call=False
-    )
     def relapse_missing_detail_callback(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
         """Gère le tableau détaillé des patients avec données manquantes pour Rechute"""
         
@@ -583,6 +549,37 @@ def register_callbacks(app):
             
         except Exception as e:
             return dbc.Alert(f"Error during analysis: {str(e)}", color='danger'), True, None
+
+    # Callback fusionné (phase 4 perf) : les 3 helpers ci-dessus avaient des
+    # Inputs identiques — une seule requête au lieu de trois par changement de filtre.
+    @app.callback(
+        [Output('relapse-main-graph', 'children'),
+         Output('relapse-missing-summary-table', 'children'),
+         Output('relapse-missing-detail-table', 'children'),
+         Output('export-missing-relapse-button', 'disabled'),
+         Output('relapse-missing-store', 'data')],
+        [Input('data-store-relapse', 'data'),
+         Input('current-page', 'data'),
+         Input('relapse-year-filter', 'value'),
+         Input('relapse-age-filter', 'value'),
+         Input('relapse-custom-age-switch', 'value'),
+         Input('relapse-custom-age-slider', 'value'),
+         Input('relapse-malignancy-filter', 'value')],
+        prevent_initial_call=False
+    )
+    def update_relapse_panels(data, current_page, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+        """Met à jour le graphique et les tableaux de données manquantes de la page Rechute"""
+        graph = update_relapse_main_graph(
+            selected_years=selected_years, selected_age_groups=selected_age_groups,
+            use_custom_age=use_custom_age, custom_age_range=custom_age_range,
+            malignancy_filter=malignancy_filter, data=data, current_page=current_page)
+        summary = relapse_missing_summary_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter)
+        detail, export_disabled, missing_store = relapse_missing_detail_callback(
+            data, current_page, selected_years, selected_age_groups,
+            use_custom_age, custom_age_range, malignancy_filter)
+        return graph, summary, detail, export_disabled, missing_store
 
     @app.callback(
         Output("download-missing-relapse-excel", "data"),
