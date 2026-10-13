@@ -12,6 +12,7 @@ import plotly.express as px
 import modules.dashboard_layout as layouts
 from modules.dashboard_layout import apply_malignancy_filter, create_info_tooltip, apply_age_filter, register_age_toggle_callback
 import modules.data_processing as data_processing
+from modules.data_processing import store_payload_to_df
 import visualizations.allogreffes.graphs as gr
 
 # =============================================================================
@@ -349,7 +350,7 @@ def create_global_sidebar_content(data):
     if data is None or len(data) == 0:
         return html.Div([html.P('No data available', className='text-warning')])
     
-    df = pd.DataFrame(data)
+    df = store_payload_to_df(data)
     
     return html.Div([
         html.H6("Global Analysis", className='mb-2'),
@@ -363,7 +364,7 @@ def create_quarterly_sidebar_content(data):
     if data is None or len(data) == 0:
         return html.Div([html.P('No data available', className='text-warning')])
     
-    df = pd.DataFrame(data)
+    df = store_payload_to_df(data)
     
     return html.Div([
         html.H6("Quarterly Analysis", className='mb-2'),
@@ -3921,7 +3922,7 @@ def register_callbacks(app):
             return html.P("Select an indicator in the sidebar...")
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par tranches d'âge
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
@@ -3984,7 +3985,7 @@ def register_callbacks(app):
             return dbc.Alert("Select an indicator to analyze missing data", color='info')
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par tranches d'âge
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
@@ -4080,7 +4081,7 @@ def register_callbacks(app):
             return dbc.Alert("Select an indicator to analyze missing data", color='info'), True, None, None
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par tranches d'âge
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)

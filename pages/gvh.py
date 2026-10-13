@@ -9,6 +9,7 @@ import modules.dashboard_layout as layouts
 from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import visualizations.allogreffes.graphs as gr
 import modules.data_processing as data_processing
+from modules.data_processing import store_payload_to_df
 
 GVH_INFO_TEXT = """Acute GvH:
   Event = Acute GvHD
@@ -191,7 +192,7 @@ def register_callbacks(app):
     # Calcul des risques compétitifs GvH (sans cache serveur — conformité : rien de persistant côté serveur)
     def _compute_competing_risks(data, gvh_type, selected_years_tuple, selected_grades_tuple, selected_age_groups_tuple, malignancy_filter, use_custom_age=False, custom_age_range_tuple=None):
         """Calcule l'analyse de risques compétitifs GvH"""
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         print(f"DEBUG _compute_competing_risks: Columns in df: {list(df.columns)}")
         
@@ -243,7 +244,7 @@ def register_callbacks(app):
     @app.callback(
         Output('gvh-grade-filter-container', 'children'),
         [Input('gvh-type-selection', 'value'),
-         Input('data-store', 'data')],
+         Input('data-store-gvh', 'data')],
         prevent_initial_call=False
     )
     def update_grade_filters(gvh_type, data):
@@ -251,7 +252,7 @@ def register_callbacks(app):
         if data is None:
             return html.Div()
     
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # NOUVEAU : Appliquer la transformation GVHc avant d'analyser les valeurs disponibles
         if gvh_type == 'chronic':
@@ -380,7 +381,7 @@ def register_callbacks(app):
     
     @app.callback(
         Output('gvh-missing-summary-table', 'children'),
-        [Input('data-store', 'data'), 
+        [Input('data-store-gvh', 'data'), 
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
          Input('gvh-age-filter', 'value'),
@@ -396,7 +397,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted')
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
@@ -499,7 +500,7 @@ def register_callbacks(app):
         [Output('gvh-missing-detail-table', 'children'),
          Output('export-missing-gvh-button', 'disabled'),
          Output('gvh-missing-store', 'data')],
-        [Input('data-store', 'data'), 
+        [Input('data-store-gvh', 'data'), 
          Input('current-page', 'data'),
          Input('gvh-year-filter', 'value'),
          Input('gvh-age-filter', 'value'),
@@ -515,7 +516,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:

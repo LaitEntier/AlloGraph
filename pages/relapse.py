@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 # Import des modules nécessaires
 import modules.dashboard_layout as layouts
 from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
+from modules.data_processing import store_payload_to_df
 import modules.competing_risks as cr
 import visualizations.allogreffes.graphs as gr
 
@@ -366,7 +367,7 @@ def register_callbacks(app):
         if data is None:
             return dbc.Alert("No data available", color="warning")
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Filtrer les données par années sélectionnées
         if selected_years and 'Year' in df.columns:
@@ -402,7 +403,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted')
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
@@ -515,7 +516,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:

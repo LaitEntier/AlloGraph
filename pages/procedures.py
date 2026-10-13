@@ -5,6 +5,7 @@ import pandas as pd
 import plotly
 import modules.dashboard_layout as layouts
 from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
+from modules.data_processing import store_payload_to_df
 import visualizations.allogreffes.graphs as gr
 import visualizations.allogreffes.upsetjs_embed as upsetjs
 
@@ -230,7 +231,7 @@ def get_main_chart_variable_options(data):
         return [{'label': 'No data available', 'value': 'none'}]
     
     # Convertir la liste en DataFrame
-    df = pd.DataFrame(data)
+    df = store_payload_to_df(data)
     
     # Variables disponibles pour le graphique principal (seulement ces 5)
     main_chart_options = []
@@ -316,7 +317,7 @@ def register_callbacks(app):
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Vérifier les données nécessaires
         if 'Year' not in df.columns:
@@ -398,7 +399,7 @@ def register_callbacks(app):
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Filtrer par années si spécifié
         filtered_df = df
@@ -447,7 +448,7 @@ def register_callbacks(app):
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Filtrer par années si spécifié
         filtered_df = df
@@ -650,7 +651,7 @@ def register_callbacks(app):
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Vérifier les données nécessaires
         if 'Year' not in df.columns:
@@ -757,7 +758,7 @@ def register_callbacks(app):
         if current_page != 'Procedures' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Vérifier les données nécessaires
         if 'Year' not in df.columns:
@@ -858,7 +859,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted')
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
@@ -974,7 +975,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:

@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 # Import des modules communs
 import modules.dashboard_layout as layouts
 from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
+from modules.data_processing import store_payload_to_df
 import visualizations.allogreffes.graphs as gr
 
 def get_layout():
@@ -227,7 +228,7 @@ def register_callbacks(app):
         if current_page != 'Patients' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Valeurs par défaut
         if x_axis is None:
@@ -328,7 +329,7 @@ def register_callbacks(app):
         if current_page != 'Patients' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Valeurs par défaut
         if x_axis is None:
@@ -429,7 +430,7 @@ def register_callbacks(app):
         if current_page != 'Patients' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Valeurs par défaut
         if stack_var is None:
@@ -511,7 +512,7 @@ def register_callbacks(app):
         if current_page != 'Patients' or data is None:
             return html.Div(), True, None
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Appliquer les filtres
         if selected_years and 'Year' in df.columns:
@@ -775,7 +776,7 @@ def register_callbacks(app):
         if current_page != 'Patients' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Filtrer les données par année
         filtered_df = df
@@ -975,7 +976,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted')
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
@@ -1066,7 +1067,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:

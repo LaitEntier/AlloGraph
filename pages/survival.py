@@ -14,6 +14,7 @@ import traceback
 import modules.dashboard_layout as layouts
 from modules.dashboard_layout import apply_malignancy_filter, apply_age_filter, register_age_toggle_callback
 import modules.data_processing as data_processing
+from modules.data_processing import store_payload_to_df
 import visualizations.allogreffes.graphs as gr
 
 # Imports pour les analyses de survie
@@ -1644,7 +1645,7 @@ def register_callbacks(app):
         if active_tab != 'tab-grfs' or data is None:
             return html.Div()
         
-        df = pd.DataFrame(data)
+        df = store_payload_to_df(data)
         
         # Filtre pour grades aGvH
         acute_col = 'First aGvHD Maximum Score'
@@ -1769,7 +1770,7 @@ def register_callbacks(app):
         
         try:
             # Filtrer les données par âge et malignité
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
@@ -1845,7 +1846,7 @@ def register_callbacks(app):
         
         try:
             # Filtrer les données par âge et malignité
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             # Filtrer par type de diagnostic
@@ -1994,7 +1995,7 @@ def register_callbacks(app):
             return warning_alert, warning_alert, warning_alert
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
             
             df = apply_malignancy_filter(df, malignancy_filter)
@@ -2132,7 +2133,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted')
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:
@@ -2238,7 +2239,7 @@ def register_callbacks(app):
             return html.Div("Waiting...", className='text-muted'), True, None
         
         try:
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             # Filtrer par années si spécifié
             if selected_years and 'Year' in df.columns:

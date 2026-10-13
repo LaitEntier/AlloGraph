@@ -7,6 +7,7 @@ from dash_extensions import Lottie
 
 # Import des modules communs
 import visualizations.allogreffes.graphs as gr
+from modules.data_processing import store_payload_to_df
 
 def get_layout():
     """Retourne le layout de la page d'accueil"""
@@ -547,7 +548,7 @@ def register_callbacks(app):
         
         if data is not None:
             # Données chargées : afficher le graphique + bannière
-            df = pd.DataFrame(data)
+            df = store_payload_to_df(data)
             
             if 'Year' in df.columns:
                 try:

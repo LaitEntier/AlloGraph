@@ -10,6 +10,7 @@ import plotly
 
 # Import des modules
 import modules.data_processing as data_processing
+from modules.data_processing import df_to_store_payload
 import modules.dashboard_layout as layouts
 
 # Performance optimization: Response compression for VM deployments (optional)
@@ -438,7 +439,10 @@ def _build_metadata(df_original, df_processed, filename):
 @app.callback(
     [Output('data-store', 'data'),
      Output('metadata-store', 'data'),
-     Output('upload-status', 'children')],
+     Output('upload-status', 'children'),
+     Output('data-store-survival', 'data'),
+     Output('data-store-gvh', 'data'),
+     Output('data-store-viz', 'data')],
     Input('upload-data', 'contents'),
     State('upload-data', 'filename'),
     prevent_initial_call=True
@@ -446,7 +450,7 @@ def _build_metadata(df_original, df_processed, filename):
 def process_uploaded_file(contents, filename):
     """Traite l'upload de fichier - callback global"""
     if contents is None:
-        return dash.no_update, dash.no_update, dash.no_update
+        return (dash.no_update,) * 6
     
     try:
         content_type, content_string = contents.split(',')
@@ -460,7 +464,9 @@ def process_uploaded_file(contents, filename):
         elif filename.endswith(('.xlsx', '.xls')):
             df_original = pd.read_excel(io.BytesIO(decoded))
         else:
-            return dash.no_update, dash.no_update, dbc.Alert('Unsupported file format', color='danger')
+            return (dash.no_update, dash.no_update,
+                    dbc.Alert('Unsupported file format', color='danger'),
+                    dash.no_update, dash.no_update, dash.no_update)
         
         # Stocker les dimensions originales
         original_shape = df_original.shape
@@ -488,10 +494,17 @@ def process_uploaded_file(contents, filename):
             ], className="mb-0", style={'fontSize': '11px'})
         ], color='success')
         
-        return df_processed.to_dict('records'), metadata, success_message
-    
+        # Stores slim calculés ici (une seule fois) : plus de callback en chaîne
+        # qui renverrait le dataset complet au serveur.
+        survival_payload, gvh_payload, viz_payload = _create_slim_stores(df_processed)
+
+        return (df_to_store_payload(df_processed), metadata, success_message,
+                survival_payload, gvh_payload, viz_payload)
+
     except Exception as e:
-        return dash.no_update, dash.no_update, dbc.Alert(f'Error during loading: {str(e)}', color='danger')
+        return (dash.no_update, dash.no_update,
+                dbc.Alert(f'Error during loading: {str(e)}', color='danger'),
+                dash.no_update, dash.no_update, dash.no_update)
 
 
 # Helper function to create slim data stores (reduces VM network transfer)
@@ -499,14 +512,12 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     """
     Create optimized slim data stores for specific analyses.
     Reduces network payload for VM deployments.
+    Retourne des payloads compacts (df_to_store_payload).
     """
-    print(f"DEBUG _create_slim_stores: Input columns: {list(df_full.columns)}")
-    
     # Core columns that should always be included if they exist
     core_cols = ['Long ID', 'Year', 'Patient ID', 'ID']
     core_cols = [c for c in core_cols if c in df_full.columns]
-    print(f"DEBUG _create_slim_stores: Core cols found: {core_cols}")
-    
+
     # Survival analysis columns - base columns needed for survival calculations
     survival_needed = [
         'Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up',
@@ -518,9 +529,8 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     ]
     survival_cols = core_cols + survival_needed
     survival_cols = [c for c in survival_cols if c in df_full.columns]
-    print(f"DEBUG _create_slim_stores: Survival cols found: {survival_cols}")
     df_survival = df_full[survival_cols] if survival_cols else df_full[core_cols] if core_cols else df_full.iloc[:, :5]
-    
+
     # GvH analysis columns - base columns needed for GvH calculations
     gvh_needed = [
         'Treatment Date', 'Date Of Last Follow Up', 'Status Last Follow Up',
@@ -530,53 +540,23 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
     ]
     gvh_cols = core_cols + gvh_needed
     gvh_cols = [c for c in gvh_cols if c in df_full.columns]
-    print(f"DEBUG _create_slim_stores: GvH cols found: {gvh_cols}")
     df_gvh = df_full[gvh_cols] if gvh_cols else df_full[core_cols] if core_cols else df_full.iloc[:, :5]
-    
+
     # Visualization columns - demographic and clinical data for charts
     viz_needed = [
         'Age At Diagnosis', 'Age Groups', 'Age Group Detailed', 'Sex',
-        'Main Diagnosis', 'Subclass Diagnosis', 'Diagnosis Category', 'Donor Type', 
+        'Main Diagnosis', 'Subclass Diagnosis', 'Diagnosis Category', 'Donor Type',
         'Source Stem Cells', 'Greffes', 'Blood + Rh', 'Donor Match Category',
         'Conditioning Regimen Type', 'Match Type', 'Performance Status At Treatment Scale',
         'Performance Status At Treatment Score', 'CMV Status Donor', 'CMV Status Patient'
     ]
     viz_cols = core_cols + viz_needed
     viz_cols = [c for c in viz_cols if c in df_full.columns]
-    print(f"DEBUG _create_slim_stores: Viz cols found: {viz_cols}")
     df_viz = df_full[viz_cols] if viz_cols else df_full[core_cols] if core_cols else df_full.iloc[:, :5]
-    
-    return df_survival.to_dict('records'), df_gvh.to_dict('records'), df_viz.to_dict('records')
 
-
-@app.callback(
-    [Output('data-store-survival', 'data'),
-     Output('data-store-gvh', 'data'),
-     Output('data-store-viz', 'data')],
-    Input('data-store', 'data')
-    # NOTE: No prevent_initial_call - this MUST run when data is first loaded
-)
-def update_slim_stores(data):
-    """
-    Update slim data stores when main data changes.
-    Reduces network transfer for VM deployments.
-    """
-    if data is None:
-        print("DEBUG: Slim stores - data is None")
-        return None, None, None
-    
-    try:
-        df = pd.DataFrame(data)
-        print(f"DEBUG: Creating slim stores from DataFrame with columns: {list(df.columns)}")
-        survival_data, gvh_data, viz_data = _create_slim_stores(df)
-        print(f"DEBUG: Slim stores created - survival: {len(survival_data) if survival_data else 0} rows, "
-              f"gvh: {len(gvh_data) if gvh_data else 0} rows, viz: {len(viz_data) if viz_data else 0} rows")
-        return survival_data, gvh_data, viz_data
-    except Exception as e:
-        print(f"Error creating slim stores: {e}")
-        import traceback
-        traceback.print_exc()
-        return None, None, None
+    return (df_to_store_payload(df_survival),
+            df_to_store_payload(df_gvh),
+            df_to_store_payload(df_viz))
 
 
 @app.callback(
@@ -699,14 +679,17 @@ def toggle_purge_button_visibility(metadata):
 @app.callback(
     [Output('data-store', 'data', allow_duplicate=True),
      Output('metadata-store', 'data', allow_duplicate=True),
-     Output('upload-status', 'children', allow_duplicate=True)],
+     Output('upload-status', 'children', allow_duplicate=True),
+     Output('data-store-survival', 'data', allow_duplicate=True),
+     Output('data-store-gvh', 'data', allow_duplicate=True),
+     Output('data-store-viz', 'data', allow_duplicate=True)],
     Input('load-test-sample-btn', 'n_clicks'),
     prevent_initial_call=True
 )
 def load_test_sample(n_clicks):
     """Charge le fichier test sample quand le bouton est cliqué"""
     if n_clicks is None:
-        return dash.no_update, dash.no_update, dash.no_update
+        return (dash.no_update,) * 6
     
     try:
         # Chemin vers le fichier test sample
@@ -716,7 +699,8 @@ def load_test_sample(n_clicks):
         if not os.path.exists(test_file_path):
             return (dash.no_update, dash.no_update, 
                     dbc.Alert('Test sample file not found: data/test_sample.csv', 
-                             color='danger'))
+                             color='danger'),
+                    dash.no_update, dash.no_update, dash.no_update)
         
         # Charger le fichier CSV avec détection automatique du séparateur
         separator = data_processing.detect_csv_separator(test_file_path, is_file_path=True)
@@ -748,11 +732,15 @@ def load_test_sample(n_clicks):
             ], className="mb-0", style={'fontSize': '11px'})
         ], color='info')
         
-        return df_processed.to_dict('records'), metadata, success_message
-    
+        survival_payload, gvh_payload, viz_payload = _create_slim_stores(df_processed)
+
+        return (df_to_store_payload(df_processed), metadata, success_message,
+                survival_payload, gvh_payload, viz_payload)
+
     except Exception as e:
-        return (dash.no_update, dash.no_update, 
-                dbc.Alert(f'Error loading test sample: {str(e)}', color='danger'))
+        return (dash.no_update, dash.no_update,
+                dbc.Alert(f'Error loading test sample: {str(e)}', color='danger'),
+                dash.no_update, dash.no_update, dash.no_update)
     
 server = app.server
 
