@@ -562,7 +562,8 @@ def _create_slim_stores(df_full: pd.DataFrame) -> tuple:
         'Main Diagnosis', 'Subclass Diagnosis', 'Diagnosis Category', 'Donor Type',
         'Source Stem Cells', 'Greffes', 'Blood + Rh', 'Donor Match Category',
         'Conditioning Regimen Type', 'Match Type', 'Performance Status At Treatment Scale',
-        'Performance Status At Treatment Score', 'CMV Status Donor', 'CMV Status Patient'
+        'Performance Status At Treatment Score', 'CMV Status Donor', 'CMV Status Patient',
+        'Number HCT', 'Number Allo HCT'
     ]
     viz_cols = core_cols + viz_needed
     viz_cols = [c for c in viz_cols if c in df_full.columns]
@@ -583,7 +584,7 @@ _PAGE_STORE_COLUMNS = {
     'home': ['Year'],
     'hemopathies': [
         'Long ID', 'Year', 'Main Diagnosis', 'Subclass Diagnosis', 'Age Groups',
-        'Blood Group', 'Rhesus Factor', 'Disease Status At Treatment',
+        'Blood Group', 'Rhesus Factor', 'Blood + Rh', 'Disease Status At Treatment',
         'Performance Status At Treatment Scale', 'Performance Status At Treatment Score',
     ] + _FILTER_COLS,
     'procedures': [

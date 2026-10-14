@@ -216,23 +216,20 @@ def get_layout():
         ]),
     ], fluid=True)
 
-def get_main_chart_variable_options(data):
+def get_main_chart_variable_options(df):
     """
     Crée les options pour le dropdown de sélection de variable principale.
     Seules 5 variables spécifiques sont disponibles pour l'analyse d'évolution annuelle.
-    
+
     Args:
-        data (list): Liste de dictionnaires (format store Dash) avec les données
-        
+        df (pd.DataFrame): DataFrame déjà décodé avec les données
+
     Returns:
         list: Liste des options pour le dropdown
     """
-    if data is None or len(data) == 0:
+    if df is None or len(df) == 0:
         return [{'label': 'No data available', 'value': 'none'}]
-    
-    # Convertir la liste en DataFrame
-    df = store_payload_to_df(data)
-    
+
     # Variables disponibles pour le graphique principal (seulement ces 5)
     main_chart_options = []
     
@@ -284,7 +281,7 @@ def register_callbacks(app):
         if data is None:
             return [{'label': 'Loading...', 'value': 'loading'}], None
         
-        options = get_main_chart_variable_options(data)
+        options = get_main_chart_variable_options(store_payload_to_df(data))
 
         # Sélectionner la première option valide par défaut
         default_value = None
@@ -354,7 +351,7 @@ def register_callbacks(app):
             year_order = sorted(filtered_df['Year'].unique())
             
             # Obtenir le label pour le titre
-            options = get_main_chart_variable_options(df.to_dict('records'))
+            options = get_main_chart_variable_options(df)
             variable_label = main_variable
             for option in options:
                 if option['value'] == main_variable:

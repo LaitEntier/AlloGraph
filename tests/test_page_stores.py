@@ -29,10 +29,23 @@ _PAGE_OF_STORE = {
     'data-store-indics': 'Indicators',
 }
 
-# Valeurs de filtres réalistes pour exercer les callbacks
+# Valeurs de filtres réalistes pour exercer les callbacks.
+# Les combos x_axis/stack_var balaient toutes les valeurs sélectionnables des
+# dropdowns (modules/dashboard_layout.py) : ils garantissent que chaque colonne
+# proposée à l'utilisateur est présente dans le store de la page.
+# La clé 'pages' restreint un combo aux pages où il est réellement sélectionnable.
 _FILTER_VALUES = [
     {},  # défauts
     {'years': ['2018'], 'malignancy': 'Malignant'},  # filtres actifs
+    # Patients : x ∈ {Age At Diagnosis, Age Groups}, stack ∈ {Sex, Blood + Rh, Main Diagnosis, Number HCT, Number Allo HCT}
+    {'x_axis': 'Age At Diagnosis', 'stack_var': 'Number HCT', 'pages': {'Patients'}},
+    {'x_axis': 'Age Groups', 'stack_var': 'Blood + Rh', 'pages': {'Patients'}},
+    {'x_axis': 'Age Groups', 'stack_var': 'Number Allo HCT', 'pages': {'Patients'}},
+    {'x_axis': 'Age At Diagnosis', 'stack_var': 'Sex', 'pages': {'Patients'}},
+    # Hemopathies : x ∈ {Main Diagnosis, Subclass Diagnosis}, stack ∈ {Age Groups, Blood + Rh, Disease Status At Treatment}
+    {'x_axis': 'Subclass Diagnosis', 'stack_var': 'Blood + Rh', 'pages': {'Indications'}},
+    {'x_axis': 'Subclass Diagnosis', 'stack_var': 'Disease Status At Treatment', 'pages': {'Indications'}},
+    {'x_axis': 'Main Diagnosis', 'stack_var': 'Age Groups', 'pages': {'Indications'}},
 ]
 
 
@@ -41,6 +54,10 @@ def _value_for(cid, page, combo, store_payloads, store_id):
         return store_payloads[store_id]
     if cid == 'current-page':
         return page
+    if cid == 'x-axis-dropdown':
+        return combo.get('x_axis')
+    if cid == 'stack-variable-dropdown':
+        return combo.get('stack_var')
     if 'year' in cid and ('filter' in cid or 'checklist' in cid):
         return combo.get('years')
     if cid in ('year-selection-sidebar', 'years-radio-sidebar'):
@@ -115,6 +132,8 @@ def test_page_store_equivalence(store_payloads, store_id, page):
     tested = 0
     for out_id, cb, spec in entries:
         for combo in _FILTER_VALUES:
+            if page not in combo.get('pages', {page}):
+                continue
             def args_for(payload_key):
                 overrides = {store_id: store_payloads[payload_key]}
                 merged = dict(store_payloads)

@@ -95,7 +95,9 @@ def test_merged_callback_matches_golden(golden, store_payloads, merged_id):
     store_id = next(i['id'] for i in spec['inputs'] if i['id'].startswith('data-store'))
     cb = getattr(spec['callback'], '__wrapped__', spec['callback'])
 
-    for ci, combo in enumerate(_FILTER_VALUES):
+    # Le golden ne couvre que les combos capturés avant fusion
+    n_combos = len(golden[golden_map[0][0]])
+    for ci, combo in enumerate(_FILTER_VALUES[:n_combos]):
         args = [
             _value_for(i['id'], page, combo, store_payloads, store_id)
             for i in spec['inputs']

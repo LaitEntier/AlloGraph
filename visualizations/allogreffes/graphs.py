@@ -1423,9 +1423,10 @@ def create_histogram_with_density(
         if date_start not in processed_data.columns or date_end not in processed_data.columns:
             raise ValueError(f"Colonnes de dates '{date_start}' ou '{date_end}' non trouvées")
         
-        # Conversion en datetime
-        processed_data[date_start] = pd.to_datetime(processed_data[date_start])
-        processed_data[date_end] = pd.to_datetime(processed_data[date_end])
+        # Conversion en datetime (dayfirst : données au format français JJ/MM/AAAA ;
+        # les datetime64 et les chaînes ISO des stores passent inchangés)
+        processed_data[date_start] = pd.to_datetime(processed_data[date_start], format='mixed', dayfirst=True)
+        processed_data[date_end] = pd.to_datetime(processed_data[date_end], format='mixed', dayfirst=True)
         
         # Calcul de la durée en jours
         processed_data[value_column] = (processed_data[date_end] - processed_data[date_start]).dt.days
@@ -1680,9 +1681,10 @@ def create_stratified_histogram_with_density(
         if date_start not in processed_data.columns or date_end not in processed_data.columns:
             raise ValueError(f"Colonnes de dates '{date_start}' ou '{date_end}' non trouvées")
         
-        # Conversion en datetime
-        processed_data[date_start] = pd.to_datetime(processed_data[date_start])
-        processed_data[date_end] = pd.to_datetime(processed_data[date_end])
+        # Conversion en datetime (dayfirst : données au format français JJ/MM/AAAA ;
+        # les datetime64 et les chaînes ISO des stores passent inchangés)
+        processed_data[date_start] = pd.to_datetime(processed_data[date_start], format='mixed', dayfirst=True)
+        processed_data[date_end] = pd.to_datetime(processed_data[date_end], format='mixed', dayfirst=True)
         
         # Calcul de la durée en jours
         processed_data[value_column] = (processed_data[date_end] - processed_data[date_start]).dt.days

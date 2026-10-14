@@ -168,10 +168,10 @@ def create_gvh_sidebar_content(metadata, pediatric_view=False):
         html.Div([
             html.H6("📊 Information", className="mb-2"),
             html.P([
-                "Patients: ", html.Strong(f"{len(df):,}")
+                "Patients: ", html.Strong(f"{metadata.get('n_patients', 0):,}")
             ], className="mb-1", style={'fontSize': '12px'}),
             html.P([
-                "Years: ", html.Strong(f"{len(df['Year'].unique()) if 'Year' in df.columns else 0}")
+                "Years: ", html.Strong(f"{len(available_years)}")
             ], className="mb-0", style={'fontSize': '12px'})
         ])
     ]
