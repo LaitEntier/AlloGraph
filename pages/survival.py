@@ -229,7 +229,12 @@ def create_survival_sidebar_content(metadata, pediatric_view=False):
         html.Hr(),
         
         # Filtres GvHD (affichés dynamiquement quand l'onglet GRFS est actif)
-        html.Div(id='survival-gvh-filters-container'),
+        # Placeholders initiaux : les ids doivent exister dans le layout dès le
+        # chargement pour éviter la course avec les callbacks qui les ont en Input
+        html.Div([
+            dcc.Checklist(id='survival-agvh-grade-filter', options=[], value=[]),
+            dcc.Checklist(id='survival-cgvh-grade-filter', options=[], value=[]),
+        ], id='survival-gvh-filters-container'),
         
         html.Hr(),
         
@@ -1721,7 +1726,6 @@ def register_callbacks(app):
     # Calculs lifelines directs (sans cache serveur — conformité : rien de persistant côté serveur)
     def _compute_global_survival_curve(df, max_duration, selected_years_tuple):
         """Prépare les données de survie et génère la courbe globale"""
-        print(f"DEBUG _compute_global_survival_curve: Columns in df: {list(df.columns)}")
         
         # Filtrer par années
         if selected_years_tuple and 'Year' in df.columns:

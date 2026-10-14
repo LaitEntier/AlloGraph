@@ -133,8 +133,11 @@ def create_gvh_sidebar_content(metadata, pediatric_view=False):
         
         html.Hr(),
         
-        # Filtres de grade/score dynamiques
-        html.Div(id='gvh-grade-filter-container'),
+        # Filtres de grade/score dynamiques (placeholder initial : l'id doit
+        # exister dans le layout dès le chargement pour éviter la course avec
+        # les callbacks qui l'ont en Input ; remplacé par update_grade_filters)
+        html.Div(dcc.Checklist(id='gvh-grade-filter', options=[], value=[]),
+                 id='gvh-grade-filter-container'),
         
         html.Hr(),
         
@@ -194,7 +197,6 @@ def register_callbacks(app):
         """Calcule l'analyse de risques compétitifs GvH"""
         df = store_payload_to_df(data)
         
-        print(f"DEBUG _compute_competing_risks: Columns in df: {list(df.columns)}")
         
         # Apply GVHc transformation for chronic
         if gvh_type == 'chronic':
