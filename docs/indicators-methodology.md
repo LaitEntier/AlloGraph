@@ -1,198 +1,198 @@
-# Méthodologie de calcul des indicateurs
+# Indicator Calculation Methodology
 
-### Architecture Technique
+### Technical Architecture
 
-L'application **AlloGraph** est développée en Python (v3.10) utilisant le framework **Dash** (v2.18.2) pour l'interface web et **Plotly** (v5.17.0) pour les visualisations interactives. Le module d'analyse des indicateurs est implémenté dans le fichier `pages/indics.py` et repose sur les bibliothèques **Pandas** (v2.1.4) et **NumPy** (v1.24.3) pour le traitement des données.
+The **AlloGraph** application is developed in Python (v3.10) using the **Dash** framework (v2.18.2) for the web interface and **Plotly** (v5.17.0) for interactive visualizations. The indicator analysis module is implemented in the `pages/indics.py` file and relies on the **Pandas** (v2.1.4) and **NumPy** (v1.24.3) libraries for data processing.
 
 ---
 
-### Traitement Préalable des Données
+### Data Preprocessing
 
-Avant tout calcul d'indicateurs, les données brutes (format EBMT/REDCap) subissent un prétraitement standardisé (`modules/data_processing.py`) :
+Before any indicator calculation, the raw data (EBMT/REDCap format) undergoes standardized preprocessing (`modules/data_processing.py`):
 
 | Transformation | Description |
 |----------------|-------------|
-| **Normalisation des colonnes** | Conversion insensible à la casse des noms de colonnes |
-| **Calcul de l'âge** | `Age At Diagnosis` = (Date Diagnosis - Date Of Birth) / 365.25 |
-| **Tranches d'âge** | Catégorisation : 18-, 18-39, 40-64, 65-74, 75+ |
-| **Catégorie diagnostique** | Classification Malignant/Non-malignant selon Main Diagnosis |
-| **Variables dérivées** | Création de `Donor Match Category` (Genoidentical, MRD, MUD, MMUD) |
-| **Transformation GVHc** | Recodage : Limited→Mild, Extensive→Severe |
+| **Column normalization** | Case-insensitive conversion of column names |
+| **Age calculation** | `Age At Diagnosis` = (Date Diagnosis - Date Of Birth) / 365.25 |
+| **Age groups** | Categorization: 18-, 18-39, 40-64, 65-74, 75+ |
+| **Diagnostic category** | Malignant/Non-malignant classification based on Main Diagnosis |
+| **Derived variables** | Creation of `Donor Match Category` (Genoidentical, MRD, MUD, MMUD) |
+| **cGVH transformation** | Recoding: Limited→Mild, Extensive→Severe |
 
 ---
 
-### Méthodologie par Indicateur
+### Methodology by Indicator
 
-#### Graft-versus-Host Disease Aiguë (aGVH)
+#### Acute Graft-versus-Host Disease (aGVH)
 
-**Fonction** : `process_gvha_data()`  
-**Variables requises** : `First Agvhd Occurrence Date`, `Treatment Date`, `First aGvHD Maximum Score`
+**Function**: `process_gvha_data()`  
+**Required variables**: `First Agvhd Occurrence Date`, `Treatment Date`, `First aGvHD Maximum Score`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
-Délai aGVH = First Agvhd Occurrence Date - Treatment Date (en jours)
+aGVH delay = First Agvhd Occurrence Date - Treatment Date (in days)
 
-Inclusion : Délai ≤ 100 jours ET Grade ∈ {Grade 2, Grade 3, Grade 4}
+Inclusion: Delay ≤ 100 days AND Grade ∈ {Grade 2, Grade 3, Grade 4}
 
-Résultats :
-- aGVH Grades 2-4 : Nombre de patients avec Grade 2, 3 ou 4
-- aGVH Grades 3-4 : Nombre de patients avec Grade 3 ou 4
+Results:
+- aGVH Grades 2-4: Number of patients with Grade 2, 3 or 4
+- aGVH Grades 3-4: Number of patients with Grade 3 or 4
 
-Taux GvHa (%) = (Nombre de cas / Nombre total de greffes) × 100
+aGvH rate (%) = (Number of cases / Total number of transplants) × 100
 ```
 
-**Visualisation** : Barplot empilé par grade (2, 3, 4) avec coloration distincte selon grade.
+**Visualization**: Stacked barplot by grade (2, 3, 4) with a distinct color for each grade.
 
 ---
 
-#### 2. Graft-versus-Host Disease Chronique (cGVH)
+#### 2. Chronic Graft-versus-Host Disease (cGVH)
 
-**Fonction** : `process_gvhc_data()`  
-**Variables requises** : `First Cgvhd Occurrence Date`, `Treatment Date`, `First cGvHD Maximum NIH Score`
+**Function**: `process_gvhc_data()`  
+**Required variables**: `First Cgvhd Occurrence Date`, `Treatment Date`, `First cGvHD Maximum NIH Score`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
-Délai cGVH = First Cgvhd Occurrence Date - Treatment Date (en jours)
+cGVH delay = First Cgvhd Occurrence Date - Treatment Date (in days)
 
-Inclusion : Délai ≤ 365 jours ET Score ∈ {Mild, Moderate, Severe}
+Inclusion: Delay ≤ 365 days AND Score ∈ {Mild, Moderate, Severe}
 
-Transformation préalable :
+Prior transformation:
 - Limited → Mild
 - Extensive → Severe
 
-Résultats stratifiés par grade (Mild, Moderate, Severe)
-Taux GvHc (%) = (Nombre de cas / Nombre total de greffes) × 100
+Results stratified by grade (Mild, Moderate, Severe)
+cGvH rate (%) = (Number of cases / Total number of transplants) × 100
 ```
 
 ---
 
-#### 3. TRM (Toxicity-Related Mortality / Mortalité liée à la toxicité)
+#### 3. TRM (Toxicity-Related Mortality)
 
-**Fonction** : `process_trm_data()`  
-**Variables requises** : `Status Last Follow Up`, `Death Cause`, `Date Of Last Follow Up`, `Treatment Date`
+**Function**: `process_trm_data()`  
+**Required variables**: `Status Last Follow Up`, `Death Cause`, `Date Of Last Follow Up`, `Treatment Date`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
 Follow-up days = Date Of Last Follow Up - Treatment Date
 
-Filtre d'inclusion :
+Inclusion filter:
 - Death Cause ∈ {'Cellular therapy-related cause of death', 'HCT-related cause of death'}
-- ET (Status = 'Dead' OU (Status = 'Alive' ET Follow-up days ≥ 365))
+- AND (Status = 'Dead' OR (Status = 'Alive' AND Follow-up days ≥ 365))
 
-TRM J30 = Décès avec Follow-up days ≤ 30
-TRM J100 = Décès avec Follow-up days ≤ 100  
-TRM J365 = Décès avec Follow-up days ≤ 365
+TRM D30 = Death with Follow-up days ≤ 30
+TRM D100 = Death with Follow-up days ≤ 100  
+TRM D365 = Death with Follow-up days ≤ 365
 
-Taux TRM (%) = (Nombre de décès TRM / Nombre total de greffes) × 100
+TRM rate (%) = (Number of TRM deaths / Total number of transplants) × 100
 ```
 
-**Visualisation** : Courbe avec points à D30, D100, D365.
+**Visualization**: Curve with points at D30, D100, D365.
 
 ---
 
-#### 4. Survie Globale (Overall Survival)
+#### 4. Overall Survival
 
-**Fonction** : `process_survie_data()`  
-**Variables requises** : `Status Last Follow Up`, `Date Of Last Follow Up`, `Treatment Date`
+**Function**: `process_survie_data()`  
+**Required variables**: `Status Last Follow Up`, `Date Of Last Follow Up`, `Treatment Date`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
-Filtre d'inclusion :
+Inclusion filter:
 - Status ∈ {'Dead', 'Died after conditioning but before main treatment'}
-- OU (Status = 'Alive' ET Follow-up days ≥ 365)
+- OR (Status = 'Alive' AND Follow-up days ≥ 365)
 
-Décès J30 = Décès avec Follow-up days ≤ 30
-Décès J100 = Décès avec Follow-up days ≤ 100
-Décès J365 = Décès avec Follow-up days ≤ 365
+Death D30 = Death with Follow-up days ≤ 30
+Death D100 = Death with Follow-up days ≤ 100
+Death D365 = Death with Follow-up days ≤ 365
 
-Survivants = Total - Décès
-Taux de survie (%) = (Survivants / Total) × 100
+Survivors = Total - Deaths
+Survival rate (%) = (Survivors / Total) × 100
 ```
 
-**Visualisation** : Courbe avec points à D30, D100, D365.
+**Visualization**: Curve with points at D30, D100, D365.
 
 ---
 
-#### 5. Prise de Greffe (Transplantation Success)
+#### 5. Transplantation Success
 
-**Fonction** : `process_prise_greffe_data()`  
-**Variables requises** : `Date Platelet Reconstitution`, `Treatment Date`
+**Function**: `process_prise_greffe_data()`  
+**Required variables**: `Date Platelet Reconstitution`, `Treatment Date`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
-Délai reconstitution = Date Platelet Reconstitution - Treatment Date (jours)
+Reconstitution delay = Date Platelet Reconstitution - Treatment Date (days)
 
-Inclusion : Données non manquantes ET Délai ≤ 100 jours
+Inclusion: Non-missing data AND Delay ≤ 100 days
 
-Succès = Nombre de patients avec reconstitution ≤ 100 jours
-Taux de succès (%) = (Succès / Nombre total avec données valides) × 100
+Success = Number of patients with reconstitution ≤ 100 days
+Success rate (%) = (Success / Total number with valid data) × 100
 
 ```
 
-**Visualisation** : Barplot avec seuil à 80%.
+**Visualization**: Barplot with an 80% threshold.
 
 ---
 
-#### 6. Sortie d'Aplasie (ANC Recovery / Reconstitution neutrophile)
+#### 6. ANC Recovery
 
-**Fonction** : `process_sortie_aplasie_data()`  
-**Variables requises** : `Date Anc Recovery`, `Treatment Date`
+**Function**: `process_sortie_aplasie_data()`  
+**Required variables**: `Date Anc Recovery`, `Treatment Date`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
-Délai reconstitution ANC = Date Anc Recovery - Treatment Date (jours)
+ANC reconstitution delay = Date Anc Recovery - Treatment Date (days)
 
-Inclusion : Données non manquantes ET Délai ≤ 28 jours
+Inclusion: Non-missing data AND Delay ≤ 28 days
 
-Succès = Nombre de patients avec reconstitution ANC ≤ 28 jours
-Taux de sortie d'aplasie (%) = (Succès / Nombre total avec données valides) × 100
+Success = Number of patients with ANC reconstitution ≤ 28 days
+ANC recovery rate (%) = (Success / Total number with valid data) × 100
 ```
 
-**Visualisation** : Barplot avec seuil à 80%.
+**Visualization**: Barplot with an 80% threshold.
 
 ---
 
-#### 7. Rechute (Relapse)
+#### 7. Relapse
 
-**Fonction** : `process_rechute_data()`  
-**Variables requises** : `First Relapse`, `First Relapse Date`, `Treatment Date`
+**Function**: `process_rechute_data()`  
+**Required variables**: `First Relapse`, `First Relapse Date`, `Treatment Date`
 
-**Méthode de calcul** :
+**Calculation method**:
 ```
-Conversion : First Relapse = "Yes" → 1, sinon → 0
+Conversion: First Relapse = "Yes" → 1, otherwise → 0
 
-Délai rechute = First Relapse Date - Treatment Date (jours)
+Relapse delay = First Relapse Date - Treatment Date (days)
 
-Inclusion : Données de date disponibles
+Inclusion: Date data available
 
-Rechute J100 = First Relapse = "Yes" ET Délai ≤ 100 jours
-Rechute J365 = First Relapse = "Yes" ET Délai ≤ 365 jours
+Relapse D100 = First Relapse = "Yes" AND Delay ≤ 100 days
+Relapse D365 = First Relapse = "Yes" AND Delay ≤ 365 days
 
-Taux de rechute (%) = (Nombre de rechutes / Nombre total avec données valides) × 100
+Relapse rate (%) = (Number of relapses / Total number with valid data) × 100
 ```
 
-**Visualisation** : Courbe avec points à D100, D365.
+**Visualization**: Curve with points at D100, D365.
 
 ---
 
-### Analyse des Risques Compétitifs
+### Competing Risks Analysis
 
-Pour les analyses de GvH et rechute avec prise en compte du décès comme événement compétitif, la classe `CompetingRisksAnalyzer` (`modules/competing_risks.py`) implémente :
+For GvH and relapse analyses that account for death as a competing event, the `CompetingRisksAnalyzer` class (`modules/competing_risks.py`) implements:
 
 ```python
-# Méthode de Gray pour l'incidence cumulée
-hazard = N événements / N à risque
-Incidence cumulée(t) = Σ [Survie(t-1) × hazard(t)]
+# Gray's method for cumulative incidence
+hazard = N events / N at risk
+Cumulative incidence(t) = Σ [Survival(t-1) × hazard(t)]
 ```
 
-**Événements pris en compte** :
-- Événement d'intérêt (GvH ou rechute)
-- Décès comme risque compétitif
-- Censure à la date de dernier suivi
+**Events considered**:
+- Event of interest (GvH or relapse)
+- Death as a competing risk
+- Censoring at the date of last follow-up
 
 ---
-### Gestion des Données Manquantes
+### Missing Data Handling
 
-La méthode `analyze_missing_data()` distingue :
-1. **Données véritablement manquantes** : Champ vide sans information complémentaire
-2. **Données non applicables** : Par exemple, absence de GvH avec date de suivi renseignée = "Pas de GvH" (non manquant)
+The `analyze_missing_data()` method distinguishes:
+1. **Truly missing data**: Empty field with no additional information
+2. **Non-applicable data**: For example, absence of GvH with a follow-up date filled in = "No GvH" (not missing)
