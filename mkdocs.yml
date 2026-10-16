@@ -43,6 +43,7 @@ nav:
       - guides/add-visualization.md
       - guides/data-processing.md
   - Data format: data-format.md
+  - Méthodologie des indicateurs: indicators-methodology.md
   - Deployment & performance: deployment.md
   - API reference:
       - reference/index.md
