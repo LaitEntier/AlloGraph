@@ -3,7 +3,7 @@ from io import BytesIO
 import dash
 from dash import dcc, html, Input, Output, State, dash_table
 import dash_bootstrap_components as dbc
-import docx
+import utils.docx_helpers as dh
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -1094,6 +1094,38 @@ def create_trm_datatable(result_df):
         print(f"ERROR in create_trm_datatable: {str(e)}")
         return html.Div([dbc.Alert(f"Error creating TRM table: {str(e)}", color="danger")])
 
+def create_trm_docx_table(result_df, document):
+    """Tableau Docx pour TRM - adapté au nouveau format avec pourcentages"""
+    try:
+        table_data = []
+        for _, row in result_df.iterrows():
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['nb_greffe']),
+                'TRM_D30': int(row['trm_j30']),
+                'TRM_D30_%': f"{row['30']:.1f}%",
+                'TRM_D100': int(row['trm_j100']),
+                'TRM_D100_%': f"{row['100']:.1f}%",
+                'TRM_D365': int(row['trm_j365']),
+                'TRM_D365_%': f"{row['365']:.1f}%"
+            })
+ 
+        rows_def = [
+            ("Transplants", "Transplants", None),
+            ("TRM D30 (n)", "TRM_D30", None),
+            ("TRM D30 (%)", "TRM_D30_%", "F2A594"),
+            ("TRM D100 (n)", "TRM_D100", None),
+            ("TRM D100 (%)", "TRM_D100_%", "F2A594"),
+            ("TRM D365 (n)", "TRM_D365", None),
+            ("TRM D365 (%)", "TRM_D365_%", "F2A594"),
+        ]
+        return dh.add_docx_stat_table(document, "TRM Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_trm_docx_table: {str(e)}")
+        return document
+
+
 def create_trm_badges(result_df, analysis_year):
     """Badges TRM pour année spécifique - 3 badges séparés (D30, D100, D365)"""
     try:
@@ -1696,6 +1728,38 @@ def create_survie_datatable(result_df):
         print(f"ERROR in create_survie_datatable: {str(e)}")
         return html.Div([dbc.Alert(f"Error creating survival table: {str(e)}", color="danger")])
 
+def create_survie_docx_table(result_df, document):
+    """Tableau Docx pour survie - adapté au nouveau format avec pourcentages"""
+    try:
+        table_data = []
+        for _, row in result_df.iterrows():
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['nb_greffe']),
+                'Alive_D30': int(row['vivants_j30']),
+                'Surv_D30_%': f"{row['30']:.1f}%",
+                'Alive_D100': int(row['vivants_j100']),
+                'Surv_D100_%': f"{row['100']:.1f}%",
+                'Alive_D365': int(row['vivants_j365']),
+                'Surv_D365_%': f"{row['365']:.1f}%"
+            })
+ 
+        rows_def = [
+            ("Transplants (n)", "Transplants", None),
+            ("Alive D30 (n)", "Alive_D30", None),
+            ("Surv D30 (%)", "Surv_D30_%", "E8F5E8"),
+            ("Alive D100 (n)", "Alive_D100", None),
+            ("Surv D100 (%)", "Surv_D100_%", "E8F5E8"),
+            ("Alive D365 (n)", "Alive_D365", None),
+            ("Surv D365 (%)", "Surv_D365_%", "E8F5E8"),
+        ]
+        return dh.add_docx_stat_table(document, "Overall Survival Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_survie_docx_table: {str(e)}")
+        return document
+
+
 def create_survie_badges(result_df, analysis_year):
     """Badges survie pour année spécifique - 3 badges séparés (D30, D100, D365)"""
     try:
@@ -2167,6 +2231,30 @@ def create_prise_greffe_datatable(result_df):
         print(f"ERROR in create_prise_greffe_datatable: {str(e)}")
         return html.Div([dbc.Alert(f"Error creating transplant success table: {str(e)}", color="danger")])
 
+def create_prise_greffe_docx_table(result_df, document):
+    """Tableau Docx pour prise de greffe"""
+    try:
+        table_data = []
+        for _, row in result_df.iterrows():
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['total']),
+                'Success_(D100)': int(row['nb_prise_greffe']),
+                'Percentage': f"{row['pourcentage_prise_greffe']:.1f}%"
+            })
+ 
+        rows_def = [
+            ("Transplants (n)", "Transplants", None),
+            ("Success (≤D100) (n)", "Success_(D100)", None),
+            ("Percentage (%)", "Percentage", None),
+        ]
+        return dh.add_docx_stat_table(document, "Transplant Success Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_prise_greffe_docx_table: {str(e)}")
+        return document
+
+
 def create_prise_greffe_badges(result_df, analysis_year):
     """Badge prise de greffe pour année spécifique"""
     try:
@@ -2515,6 +2603,30 @@ def create_sortie_aplasie_datatable(result_df):
     except Exception as e:
         print(f"ERROR in create_sortie_aplasie_datatable: {str(e)}")
         return html.Div([dbc.Alert(f"Error creating ANC recovery table: {str(e)}", color="danger")])
+
+def create_sortie_aplasie_docx_table(result_df, document):
+    """Tableau Docx pour sortie d'aplasie"""
+    try:
+        table_data = []
+        for _, row in result_df.iterrows():
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['total']),
+                'ANC_Recovery': int(row['nb_sortie_aplasie']),
+                'Percentage': f"{row['pourcentage_sortie_aplasie']:.1f}%"
+            })
+ 
+        rows_def = [
+            ("Transplants (n)", "Transplants", None),
+            ("ANC Recovery (n)", "ANC_Recovery", None),
+            ("Percentage (%)", "Percentage", None),
+        ]
+        return dh.add_docx_stat_table(document, "ANC Recovery Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_sortie_aplasie_docx_table: {str(e)}")
+        return document
+
 
 def create_sortie_aplasie_badges(result_df, analysis_year):
     """Badge sortie d'aplasie pour année spécifique"""
@@ -2965,6 +3077,48 @@ def create_gvhc_datatable(result_combined):
     except Exception as e:
         print(f"ERROR in create_gvhc_datatable: {str(e)}")
         return html.Div([dbc.Alert(f"Error creating chronic GVH table: {str(e)}", color="danger")])
+
+def create_gvhc_docx_table(result_combined, document):
+    """Tableau Docx pour GVH chronique avec stratification par grades"""
+    try:
+        table_data = []
+        for _, row in result_combined.iterrows():
+            total_transplants = row['nb_greffe']
+            mild_pct = (row['Mild'] / total_transplants * 100) if total_transplants > 0 else 0
+            moderate_pct = (row['Moderate'] / total_transplants * 100) if total_transplants > 0 else 0
+            severe_pct = (row['Severe'] / total_transplants * 100) if total_transplants > 0 else 0
+            total_pct = row['pourcentage_gvh_chronique_total']
+ 
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['nb_greffe']),
+                'Mild': int(row['Mild']),
+                'Mild_%': f"{mild_pct:.1f}%",
+                'Moderate': int(row['Moderate']),
+                'Moderate_%': f"{moderate_pct:.1f}%",
+                'Severe': int(row['Severe']),
+                'Severe_%': f"{severe_pct:.1f}%",
+                'Total_cGVH': int(row['nb_gvh_chronique_total']),
+                'Total_%': f"{total_pct:.1f}%"
+            })
+ 
+        rows_def = [
+            ("Transplants (n)", "Transplants", None),
+            ("Mild (n)", "Mild", None),
+            ("Mild (%)", "Mild_%", "D5F4E6"),
+            ("Moderate (n)", "Moderate", None),
+            ("Moderate (%)", "Moderate_%", "FDEAA7"),
+            ("Severe (n)", "Severe", None),
+            ("Severe (%)", "Severe_%", "FADBD8"),
+            ("Total cGVH (n)", "Total_cGVH", None),
+            ("Total (%)", "Total_%", "E4EEFC"),
+        ]
+        return dh.add_docx_stat_table(document, "Chronic GVH Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_gvhc_docx_table: {str(e)}")
+        return document
+
 
 def create_gvhc_badges(result_combined, analysis_year):
     """Badges GVH chronique pour année spécifique - 4 badges (Mild, Moderate, Severe, Total)"""
@@ -3434,6 +3588,36 @@ def create_rechute_datatable(result_df):
     except Exception as e:
         print(f"ERROR in create_rechute_datatable: {str(e)}")
         return html.Div([dbc.Alert(f"Error creating relapse table: {str(e)}", color="danger")])
+
+
+def create_rechute_docx_table(result_df, document):
+    """Tableau Docx pour rechute avec pourcentages D100 et D365"""
+    try:
+        table_data = []
+        for _, row in result_df.iterrows():
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['nb_greffe']),
+                'Relapse_D100': int(row['rechute_j100']),
+                'Relapse_D100_%': f"{row['100']:.1f}%",
+                'Relapse_D365': int(row['rechute_j365']),
+                'Relapse_D365_%': f"{row['365']:.1f}%"
+            })
+ 
+        rows_def = [
+            ("Transplants (n)", "Transplants", None),
+            ("Relapse D100 (n)", "Relapse_D100", None),
+            ("Relapse D100 (%)", "Relapse_D100_%", "F2A594"),
+            ("Relapse D365 (n)", "Relapse_D365", None),
+            ("Relapse D365 (%)", "Relapse_D365_%", "F2A594"),
+        ]
+        return dh.add_docx_stat_table(document, "Relapse Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_rechute_docx_table: {str(e)}")
+        return document
+
+    
 
 def create_rechute_badges(result_df, analysis_year):
     """Badges rechute pour année spécifique - 2 badges séparés (D100, D365)"""
@@ -4337,6 +4521,35 @@ def create_gvha_datatable(result_combined):
         )
     ])
 
+def create_gvha_docx_table(result_combined, document):
+    """Tableau Docx pour les statistiques GVH aiguë par année"""
+    try:
+        table_data = []
+        for _, row in result_combined.iterrows():
+            table_data.append({
+                'Year': int(row['Year']),
+                'Transplants': int(row['nb_greffe']),
+                'aGVH_2_4_n': int(row['nb_gvh_aigue_2_4']),
+                'aGVH_2_4_pct': f"{row['pourcentage_gvh_aigue_2_4']:.1f}%",
+                'aGVH_3_4_n': int(row['nb_gvh_aigue_3_4']),
+                'aGVH_3_4_pct': f"{row['pourcentage_gvh_aigue_3_4']:.1f}%"
+            })
+
+        # No highlight in the DataTable version, so none here either
+        rows_def = [
+            ("Transplants (n)", "Transplants", None),
+            ("aGVH 2-4 (n)", "aGVH_2_4_n", None),
+            ("aGVH 2-4 (%)", "aGVH_2_4_pct", None),
+            ("aGVH 3-4 (n)", "aGVH_3_4_n", None),
+            ("aGVH 3-4 (%)", "aGVH_3_4_pct", None),
+        ]
+        return dh.add_docx_stat_table(document, "Acute GVH Statistics by year",
+                                    table_data, rows_def)
+    except Exception as e:
+        print(f"ERROR in create_gvha_docx_table: {str(e)}")
+        return document
+
+
 def create_gvha_badges(result_combined, analysis_year):
     try:
         # S'assurer que analysis_year est de type int
@@ -4786,3 +4999,25 @@ def create_quarter_badges_column(quarterly_df, quarter_num, selected_year):
             html.H6(f"Q{quarter_num}", className='text-center mb-2'),
             dbc.Alert(f"Error: {str(e)}", color="danger")
         ])
+
+
+
+def create_infusions_datatable(infusion_df):
+    """DataTable pour le nombre de greffes par an"""
+    try:
+        table_data = [{'Year': int(year), 'Infusions': int(row['Greffes'])}
+                      for year, row in infusion_df.iterrows()]
+        return html.Div([
+            html.H6("Number of infusions", className='mb-2'),
+            dash_table.DataTable(
+                data=table_data,
+                columns=[{"name": "Year", "id": "Year"},
+                         {"name": "Infusions", "id": "Infusions"}],
+                style_cell={'textAlign': 'center', 'fontSize': '11px', 'padding': '6px', 'color': '#021F59'},
+                style_header={'backgroundColor': '#021F59', 'color': 'white', 'fontWeight': 'bold', 'fontSize': '10px'},
+                style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#F2E9DF'}]
+            )
+        ])
+    except Exception as e:
+        print(f"ERROR in create_infusions_datatable: {str(e)}")
+        return html.Div(f"Error creating infusions table: {str(e)}")

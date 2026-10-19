@@ -3152,7 +3152,7 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
                 # Logique standard pour les autres colonnes
                 is_missing = pd.isna(row[col])
             
-            if is_missing:
+            if is_missing is not False:
                 missing_columns.append(col)
         
         if missing_columns:

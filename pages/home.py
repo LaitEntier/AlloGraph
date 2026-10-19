@@ -5,13 +5,18 @@ import dash
 from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 import docx
+import utils.docx_helpers as docx_helpers
+import utils.html_helpers as html_helpers
+from docx.shared import Cm, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 import pandas as pd
 from dash_extensions import Lottie
 
 # Import des modules communs
 import visualizations.allogreffes.graphs as gr
 
-import pages.indics as indics
+import xlsxwriter
 
 def get_layout():
     """Retourne le layout de la page d'accueil"""
@@ -656,61 +661,90 @@ def register_callbacks(app):
         return is_open, "bi bi-chevron-down ms-2"
 
     @app.callback(
-        Output("download-indicators-table-docx", "data"),
-        Input("download-indicators-docx", "n_clicks"),
+        Output("download-indicators-docx", "data"),
+        Input("download-indicators-docx-button", "n_clicks"),
         State("year-selection-sidebar", "value"),
-        State("indicators-df-store", "data"),
+        State("data-store", "data"),
+        State("metadata-store", "data"),
         prevent_initial_call=True
     )
-    def export_indicators_to_docx(n_clicks, year_selection, indicators_df):
+    def export_indicators_to_docx(n_clicks, year_selection, indicators_df, metadata):
         """Gère l'export docx des tableaux d'Indicators"""
         if n_clicks is None:
             return dash.no_update
         
         try:
+            import pages.indics as indics
             indicator_df = pd.DataFrame(indicators_df)
-            doc = docx.Document()
 
-            # On ne garde que les données de l'année selectionner, si y'en a une. Sinon on prend toutes les années
+            # On ne garde que les données de l'année selectionner avec n-1 et n-2, si y'en a une. Sinon on prend toutes les années
             if year_selection != 0:
-                indicator_df = indicator_df[indicator_df['Year'].isin([year_selection])]
+                indicator_df = indicator_df[indicator_df['Year'].isin([year_selection, str(int(year_selection)-1), str(int(year_selection)-2)])]
 
-            result_dic = {
-                "TRM": indics.process_trm_data,
-                "Survie globale": indics.process_survie_data,
-                "Prise de greffe":  indics.process_prise_greffe_data,
-                "Sortie d'aplasie": indics.process_sortie_aplasie_data,
-                "Rechute": indics.process_rechute_data,
-                "GVH aiguë": indics.process_gvha_data,
-                "GVH chronique": indics.process_gvhc_data,
-            }
-        
-            for name, func in result_dic.items():
-                res = None
-                try :
-                    _, res = func(indicator_df)
-                except :
-                    res = func(indicator_df)
-        
-                heading = doc.add_heading(name, 1)
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            infusion_df: pd.DataFrame = indicator_df[['Year','Greffes']].groupby("Year").count()
+            
+            doc = docx.Document()
+            date = current_date.split("_")[0]
+            date = date[6:] + "/" + date[4:6] + "/" + date[:4]
 
-                heading.style.element.rPr.color.set(docx.oxml.ns.qn("w:val"), "0000BB")
-                heading.style.element.rPr.rFonts.set(docx.oxml.ns.qn("w:asciiTheme"), "Arial")
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.add_run().add_picture("assets/images/logo.png",width=Cm(5))
 
-                t = doc.add_table(res.shape[1],res.shape[0]+1)
-                t.style = "Light Grid Accent 1"
-                
-                # add the header rows.
-                for j in range(res.shape[-1]):
-                    t.cell(j,0).text = res.columns[j]
-        
-                # add the rest of the data frame
-                for i in range(res.shape[0]):
-                    for j in range(res.shape[-1]):
-                        if res.columns[j] == '0' or res.columns[j] == '30' or res.columns[j] == '100' or res.columns[j] == '365' or 'pourcentage' in res.columns[j] :
-                            t.cell(j,i+1).text = str(res.values[i,j]) + " %"
-                        else : 
-                            t.cell(j,i+1).text = str(res.values[i,j])
+            # Insert into the document straight from memory
+            heading = doc.add_heading("General report information", 0)
+            heading.style.element.rPr.rFonts.set(qn("w:asciiTheme"), "Roboto")
+            heading.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+
+
+            p = doc.add_paragraph("This report was produced on: " + str(date))
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            p = doc.add_paragraph("The input file is entitled: " + metadata["filename"]) 
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            p = doc.add_paragraph("The pipeline version:")
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            p = doc.add_paragraph("The indicators were computed with the data provided by the user.\n"
+                    "Methods to compute indicators are described online.\n"
+                    "All legal and privacy notice are provided on: ")
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            docx_helpers.add_hyperlink(p,"https://allograph.univ-tours.fr/", "AlloGraph.")
+
+            table_data = []
+            for year, row in infusion_df.iterrows():
+                table_data.append({
+                    'Year': year,
+                    'Infusions': int(row['Greffes']),
+                })
+
+            rows_def = [
+                ("Infusions (n)", "Infusions", None),
+            ]
+
+            docx_helpers.add_docx_stat_table(doc,"Number of infusions", table_data, rows_def)
+
+            tables = [
+                (indics.process_prise_greffe_data, None, indics.create_prise_greffe_docx_table),
+                (indics.process_sortie_aplasie_data, None, indics.create_sortie_aplasie_docx_table),
+                (indics.process_trm_data, 1, indics.create_trm_docx_table),
+                (indics.process_gvha_data, 0, indics.create_gvha_docx_table),
+                (indics.process_gvhc_data, 0, indics.create_gvhc_docx_table),
+                (indics.process_rechute_data, 1, indics.create_rechute_docx_table),
+                (indics.process_survie_data, 1, indics.create_survie_docx_table),
+            ]
+
+            for func_process, idx, func_datatable in tables:
+                result = func_process(indicator_df)
+                result_df = result[idx] if idx is not None else result
+                doc = func_datatable(result_df, doc)
+
+            # Ajout de la numérotation des pages
+            docx_helpers.add_page_number(doc.sections[0].footer.paragraphs[0])
 
             # Enregistrement du fichier docx sous forme de bytes pour le téléchargement
             import base64
@@ -719,14 +753,317 @@ def register_callbacks(app):
             content = base64.b64encode(out.getvalue()).decode("utf-8")
 
             # Générer un nom de fichier avec la date
-            from datetime import datetime
-            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"indicators_tables_{current_date}.docx"
-
+            
             return dict(content=content, filename=filename, base64=True, type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 
         except Exception as e:
             print(f"Error during DOCX export Indicators: {e}")
             return dash.no_update    
+
+    @app.callback(
+        Output("download-indicators-html", "data"),
+        Input("download-indicators-html-button", "n_clicks"),
+        State("year-selection-sidebar", "value"),
+        State("data-store", "data"),
+        State("metadata-store", "data"),
+        prevent_initial_call=True
+    )
+    def export_indicators_to_html(n_clicks, year_selection, indicators_df, metadata):
+        """Gère l'export html des tableaux d'Indicators"""
+        if n_clicks is None:
+            return dash.no_update
+
+        try:
+            import pages.indics as indics
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            indicator_df = pd.DataFrame(indicators_df)
+
+            if year_selection != 0:
+                indicator_df = indicator_df[indicator_df['Year'].isin(
+                    [str(int(year_selection) - 2), str(int(year_selection) - 1), year_selection]
+                )]
+
+            infusion_df = indicator_df[['Year', 'Greffes']].groupby("Year").count()
+
+            d = current_date.split("_")[0]
+            date = d[4:6] + "/" + d[6:] + "/" + d[:4]
+
+            components = []
+
+            logo = html_helpers.logo_data_uri()
+            if logo:
+                components.append(html.Img(
+                    src=logo, alt="Logo",
+                    style={'display': 'block', 'margin': '0 auto 1.5rem auto', 'width': '5cm'}))
+            components.extend([
+                html.H1("General report information", className='mb-3'),
+                html.P(f"This report was produced on: {date}"),
+                html.P(f"The input file is entitled: {metadata['filename']}"),
+                html.P("The pipeline version:"),
+                html.P([
+                    "The indicators were computed with the data provided by the user.",
+                    html.Br(),
+                    "Methods to compute indicators are described online.",
+                    html.Br(),
+                    "All legal and privacy notices are provided on: ",
+                    html.A("AlloGraph.", href="https://allograph.univ-tours.fr/"),
+                ]),
+                html.H1("Activity indicators", className='mt-4 mb-3'),
+                html.Div(indics.create_infusions_datatable(infusion_df), className='mb-4'),
+            ])
+
+            tables = [
+                (indics.process_prise_greffe_data, None, indics.create_prise_greffe_datatable),
+                (indics.process_sortie_aplasie_data, None, indics.create_sortie_aplasie_datatable),
+                (indics.process_trm_data, 1, indics.create_trm_datatable),
+                (indics.process_gvha_data, 0, indics.create_gvha_datatable),
+                (indics.process_gvhc_data, 0, indics.create_gvhc_datatable),
+                (indics.process_rechute_data, 1, indics.create_rechute_datatable),
+                (indics.process_survie_data, 1, indics.create_survie_datatable),
+            ]
+
+            for func_process, idx, func_datatable in tables:
+                result = func_process(indicator_df)
+                result_df = result[idx] if idx is not None else result
+                components.append(html.Div(func_datatable(result_df), className='mb-4'))
+
+            html_doc = html_helpers.build_html_from_components(components, app, title="Indicators report")
+            filename = f"indicators_tables_{current_date}.html"
+
+            return dict(content=html_doc, filename=filename, type="text/html")
+
+        except Exception as e:
+            print(f"Error during HTML export Indicators: {e}")
+            return dash.no_update
+
+    @app.callback(
+            Output('download-all-missing-excel', 'data'),
+            Input('export-all-missing-button', 'n_clicks'),
+            State('data-store', 'data'),
+    )
+    def export_all_missing_to_csv(n_clicks, data):
+        """Gère l'export de toutes les données manquante au format csv"""
+        if n_clicks is None:
+                    return dash.no_update
+        try:
+            import io
+            output = io.BytesIO()
+            writer = pd.ExcelWriter(output, engine='xlsxwriter')
+
+            df = pd.DataFrame(data)
+            if df.empty:
+                return None
+            
+            existing_columns = [col for col in df.columns]
+
+            # ALL
+            if not existing_columns:
+                return None
+            
+            # Utiliser la fonction existante de graphs.py
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+            
+            if detailed_missing.empty:
+                return None
+            
+            # Adapter les noms de colonnes pour correspondre au format attendu
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='All', index=False)
+
+            # Patient
+            columns_to_analyze = [
+                'Age At Diagnosis', 
+                'Main Diagnosis', 
+                'Sex', 
+                'Blood + Rh', 
+                'Number HCT', 
+                'Number Allo HCT',
+                'Performance Status At Treatment Scale',
+                'Performance Status At Treatment Score'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Patient', index=False)
+
+            # Indications/hemopathie
+            columns_to_analyze = [
+                'Main Diagnosis', 
+                'Subclass Diagnosis', 
+                'Age Groups', 
+                'Blood Group',
+                'Rhesus Factor', 
+                'Disease Status At Treatment'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Indications', index=False)
+
+            # Procedures
+            columns_to_analyze = [
+                'Donor Type',
+                'Source Stem Cells', 
+                'Match Type',
+                'Conditioning Regimen Type',
+                'Donor Match Category',
+                'Treatment Date', 
+                'Anc Recovery',
+                'Date Anc Recovery',
+                'Platelet Reconstitution',
+                'Date Platelet Reconstitution'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Procedures', index=False)
+
+            # GVH
+            columns_to_analyze = [
+                # Variables GvH Aiguë
+                'First Agvhd Occurrence',
+                'First aGvHD Maximum Score',
+                'First Agvhd Occurrence Date',
+                
+                # Variables GvH Chronique
+                'First Cgvhd Occurrence', 
+                'First cGvHD Maximum NIH Score',
+                'First Cgvhd Occurrence Date',
+                
+                # Variables de suivi
+                'Status Last Follow Up',
+                'Date Of Last Follow Up'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='GVH', index=False)
+
+            # Relapse
+            columns_to_analyze = [
+                # Variables de rechute
+                'First Relapse',
+                'First Relapse Date',
+                
+                # Variables de traitement et suivi
+                'Treatment Date',
+                'Status Last Follow Up',
+                'Date Of Last Follow Up'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Relapse', index=False)
+            
+            # Survival
+            columns_to_analyze = [
+                'Treatment Date',
+                'Date Of Last Follow Up',
+                'Status Last Follow Up',
+                'First Agvhd Occurrence',
+                'First Agvhd Occurrence Date',
+                'First Cgvhd Occurrence',
+                'First Cgvhd Occurrence Date',
+                'First Relapse',
+                'First Relapse Date',
+                'First aGvHD Maximum Score',
+                'First cGvHD Maximum NIH Score',
+                'Year'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Survival', index=False)
+
+            # Toxicity
+            columns_to_analyze = [
+                'Status Last Follow Up',
+                'Date Of Last Follow Up',
+                'First Relapse',
+                'First Relapse Date',
+                'Treatment Date'
+            ]
+            existing_columns = [col for col in columns_to_analyze if col in df.columns]
+
+            _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                        
+            detailed_data = []
+            for _, row in detailed_missing.iterrows():
+                detailed_data.append({
+                    'Long ID': row['Long ID'],
+                    'Missing columns': row['Missing columns'],
+                    'Nb missing': row['Nb missing']
+                })
+            pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Toxicity', index=False)
+
+            writer.close()
+            data = output.getvalue()
+            
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"donnees_manquantes_{current_date}.xlsx"
+
+            return dcc.send_bytes(data, filename)
+
+        except Exception as e:
+            print(f"Error during Excel export Relapse: {e}")
+            return dash.no_update
+
         

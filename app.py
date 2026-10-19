@@ -312,6 +312,7 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             if 'Year' in df.columns:
                 available_years = sorted(df['Year'].unique().tolist())
                 years_options = [{'label': f'{year}', 'value': year} for year in available_years]
+                years_options = years_options[::-1]
                 years_options.insert(0,{'label': 'All', 'value': 0})
         
             # Utiliser les métadonnées si disponibles
@@ -325,9 +326,10 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
             export_docx_section = html.Div([
                 # Sélection d'année pour Yearly (dropdown - single year)
                 html.Hr(),
+                html.H6("Indicators report", className="mb-2", style={'color': '#021F59'}),
                 html.Div([
-                    html.Label('Year for analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
-                    html.Small("Select a year for badges", className='text-muted d-block mb-2'),
+                    #html.Label('Year for analysis:', className='mb-2 fw-bold', style={'color': '#021F59'}),
+                    html.Small("Select a year to review", className='text-muted d-block mb-2'),
                     dcc.Dropdown(
                         id='year-selection-sidebar',
                         options=years_options,
@@ -337,20 +339,26 @@ def update_sidebar(current_page, data, metadata, pediatric_view):
                     )
                 ], id='yearly-controls', style={'display': 'block'}),
                 
-                html.Label('Export indicators to DOCX', className='mb-2 fw-bold', style={'color': '#021F59'}),
-                dcc.Store(
-                    id="indicators-df-store",
-                    data=df.to_dict("records")
-                ),
+                #html.Label('Export indicators', className='mb-2 fw-bold', style={'color': '#021F59'}),
                 dbc.Button(
-                    [html.I(className="fas fa-download me-2"), "Export DOCX"],
-                    id="download-indicators-docx",
+                    [html.I(className="fas fa-download me-2"), "Export to DOCX"],
+                    id="download-indicators-docx-button",
+                    color="primary",
+                    size="sm",
+                    disabled=False,
+                    style={"margin-bottom": "0.5em"}
+                ),
+                dcc.Download(id="download-indicators-docx"),
+                html.Br(className="fas fa-download me-2"),
+                dbc.Button(
+                    [html.I(className="fas fa-download me-2"), "Export to HTML"],
+                    id="download-indicators-html-button",
                     color="primary",
                     size="sm",
                     disabled=False,
                 ),
-                dcc.Download(id="download-indicators-table-docx")
-            ])
+                dcc.Download(id="download-indicators-html")
+            ], style={'display': 'flex', 'flex-direction': 'column'})
                 
             content = html.Div([
                 dbc.Alert([
