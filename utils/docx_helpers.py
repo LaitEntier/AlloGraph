@@ -93,7 +93,11 @@ def add_docx_stat_table(document, heading_text, table_data, rows_def):
     shade_cell(corner, DOCX_HEADER_BG)
     for j, record in enumerate(table_data):
         cell = table.cell(0, j + 1)
-        write_cell(cell, record['Year'], font_size=10, color="FFFFFF", bold=True)
+        if j == 0 :
+            write_cell(cell, str(record['Year']) + ' (N)', font_size=10, color="FFFFFF", bold=True)
+        else :
+            write_cell(cell, str(record['Year']) + ' (N-' + str(j) + ')', font_size=10, color="FFFFFF", bold=True)
+            
         shade_cell(cell, DOCX_HEADER_BG)
  
     # Data rows
@@ -126,7 +130,8 @@ def add_docx_stat_table(document, heading_text, table_data, rows_def):
 
 
 def add_page_number(paragraph):
-    paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    
+    paragraph.add_run("\t")
 
     page_num_run = paragraph.add_run()
 
@@ -164,6 +169,15 @@ def add_page_number(paragraph):
     num_pages_run._r.append(fldChar3)
     num_pages_run._r.append(instrText2)
     num_pages_run._r.append(fldChar4)
+
+def marquage(paragraph):
+    paragraph.add_run("\t")
+    of_run = paragraph.add_run()
+    t2 = OxmlElement('w:t')
+    t2.set(qn('xml:space'), 'preserve')
+    t2.text = 'AlloGraph General Report Information'
+    of_run._r.append(t2)
+
 
 
 def keep_table_on_one_page(table):

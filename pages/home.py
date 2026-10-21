@@ -5,10 +5,11 @@ import dash
 from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
 import docx
+from pages.indics import get_variables_for_indicator
 import utils.docx_helpers as docx_helpers
 import utils.html_helpers as html_helpers
 from docx.shared import Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_PARAGRAPH_ALIGNMENT
 from docx.oxml.ns import qn
 import pandas as pd
 from dash_extensions import Lottie
@@ -693,6 +694,12 @@ def register_callbacks(app):
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.add_run().add_picture("assets/images/logo.png",width=Cm(5))
 
+            style = doc.styles["Title"]
+            pBdr = style.element.pPr.find(qn("w:pBdr"))
+            if pBdr is not None:
+                bottom = pBdr.find(qn("w:bottom"))
+                bottom.set(qn("w:color"), "021F59") 
+
             # Insert into the document straight from memory
             heading = doc.add_heading("General report information", 0)
             heading.style.element.rPr.rFonts.set(qn("w:asciiTheme"), "Roboto")
@@ -713,7 +720,7 @@ def register_callbacks(app):
                     "All legal and privacy notice are provided on: ")
             p.style.font.name = "Roboto"
             p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
-            docx_helpers.add_hyperlink(p,"https://allograph.univ-tours.fr/", "AlloGraph.")
+            docx_helpers.add_hyperlink(p,"https://allograph.univ-tours.fr/", "allograph.univ-tours.fr")
 
             table_data = []
             for year, row in infusion_df.iterrows():
@@ -744,7 +751,10 @@ def register_callbacks(app):
                 doc = func_datatable(result_df, doc)
 
             # Ajout de la numérotation des pages
+            doc.sections[0].footer.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            docx_helpers.marquage(doc.sections[0].footer.paragraphs[0])
             docx_helpers.add_page_number(doc.sections[0].footer.paragraphs[0])
+            
 
             # Enregistrement du fichier docx sous forme de bytes pour le téléchargement
             import base64
@@ -809,7 +819,7 @@ def register_callbacks(app):
                     "Methods to compute indicators are described online.",
                     html.Br(),
                     "All legal and privacy notices are provided on: ",
-                    html.A("AlloGraph.", href="https://allograph.univ-tours.fr/"),
+                    html.A("allograph.univ-tours.fr", href="https://allograph.univ-tours.fr/"),
                 ]),
                 html.H1("Activity indicators", className='mt-4 mb-3'),
                 html.Div(indics.create_infusions_datatable(infusion_df), className='mb-4'),
@@ -1052,6 +1062,32 @@ def register_callbacks(app):
                     'Nb missing': row['Nb missing']
                 })
             pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Toxicity', index=False)
+
+            # Indicators
+            indicators = ['prise_greffe', 'sortie_aplasie', 'TRM', 'gvha', 'gvhc', 'rechute', 'survie_globale' ]
+            for selected_indicator in indicators:
+                columns_to_analyze, indicator_name = get_variables_for_indicator(selected_indicator)
+                            
+                existing_columns = [col for col in columns_to_analyze if col in df.columns]
+                
+                # Utiliser la fonction existante de graphs.py
+                _, detailed_missing = gr.analyze_missing_data(df, existing_columns, 'Long ID')
+                
+                if detailed_missing.empty:
+                    return dbc.Alert("No missing data found !", color='success'), True, None, None
+                
+                # Adapter les noms de colonnes pour correspondre au format attendu
+                detailed_data = []
+                for _, row in detailed_missing.iterrows():
+                    detailed_data.append({
+                        'Long ID': row['Long ID'],
+                        'Missing columns': row['Missing columns'],
+                        'Nb missing': row['Nb missing'],
+                        'Indicator': indicator_name  # Ajouter l'indicateur pour l'export
+                    })
+                
+                pd.DataFrame(detailed_data).to_excel(writer, sheet_name='Indicators_' + selected_indicator, index=False)
+
 
             writer.close()
             data = output.getvalue()
