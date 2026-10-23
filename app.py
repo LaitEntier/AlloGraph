@@ -10,8 +10,9 @@ import plotly
 
 # Import des modules
 import modules.data_processing as data_processing
-from modules.data_processing import df_to_store_payload
+from modules.data_processing import df_to_store_payload, store_payload_to_df
 import modules.dashboard_layout as layouts
+import utils.missing_export as missing_export
 
 # Performance optimization: Response compression for VM deployments (optional)
 try:
@@ -307,6 +308,42 @@ def update_sidebar(current_page, metadata, pediatric_view):
             # Utiliser les métadonnées (store léger) au lieu du dataset complet
             original_shape = metadata.get('original_shape', (0, 0))
             filename = metadata.get('filename', 'Unknown')
+            available_years = metadata.get('years', [])
+            years_options = [{'label': f'{year}', 'value': year} for year in reversed(available_years)]
+            years_options.insert(0, {'label': 'All', 'value': 0})
+
+            export_docx_section = html.Div([
+                html.Hr(),
+                html.H6("Indicators report", className="mb-2", style={'color': '#021F59'}),
+                html.Div([
+                    html.Small("Select a year to review", className='text-muted d-block mb-2'),
+                    dcc.Dropdown(
+                        id='year-selection-sidebar',
+                        options=years_options,
+                        value=0,
+                        className='mb-3',
+                        placeholder="Select a year..."
+                    )
+                ], id='yearly-controls', style={'display': 'block'}),
+                dbc.Button(
+                    [html.I(className="fas fa-download me-2"), "Export to DOCX"],
+                    id="download-indicators-docx-button",
+                    color="primary",
+                    size="sm",
+                    disabled=False,
+                    style={"margin-bottom": "0.5em"}
+                ),
+                dcc.Download(id="download-indicators-docx"),
+                html.Br(),
+                dbc.Button(
+                    [html.I(className="fas fa-download me-2"), "Export to HTML"],
+                    id="download-indicators-html-button",
+                    color="primary",
+                    size="sm",
+                    disabled=False,
+                ),
+                dcc.Download(id="download-indicators-html")
+            ], style={'display': 'flex', 'flex-direction': 'column'})
                 
             content = html.Div([
                 dbc.Alert([
@@ -326,6 +363,11 @@ def update_sidebar(current_page, metadata, pediatric_view):
                     layouts.create_upload_component(),
                     html.Div(id='upload-status')
                 ])
+            ])
+
+            content = html.Div([
+                content,
+                export_docx_section
             ])
             
             return layouts.create_sidebar_layout('Data', content)
@@ -744,6 +786,8 @@ def toggle_purge_modal(purge_clicks, cancel_clicks, confirm_clicks, is_open):
     
     return is_open
 
+# TODO : fonction export csv all missing data
+
 # Callback pour effectuer la purge des données
 @app.callback(
     [Output('data-store', 'data', allow_duplicate=True),
@@ -778,6 +822,44 @@ def toggle_purge_button_visibility(metadata):
         return {'display': 'block'}
     else:
         return {'display': 'none'}
+
+@app.callback(
+    Output("export-all-missing-button", "style"),
+    [Input("metadata-store", "data")]
+)
+def toggle_export_all_missing_button_visibility(metadata):
+    """Affiche le bouton d'export seulement quand des données sont chargées"""
+    if metadata is not None:
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
+
+@app.callback(
+    Output('download-all-missing-excel', 'data'),
+    Input('export-all-missing-button', 'n_clicks'),
+    State('data-store', 'data'),
+    prevent_initial_call=True
+)
+def export_all_missing_to_csv(n_clicks, data):
+    """Gère l'export de toutes les données manquantes au format Excel.
+
+    Callback global : la feuille 'All' analyse par nature l'ensemble des
+    colonnes, ce qui justifie la consommation du store complet ici.
+    """
+    if n_clicks is None or data is None:
+        return dash.no_update
+
+    try:
+        df = store_payload_to_df(data)
+        if df.empty:
+            return dash.no_update
+
+        workbook = missing_export.build_missing_data_workbook(df)
+        return dcc.send_bytes(workbook, missing_export.get_missing_export_filename())
+
+    except Exception as e:
+        print(f"Error during Excel export of missing data: {e}")
+        return dash.no_update
 
 @app.callback(
     [Output('data-store', 'data', allow_duplicate=True),

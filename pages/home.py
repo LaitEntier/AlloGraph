@@ -1,8 +1,15 @@
 # pages/home.py
+from io import BytesIO
+
 import dash
 from dash import dcc, html, Input, Output, State, callback
 import dash_bootstrap_components as dbc
-import pandas as pd
+import docx
+import utils.docx_helpers as docx_helpers
+import utils.html_helpers as html_helpers
+from docx.shared import Cm, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_PARAGRAPH_ALIGNMENT
+from docx.oxml.ns import qn
 from dash_extensions import Lottie
 
 # Import des modules communs
@@ -652,3 +659,178 @@ def register_callbacks(app):
             else:
                 return True, "bi bi-chevron-up ms-2"
         return is_open, "bi bi-chevron-down ms-2"
+
+    @app.callback(
+        Output("download-indicators-docx", "data"),
+        Input("download-indicators-docx-button", "n_clicks"),
+        State("year-selection-sidebar", "value"),
+        State("data-store-indics", "data"),
+        State("metadata-store", "data"),
+        prevent_initial_call=True
+    )
+    def export_indicators_to_docx(n_clicks, year_selection, indicators_data, metadata):
+        """Gère l'export docx des tableaux d'Indicators"""
+        if n_clicks is None:
+            return dash.no_update
+
+        try:
+            import pages.indics as indics
+            indicator_df = store_payload_to_df(indicators_data)
+
+            if year_selection not in (None, 0, '0'):
+                selected_year = int(year_selection)
+                years = {str(selected_year - offset) for offset in range(3)}
+                indicator_df = indicator_df[indicator_df['Year'].astype(str).isin(years)]
+
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            infusion_df = indicator_df.groupby('Year').size().rename('Greffes').to_frame()
+
+            doc = docx.Document()
+            date = current_date.split("_")[0]
+            date = date[6:] + "/" + date[4:6] + "/" + date[:4]
+
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.add_run().add_picture("assets/images/logo.png",width=Cm(5))
+
+            style = doc.styles["Title"]
+            pBdr = style.element.pPr.find(qn("w:pBdr"))
+            if pBdr is not None:
+                bottom = pBdr.find(qn("w:bottom"))
+                bottom.set(qn("w:color"), "021F59")
+
+            heading = doc.add_heading("General report information", 0)
+            heading.style.element.rPr.rFonts.set(qn("w:asciiTheme"), "Roboto")
+            heading.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+
+            p = doc.add_paragraph("This report was produced on: " + str(date))
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            p = doc.add_paragraph("The input file is entitled: " + metadata["filename"])
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            p = doc.add_paragraph("The pipeline version:")
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            p = doc.add_paragraph("The indicators were computed with the data provided by the user.\n"
+                    "Methods to compute indicators are described online.\n"
+                    "All legal and privacy notice are provided on: ")
+            p.style.font.name = "Roboto"
+            p.style.font.color.rgb = RGBColor(0x02, 0x1F, 0x59)
+            docx_helpers.add_hyperlink(p,"https://allograph.univ-tours.fr/", "allograph.univ-tours.fr")
+
+            table_data = [
+                {'Year': year, 'Infusions': int(row['Greffes'])}
+                for year, row in infusion_df.iterrows()
+            ]
+            rows_def = [("Infusions (n)", "Infusions", None)]
+            docx_helpers.add_docx_stat_table(doc,"Number of infusions", table_data, rows_def)
+
+            tables = [
+                (indics.process_prise_greffe_data, None, indics.create_prise_greffe_docx_table),
+                (indics.process_sortie_aplasie_data, None, indics.create_sortie_aplasie_docx_table),
+                (indics.process_trm_data, 1, indics.create_trm_docx_table),
+                (indics.process_gvha_data, 0, indics.create_gvha_docx_table),
+                (indics.process_gvhc_data, 0, indics.create_gvhc_docx_table),
+                (indics.process_rechute_data, 1, indics.create_rechute_docx_table),
+                (indics.process_survie_data, 1, indics.create_survie_docx_table),
+            ]
+
+            for func_process, idx, func_datatable in tables:
+                result = func_process(indicator_df)
+                result_df = result[idx] if idx is not None else result
+                doc = func_datatable(result_df, doc)
+
+            doc.sections[0].footer.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            docx_helpers.marquage(doc.sections[0].footer.paragraphs[0])
+            docx_helpers.add_page_number(doc.sections[0].footer.paragraphs[0])
+
+            import base64
+            out = BytesIO()
+            doc.save(out)
+            content = base64.b64encode(out.getvalue()).decode("utf-8")
+            filename = f"indicators_tables_{current_date}.docx"
+
+            return dict(content=content, filename=filename, base64=True, type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+        except Exception as e:
+            print(f"Error during DOCX export Indicators: {e}")
+            return dash.no_update
+
+    @app.callback(
+        Output("download-indicators-html", "data"),
+        Input("download-indicators-html-button", "n_clicks"),
+        State("year-selection-sidebar", "value"),
+        State("data-store-indics", "data"),
+        State("metadata-store", "data"),
+        prevent_initial_call=True
+    )
+    def export_indicators_to_html(n_clicks, year_selection, indicators_data, metadata):
+        """Gère l'export html des tableaux d'Indicators"""
+        if n_clicks is None:
+            return dash.no_update
+
+        try:
+            import pages.indics as indics
+            from datetime import datetime
+            current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            indicator_df = store_payload_to_df(indicators_data)
+
+            if year_selection not in (None, 0, '0'):
+                selected_year = int(year_selection)
+                years = {str(selected_year - offset) for offset in range(3)}
+                indicator_df = indicator_df[indicator_df['Year'].astype(str).isin(years)]
+
+            infusion_df = indicator_df.groupby('Year').size().rename('Greffes').to_frame()
+
+            d = current_date.split("_")[0]
+            date = d[4:6] + "/" + d[6:] + "/" + d[:4]
+
+            components = []
+
+            logo = html_helpers.logo_data_uri()
+            if logo:
+                components.append(html.Img(
+                    src=logo, alt="Logo",
+                    style={'display': 'block', 'margin': '0 auto 1.5rem auto', 'width': '5cm'}))
+            components.extend([
+                html.H1("General report information", className='mb-3'),
+                html.P(f"This report was produced on: {date}"),
+                html.P(f"The input file is entitled: {metadata['filename']}"),
+                html.P("The pipeline version:"),
+                html.P([
+                    "The indicators were computed with the data provided by the user.",
+                    html.Br(),
+                    "Methods to compute indicators are described online.",
+                    html.Br(),
+                    "All legal and privacy notices are provided on: ",
+                    html.A("allograph.univ-tours.fr", href="https://allograph.univ-tours.fr/"),
+                ]),
+                html.H1("Activity indicators", className='mt-4 mb-3'),
+                html.Div(indics.create_infusions_datatable(infusion_df), className='mb-4'),
+            ])
+
+            tables = [
+                (indics.process_prise_greffe_data, None, indics.create_prise_greffe_datatable),
+                (indics.process_sortie_aplasie_data, None, indics.create_sortie_aplasie_datatable),
+                (indics.process_trm_data, 1, indics.create_trm_datatable),
+                (indics.process_gvha_data, 0, indics.create_gvha_datatable),
+                (indics.process_gvhc_data, 0, indics.create_gvhc_datatable),
+                (indics.process_rechute_data, 1, indics.create_rechute_datatable),
+                (indics.process_survie_data, 1, indics.create_survie_datatable),
+            ]
+
+            for func_process, idx, func_datatable in tables:
+                result = func_process(indicator_df)
+                result_df = result[idx] if idx is not None else result
+                components.append(html.Div(func_datatable(result_df), className='mb-4'))
+
+            html_doc = html_helpers.build_html_from_components(components, app, title="Indicators report")
+            filename = f"indicators_tables_{current_date}.html"
+
+            return dict(content=html_doc, filename=filename, type="text/html")
+
+        except Exception as e:
+            print(f"Error during HTML export Indicators: {e}")
+            return dash.no_update
