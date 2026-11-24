@@ -70,6 +70,43 @@ def normalize_column_names(df):
     
     return df
 
+def decode_csv_bytes(content: bytes) -> str:
+    """
+    Décode le contenu brut d'un fichier CSV uploadé.
+
+    Ordre de détection (déterministe, sans dépendance externe) :
+    1. BOM : UTF-8 (EF BB BF), UTF-16 LE (FF FE) / BE (FE FF)
+    2. Sans BOM : octets nuls intercalés -> UTF-16 (LE/BE selon la parité)
+    3. UTF-8 strict
+    4. Fallback Windows-1252 (exports Excel européens)
+
+    Args:
+        content: Contenu brut du fichier (bytes)
+
+    Returns:
+        str: Contenu décodé
+    """
+    # 1. BOM
+    if content.startswith(b'\xff\xfe') or content.startswith(b'\xfe\xff'):
+        return content.decode('utf-16')
+    if content.startswith(b'\xef\xbb\xbf'):
+        return content.decode('utf-8-sig')
+
+    # 2. UTF-16 sans BOM : les caractères ASCII produisent des octets nuls
+    # intercalés ; la parité des nuls indique l'endianness
+    sample = content[:2000]
+    if b'\x00' in sample:
+        even_nulls = sample[0::2].count(0)
+        odd_nulls = sample[1::2].count(0)
+        return content.decode('utf-16-le' if odd_nulls >= even_nulls else 'utf-16-be')
+
+    # 3-4. UTF-8, sinon Windows-1252 (bytes non définis en cp1252 -> remplacés)
+    try:
+        return content.decode('utf-8')
+    except UnicodeDecodeError:
+        return content.decode('cp1252', errors='replace')
+
+
 def detect_csv_separator(file_path_or_content, is_file_path=True):
     """
     Détecte automatiquement le séparateur CSV en testant les séparateurs courants.
