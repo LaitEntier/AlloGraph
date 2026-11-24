@@ -688,6 +688,94 @@ def apply_age_filter(df, selected_age_groups, use_custom_age=False, custom_age_r
     return df
 
 
+# Variables filtrables par étiquettes (page Indicators) : label UI -> colonne
+FILTER_VARIABLES = {
+    'Donor type': 'Donor Type',
+    'Source of stem cells': 'Source Stem Cells',
+    'Match': 'Match Type',
+    'Conditioning regimen': 'Conditioning Regimen Type',
+}
+
+
+def apply_variable_filters(df, filters):
+    """
+    Applique les filtres par variables (étiquettes) sur un DataFrame.
+    OU entre les valeurs d'une même variable, ET entre variables différentes.
+
+    Args:
+        df (pd.DataFrame): DataFrame à filtrer
+        filters (list): Liste de dicts {'variable': <colonne>, 'value': <valeur>}
+
+    Returns:
+        pd.DataFrame: DataFrame filtré
+    """
+    if not filters:
+        return df
+
+    grouped = {}
+    for f in filters:
+        if not isinstance(f, dict):
+            continue
+        variable, value = f.get('variable'), f.get('value')
+        if variable and value is not None:
+            grouped.setdefault(variable, []).append(value)
+
+    for variable, values in grouped.items():
+        if variable in df.columns:
+            df = df[df[variable].astype(str).isin([str(v) for v in values])]
+
+    return df
+
+
+def create_variable_filter_component(component_id_prefix='indicators', title='Cohort filters'):
+    """
+    Crée le composant de filtrage par variables sous forme d'étiquettes
+    [Variable = Valeur] cumulables et supprimables.
+
+    Args:
+        component_id_prefix (str): Préfixe des IDs des composants
+        title (str): Titre affiché pour la section
+
+    Returns:
+        html.Div: Dropdowns variable/valeur, bouton d'ajout et conteneur d'étiquettes
+    """
+    return html.Div([
+        html.H5(title, className='mb-2'),
+        html.Label('Variable:', className='mb-1',
+                   style={'fontSize': '12px', 'color': '#6c757d'}),
+        dcc.Dropdown(
+            id=f'{component_id_prefix}-filter-variable',
+            options=[{'label': label, 'value': col} for label, col in FILTER_VARIABLES.items()],
+            placeholder='Select a variable...',
+            clearable=False,
+            className='mb-2'
+        ),
+        html.Label('Value:', className='mb-1',
+                   style={'fontSize': '12px', 'color': '#6c757d'}),
+        dcc.Dropdown(
+            id=f'{component_id_prefix}-filter-value',
+            placeholder='Select a value...',
+            clearable=False,
+            className='mb-2'
+        ),
+        dbc.Button(
+            [html.I(className='fas fa-plus me-1'), 'Add filter'],
+            id=f'{component_id_prefix}-filter-add-btn',
+            color='primary',
+            size='sm',
+            className='mb-3 w-100'
+        ),
+        html.Div(id=f'{component_id_prefix}-filter-tags', className='mb-1'),
+        dbc.Button(
+            'Clear all filters',
+            id=f'{component_id_prefix}-filter-clear-btn',
+            color='link',
+            size='sm',
+            style={'fontSize': '11px', 'padding': '0', 'color': '#6c757d'}
+        )
+    ])
+
+
 def register_age_toggle_callback(app, switch_id, wrapper_id, slider_id):
     """
     Enregistre un callback pour activer/désactiver le slider d'âge personnalisé

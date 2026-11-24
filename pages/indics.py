@@ -1,7 +1,7 @@
 from io import BytesIO
 
 import dash
-from dash import dcc, html, Input, Output, State, dash_table
+from dash import dcc, html, Input, Output, State, dash_table, ctx, ALL
 import dash_bootstrap_components as dbc
 import utils.docx_helpers as dh
 import pandas as pd
@@ -13,7 +13,7 @@ import plotly.express as px
 
 # Import des modules communs (à adapter selon votre structure)
 import modules.dashboard_layout as layouts
-from modules.dashboard_layout import apply_malignancy_filter, create_info_tooltip, apply_age_filter, register_age_toggle_callback
+from modules.dashboard_layout import apply_malignancy_filter, create_info_tooltip, apply_age_filter, register_age_toggle_callback, apply_variable_filters, FILTER_VARIABLES
 import modules.data_processing as data_processing
 from modules.data_processing import store_payload_to_df
 import visualizations.allogreffes.graphs as gr
@@ -146,6 +146,7 @@ def get_layout():
         dcc.Store(id='selected-year-store', data=None),
         dcc.Store(id='selected-years-checklist-store', data=[]),
         dcc.Store(id='analysis-mode-store', data='yearly'),  # 'yearly' ou 'quarterly'
+        dcc.Store(id='indicators-filters-store', data=[]),  # étiquettes Variable = Valeur
         
         dcc.Store(id='indicators-missing-store'),
         dcc.Store(id='indicators-name-store'),
@@ -170,6 +171,15 @@ def get_layout():
                 ])
             ], width=12)
         ]),
+
+        # Panel de ventilation par valeur de variable (année sélectionnée)
+        # La carte est masquée tant qu'aucune variable de ventilation n'est choisie
+        dbc.Card([
+            dbc.CardBody([
+                html.Div(id='indicator-breakdown-header'),
+                html.Div(id='indicator-breakdown-content')
+            ])
+        ], id='indicator-breakdown-card', style={'display': 'none'}, className='mt-3'),
 
         # Section données manquantes - nouvelle section dynamique
         html.Hr(style={
@@ -320,7 +330,26 @@ def create_indicators_sidebar_content(metadata, pediatric_view=False):
             
             # Filtres par type de diagnostic
             layouts.create_malignancy_filter_component(component_id='indicators-malignancy-filter', title='Diagnosis type'),
-            
+
+            html.Hr(),
+
+            # Filtres par variables (étiquettes cumulables)
+            layouts.create_variable_filter_component(component_id_prefix='indicators', title='Cohort filters'),
+
+            html.Hr(),
+
+            # Ventilation par valeur (panel du bas, année sélectionnée)
+            html.Label('Breakdown by variable:', className='mb-2 fw-bold', style={'color': '#021F59'}),
+            html.Small("Compare the indicator per value, for the selected year", className='text-muted d-block mb-2'),
+            dcc.Dropdown(
+                id='indicators-breakdown-variable',
+                options=[{'label': 'None', 'value': 'none'}] +
+                        [{'label': label, 'value': col} for label, col in layouts.FILTER_VARIABLES.items()],
+                value='none',
+                clearable=False,
+                className='mb-3'
+            ),
+
             html.Hr(),
             
             # Informations sur le dataset
@@ -4032,6 +4061,318 @@ def analyze_missing_data(df, columns_to_check, patient_id_col='Long ID'):
     
     return pd.DataFrame(missing_summary), pd.DataFrame(detailed_missing)
 
+# =============================================================================
+# Ventilation par valeur de variable (panel du bas, année sélectionnée)
+# =============================================================================
+
+# Palette partagée entre les séries du graphe comparatif et les badges
+_BREAKDOWN_METRIC_COLORS = ['#021F59', '#2E86AB', '#F2A594', '#27ae60']
+
+# Couleurs et ordre des métriques, alignés sur les graphiques de la vue principale.
+# Les métriques non listées ici utilisent la palette générique ci-dessus.
+_BREAKDOWN_METRIC_STYLES = {
+    'gvha': {'aGVH 2-4': '#0D3182', 'aGVH 3-4': '#d61704'},
+    'TRM': {'TRM D30': '#f39c12', 'TRM D100': '#e67e22', 'TRM D365': '#e74c3c'},
+    'survie_globale': {'Survival D30': '#27ae60', 'Survival D100': '#2ecc71', 'Survival D365': '#16a085'},
+    'prise_greffe': {'Graft uptake ≤100d': '#3498db'},
+    'sortie_aplasie': {'ANC recovery ≤28d': '#9b59b6'},
+    'gvhc': {'Severe': '#e74c3c', 'Moderate': '#f39c12', 'Mild': '#2ecc71'},
+    'rechute': {'Relapse D100': '#e67e22', 'Relapse D365': '#e74c3c'},
+}
+
+def _valid_delay_total(df_subset, date_col):
+    """Nombre de lignes avec un délai calculable entre date_col et Treatment Date."""
+    d1 = pd.to_datetime(df_subset[date_col], dayfirst=True, format='mixed', errors='coerce')
+    d0 = pd.to_datetime(df_subset['Treatment Date'], dayfirst=True, format='mixed', errors='coerce')
+    return int((d1 - d0).dt.days.notna().sum())
+
+def compute_indicator_metrics(df_subset, indicator):
+    """
+    Calcule les métriques d'un indicateur sur un sous-ensemble de données
+    (ventilation par valeur de variable sur l'année sélectionnée).
+    Réutilise les fonctions process_* existantes.
+
+    Args:
+        df_subset (pd.DataFrame): sous-ensemble (année × valeur, filtres appliqués)
+        indicator (str): identifiant de l'indicateur
+
+    Returns:
+        list: [{'label', 'pct', 'count', 'total'}, ...] — vide si pas de données
+    """
+    if df_subset is None or df_subset.empty:
+        return []
+
+    try:
+        if indicator == 'gvha':
+            result_combined, _ = process_gvha_data(df_subset)
+            if result_combined.empty:
+                return []
+            row = result_combined.iloc[0]
+            total = int(row['nb_greffe'])
+            # Classes groupées (2-4 / 3-4), comme les badges de la vue principale
+            return [
+                {'label': 'aGVH 2-4', 'pct': round(row['pourcentage_gvh_aigue_2_4'], 1),
+                 'count': int(row['nb_gvh_aigue_2_4']), 'total': total},
+                {'label': 'aGVH 3-4', 'pct': round(row['pourcentage_gvh_aigue_3_4'], 1),
+                 'count': int(row['nb_gvh_aigue_3_4']), 'total': total},
+            ]
+
+        elif indicator == 'TRM':
+            _, result_df = process_trm_data(df_subset)
+            if result_df.empty:
+                # Aucun décès TRM dans le sous-ensemble : afficher 0% plutôt que "No data"
+                total = len(df_subset)
+                if total == 0:
+                    return []
+                return [
+                    {'label': f'TRM {period}', 'pct': 0.0, 'count': 0, 'total': total}
+                    for period in ['D30', 'D100', 'D365']
+                ]
+            row = result_df.iloc[0]
+            total = int(row['nb_greffe'])
+            return [
+                {'label': f'TRM {period}', 'pct': row[str(days)],
+                 'count': int(row[f'trm_j{days}']), 'total': total}
+                for period, days in [('D30', 30), ('D100', 100), ('D365', 365)]
+            ]
+
+        elif indicator == 'survie_globale':
+            _, result_df = process_survie_data(df_subset)
+            if result_df.empty:
+                return []
+            row = result_df.iloc[0]
+            total = int(row['nb_greffe'])
+            return [
+                {'label': f'Survival {period}', 'pct': row[str(days)],
+                 'count': int(row[f'vivants_j{days}']), 'total': total}
+                for period, days in [('D30', 30), ('D100', 100), ('D365', 365)]
+            ]
+
+        elif indicator == 'prise_greffe':
+            result_df = process_prise_greffe_data(df_subset)
+            if result_df.empty:
+                # Aucune prise de greffe ≤100j : afficher 0% si des délais sont calculables
+                total = _valid_delay_total(df_subset, 'Date Platelet Reconstitution')
+                if total == 0:
+                    return []
+                return [{'label': 'Graft uptake ≤100d', 'pct': 0.0, 'count': 0, 'total': total}]
+            row = result_df.iloc[0]
+            total = int(row['total'])
+            return [
+                {'label': 'Graft uptake ≤100d', 'pct': row['pourcentage_prise_greffe'],
+                 'count': int(row['nb_prise_greffe']), 'total': total},
+            ]
+
+        elif indicator == 'sortie_aplasie':
+            result_df = process_sortie_aplasie_data(df_subset)
+            if result_df.empty:
+                # Aucune sortie d'aplasie ≤28j : afficher 0% si des délais sont calculables
+                total = _valid_delay_total(df_subset, 'Date Anc Recovery')
+                if total == 0:
+                    return []
+                return [{'label': 'ANC recovery ≤28d', 'pct': 0.0, 'count': 0, 'total': total}]
+            row = result_df.iloc[0]
+            total = int(row['total'])
+            return [
+                {'label': 'ANC recovery ≤28d', 'pct': row['pourcentage_sortie_aplasie'],
+                 'count': int(row['nb_sortie_aplasie']), 'total': total},
+            ]
+
+        elif indicator == 'gvhc':
+            result_combined, _ = process_gvhc_data(df_subset)
+            if result_combined.empty:
+                return []
+            row = result_combined.iloc[0]
+            total = int(row['nb_greffe'])
+            metrics = []
+            # Mêmes catégories que le barplot de la vue principale (Severe → Mild)
+            for grade in ['Severe', 'Moderate', 'Mild']:
+                count = int(row.get(grade, 0))
+                metrics.append({
+                    'label': grade,
+                    'pct': round(count / total * 100, 1) if total > 0 else 0,
+                    'count': count, 'total': total,
+                })
+            return metrics
+
+        elif indicator == 'rechute':
+            _, result_df = process_rechute_data(df_subset)
+            if result_df.empty:
+                # Aucune rechute dans le sous-ensemble : afficher 0% plutôt que "No data"
+                total = len(df_subset)
+                if total == 0:
+                    return []
+                return [
+                    {'label': f'Relapse {period}', 'pct': 0.0, 'count': 0, 'total': total}
+                    for period in ['D100', 'D365']
+                ]
+            row = result_df.iloc[0]
+            total = int(row['nb_greffe'])
+            return [
+                {'label': f'Relapse {period}', 'pct': row[str(days)],
+                 'count': int(row[f'rechute_j{days}']), 'total': total}
+                for period, days in [('D100', 100), ('D365', 365)]
+            ]
+
+    except Exception as e:
+        print(f"ERROR in compute_indicator_metrics ({indicator}): {str(e)}")
+        return []
+
+    return []
+
+def _compute_breakdown_per_value(df_period, breakdown_col, indicator, metadata, values=None):
+    """
+    Calcule les métriques de l'indicateur pour chaque valeur de la variable
+    de ventilation sur un sous-ensemble (période).
+
+    Args:
+        values (list, optionnel): liste de valeurs imposée (axe commun entre
+            plusieurs graphes, ex. vue multi-trimestres). Les valeurs absentes
+            du sous-ensemble donnent des métriques vides plutôt que d'être omises.
+
+    Returns:
+        tuple: (variable_label, indicator_name, per_value, metric_labels, metric_styles)
+        avec per_value = [{'value', 'n', 'metrics': [...]}, ...]
+
+    Raises:
+        ValueError: si la colonne est absente ou aucune valeur disponible
+    """
+    column_to_label = {col: label for label, col in FILTER_VARIABLES.items()}
+    variable_label = column_to_label.get(breakdown_col, breakdown_col)
+    _, indicator_name = get_variables_for_indicator(indicator)
+
+    if breakdown_col not in df_period.columns:
+        raise ValueError(f"Column '{breakdown_col}' not available")
+
+    if values is None:
+        # Ordre des valeurs : celui des métadonnées si disponible, sinon trié
+        present = df_period[breakdown_col].dropna().astype(str).unique().tolist()
+        meta_values = (metadata or {}).get('filter_options', {}).get(breakdown_col, [])
+        values = [v for v in meta_values if v in present] + sorted(v for v in present if v not in meta_values)
+
+    if not values:
+        raise ValueError(f"No data for {variable_label} in this period")
+
+    # Calcul des métriques par valeur
+    per_value = []
+    for value in values:
+        subset = df_period[df_period[breakdown_col].astype(str) == value]
+        per_value.append({
+            'value': value,
+            'n': len(subset),
+            'metrics': compute_indicator_metrics(subset, indicator),
+        })
+
+    # Labels de métriques : ordre du style de l'indicateur si défini,
+    # puis ordre de première apparition pour les métriques non stylées
+    metric_styles = _BREAKDOWN_METRIC_STYLES.get(indicator, {})
+    found_labels = []
+    for pv in per_value:
+        for m in pv['metrics']:
+            if m['label'] not in found_labels:
+                found_labels.append(m['label'])
+    metric_labels = [l for l in metric_styles if l in found_labels] + \
+                    [l for l in found_labels if l not in metric_styles]
+
+    return variable_label, indicator_name, per_value, metric_labels, metric_styles
+
+def _breakdown_metric_color(metric_styles, label, index):
+    return metric_styles.get(label, _BREAKDOWN_METRIC_COLORS[index % len(_BREAKDOWN_METRIC_COLORS)])
+
+def create_breakdown_figure(per_value, metric_labels, metric_styles, title):
+    """Graphe comparatif en barres : une série par métrique, valeurs en abscisse."""
+    fig = go.Figure()
+    for i, ml in enumerate(metric_labels):
+        color = _breakdown_metric_color(metric_styles, ml, i)
+        ys, texts, hovers = [], [], []
+        for pv in per_value:
+            match = next((m for m in pv['metrics'] if m['label'] == ml), None)
+            ys.append(match['pct'] if match else 0)
+            texts.append(f"{match['pct']:.1f}%" if match else "n/a")
+            hovers.append(f"({match['count']}/{match['total']})" if match else "no data")
+        fig.add_trace(go.Bar(
+            name=ml,
+            x=[pv['value'] for pv in per_value],
+            y=ys,
+            text=texts,
+            textposition='auto',
+            marker_color=color,
+            customdata=hovers,
+            hovertemplate='%{x}<br>%{fullData.name}: %{y:.1f}% %{customdata}<extra></extra>'
+        ))
+
+    fig.update_layout(
+        title=title,
+        barmode='group',
+        yaxis_title='%',
+        yaxis=dict(range=[0, 100]),
+        template='plotly_white',
+        height=380,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
+    )
+    return fig
+
+def create_breakdown_badges(per_value, metric_labels, metric_styles):
+    """Colonnes de badges par valeur (couleurs alignées sur les séries du graphe)."""
+    badge_cols = []
+    col_width = 12 // min(len(per_value), 4)
+    for pv in per_value:
+        cards = []
+        for i, m in enumerate(pv['metrics']):
+            color = _breakdown_metric_color(metric_styles, m['label'], i)
+            cards.append(
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H4(f"{m['pct']:.1f}%", className='text-center mb-1',
+                                style={'color': color, 'fontSize': '18px'}),
+                        html.P(m['label'], className='text-center mb-1',
+                               style={'fontSize': '11px', 'fontWeight': 'bold'}),
+                        html.P(f"({m['count']}/{m['total']})",
+                               className='text-center text-muted', style={'fontSize': '10px'})
+                    ], className='py-2')
+                ], color='light', outline=True, className='mb-1')
+            )
+        if not cards:
+            cards = [dbc.Alert('No data', color='light', className='py-2 text-center')]
+        badge_cols.append(
+            dbc.Col([
+                html.H6(f"{pv['value']} (n={pv['n']})", className='text-center mb-2',
+                        style={'color': '#021F59'}),
+                html.Div(cards)
+            ], width=12, md=col_width)
+        )
+    return dbc.Row(badge_cols, className='g-2')
+
+def create_breakdown_content(df_period, breakdown_col, indicator, period_label, metadata,
+                             values=None, details='badges'):
+    """
+    Contenu du panel de ventilation pour une période : graphe comparatif,
+    suivi des badges ('badges') ou de rien (None).
+    Le titre de section est géré séparément (header de la carte, persistant).
+
+    Args:
+        values (list, optionnel): axe de valeurs imposé (vue multi-trimestres)
+        details (str): 'badges' ou None
+    """
+    try:
+        variable_label, indicator_name, per_value, metric_labels, metric_styles = \
+            _compute_breakdown_per_value(df_period, breakdown_col, indicator, metadata, values=values)
+
+        fig = create_breakdown_figure(
+            per_value, metric_labels, metric_styles,
+            f"{indicator_name} by {variable_label} for {period_label}")
+
+        children = [html.Div([dcc.Graph(figure=fig, config={'responsive': True})], className='mb-2')]
+        if details == 'badges':
+            children.append(create_breakdown_badges(per_value, metric_labels, metric_styles))
+        return html.Div(children)
+
+    except ValueError as e:
+        return dbc.Alert(str(e), color='warning')
+    except Exception as e:
+        print(f"ERROR in create_breakdown_content: {str(e)}")
+        return dbc.Alert(f"Error creating breakdown visualization: {str(e)}", color='danger')
+
 def register_callbacks(app):
     # Register age filter toggle callback
     layouts.register_age_toggle_callback(
@@ -4081,7 +4422,184 @@ def register_callbacks(app):
             return mode, {'display': 'block'}, {'display': 'none'}
         else:
             return mode, {'display': 'none'}, {'display': 'block'}
-    
+
+    # Callback pour peupler les valeurs selon la variable de filtre choisie
+    @app.callback(
+        [Output('indicators-filter-value', 'options'),
+         Output('indicators-filter-value', 'value')],
+        Input('indicators-filter-variable', 'value'),
+        State('metadata-store', 'data'),
+        prevent_initial_call=True
+    )
+    def update_filter_value_options(selected_column, metadata):
+        if not selected_column or not metadata:
+            return [], None
+        values = metadata.get('filter_options', {}).get(selected_column, [])
+        return [{'label': v, 'value': v} for v in values], None
+
+    # Callback unique de gestion des étiquettes de filtres (ajout / suppression / reset)
+    @app.callback(
+        Output('indicators-filters-store', 'data'),
+        [Input('indicators-filter-add-btn', 'n_clicks'),
+         Input({'type': 'indicators-filter-tag-remove', 'index': ALL}, 'n_clicks'),
+         Input('indicators-filter-clear-btn', 'n_clicks'),
+         Input('data-store-indics', 'data')],
+        [State('indicators-filter-variable', 'value'),
+         State('indicators-filter-value', 'value'),
+         State('indicators-filters-store', 'data')],
+        prevent_initial_call=True
+    )
+    def manage_variable_filters(add_clicks, remove_clicks, clear_clicks, _data, selected_column, selected_value, filters):
+        triggered = ctx.triggered_id
+        filters = list(filters or [])
+
+        if triggered == 'data-store-indics':
+            # Nouveau dataset chargé : réinitialiser les filtres
+            return []
+        if triggered == 'indicators-filter-clear-btn':
+            return []
+        if triggered == 'indicators-filter-add-btn':
+            if selected_column and selected_value is not None:
+                new_filter = {'variable': selected_column, 'value': selected_value}
+                if new_filter not in filters:
+                    filters.append(new_filter)
+            return filters
+        if isinstance(triggered, dict) and triggered.get('type') == 'indicators-filter-tag-remove':
+            index = triggered.get('index')
+            if index is not None and 0 <= index < len(filters):
+                filters.pop(index)
+            return filters
+        return dash.no_update
+
+    # Callback de rendu des étiquettes [Variable = Valeur]
+    @app.callback(
+        Output('indicators-filter-tags', 'children'),
+        Input('indicators-filters-store', 'data')
+    )
+    def render_filter_tags(filters):
+        if not filters:
+            return html.Small('No active filter', className='text-muted d-block mb-2')
+
+        column_to_label = {col: label for label, col in FILTER_VARIABLES.items()}
+        tags = []
+        for i, f in enumerate(filters):
+            label = column_to_label.get(f.get('variable'), f.get('variable'))
+            tags.append(
+                dbc.Badge([
+                    f"{label} = {f.get('value')}",
+                    html.Button(
+                        '×',
+                        id={'type': 'indicators-filter-tag-remove', 'index': i},
+                        n_clicks=0,
+                        style={
+                            'background': 'none', 'border': 'none', 'color': 'white',
+                            'marginLeft': '6px', 'padding': '0', 'cursor': 'pointer',
+                            'fontSize': '13px', 'fontWeight': 'bold', 'lineHeight': '1'
+                        }
+                    )
+                ], className='d-block mb-1 text-start',
+                   style={'backgroundColor': '#021F59', 'fontSize': '11px',
+                          'padding': '6px 8px', 'width': 'fit-content'})
+            )
+        return tags
+
+    # Callback du panel de ventilation par valeur (année sélectionnée)
+    @app.callback(
+        [Output('indicator-breakdown-card', 'style'),
+         Output('indicator-breakdown-header', 'children'),
+         Output('indicator-breakdown-content', 'children')],
+        [Input('current-page', 'data'),
+         Input('data-store-indics', 'data'),
+         Input('metadata-store', 'data'),
+         Input('indicators-breakdown-variable', 'value'),
+         Input('selected-indicator-store', 'data'),
+         Input('analysis-mode-store', 'data'),
+         Input('selected-year-store', 'data'),
+         Input('selected-years-checklist-store', 'data'),
+         Input('indicators-age-filter', 'value'),
+         Input('indicators-custom-age-switch', 'value'),
+         Input('indicators-custom-age-slider', 'value'),
+         Input('indicators-malignancy-filter', 'value'),
+         Input('indicators-filters-store', 'data')],
+        prevent_initial_call=False
+    )
+    def update_indicator_breakdown(current_page, data, metadata, breakdown_col, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, variable_filters):
+        if current_page != 'Indicators':
+            return dash.no_update, dash.no_update, dash.no_update
+
+        breakdown_active = bool(breakdown_col) and breakdown_col != 'none' and data and selected_indicator
+        if not breakdown_active:
+            return {'display': 'none'}, '', ''
+
+        try:
+            df = store_payload_to_df(data)
+
+            # Mêmes filtres que la vue principale (âge, diagnostic)
+            df = apply_age_filter(df, selected_age_groups, use_custom_age, custom_age_range)
+            df = apply_malignancy_filter(df, malignancy_filter)
+
+            # Étiquettes actives, sauf celles portant sur la variable de ventilation
+            other_filters = [f for f in (variable_filters or []) if f.get('variable') != breakdown_col]
+            df = apply_variable_filters(df, other_filters)
+
+            # Année analysée selon le mode (dropdown Yearly / radio Quarterly)
+            if analysis_mode == 'quarterly':
+                year = selected_years[0] if selected_years else None
+            else:
+                year = selected_year
+            if year is None and 'Year' in df.columns and not df.empty:
+                year = df['Year'].max()
+
+            df_year = df[df['Year'].astype(str) == str(year)] if year is not None else df.iloc[0:0]
+            if df_year.empty:
+                return {'display': 'block'}, '', \
+                       dbc.Alert(f"No data for year {year} with the active filters", color='warning')
+
+            column_to_label = {col: label for label, col in FILTER_VARIABLES.items()}
+            variable_label = column_to_label.get(breakdown_col, breakdown_col)
+            _, indicator_name = get_variables_for_indicator(selected_indicator)
+
+            # Mode Quarterly : vue facettée, un graphe par trimestre (grille 2×2)
+            # avec axe de valeurs commun, sans badges
+            if analysis_mode == 'quarterly':
+                header = html.H5(
+                    f"{indicator_name} breakdown by {variable_label} for {year} - All quarters",
+                    className='mb-3')
+                df_quarters = add_quarter_column(df_year)
+
+                # Axe commun : union des valeurs sur l'année (ordre des métadonnées),
+                # pour que tous les graphes présentent les mêmes catégories
+                present = df_year[breakdown_col].dropna().astype(str).unique().tolist()
+                meta_values = (metadata or {}).get('filter_options', {}).get(breakdown_col, [])
+                shared_values = [v for v in meta_values if v in present] + \
+                                sorted(v for v in present if v not in meta_values)
+
+                cells = []
+                for q in [1, 2, 3, 4]:
+                    sub = df_quarters[df_quarters['Quarter'] == q]
+                    if sub.empty:
+                        cell_content = dbc.Alert(f"No data for {year} - Q{q}",
+                                                 color='light', className='text-center')
+                    else:
+                        cell_content = create_breakdown_content(
+                            sub, breakdown_col, selected_indicator,
+                            f"{year} - Q{q}", metadata,
+                            values=shared_values, details=None)
+                    cells.append(dbc.Col(cell_content, width=12, md=6))
+                return {'display': 'block'}, header, dbc.Row(cells, className='g-3')
+
+            # Mode Yearly : vue unique sur l'année entière, avec badges
+            header = html.H5(
+                f"{indicator_name} breakdown by {variable_label} for {year}",
+                className='mb-3')
+            content = create_breakdown_content(df_year, breakdown_col, selected_indicator, str(year), metadata)
+            return {'display': 'block'}, header, content
+
+        except Exception as e:
+            print(f"ERROR in update_indicator_breakdown: {str(e)}")
+            return {'display': 'block'}, '', \
+                   dbc.Alert(f"Error creating breakdown: {str(e)}", color='danger')
+
     # Callback principal pour mettre à jour le contenu
     @app.callback(
         Output('indicator-content', 'children'),
@@ -4094,10 +4612,11 @@ def register_callbacks(app):
          Input('indicators-age-filter', 'value'),
          Input('indicators-custom-age-switch', 'value'),
          Input('indicators-custom-age-slider', 'value'),
-         Input('indicators-malignancy-filter', 'value')],
+         Input('indicators-malignancy-filter', 'value'),
+         Input('indicators-filters-store', 'data')],
         prevent_initial_call=False
     )
-    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+    def update_indicator_content(current_page, data, analysis_mode, selected_indicator, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, variable_filters):
         
         if current_page != 'Indicators':
             return dash.no_update
@@ -4116,7 +4635,10 @@ def register_callbacks(app):
             
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
-            
+
+            # Filtrer par étiquettes de variables (Donor type, Match, etc.)
+            df = apply_variable_filters(df, variable_filters)
+
             if analysis_mode == 'yearly':
                 # Mode Yearly: utiliser l'année sélectionnée dans le dropdown
                 return create_global_visualization_with_year(df, selected_indicator, selected_year)
@@ -4149,7 +4671,7 @@ def register_callbacks(app):
         return f"for {indicator_name}"
     
     # Helpers du callback fusionné update_indicators_missing_panels (phase 4 perf)
-    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+    def indicators_missing_summary_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, variable_filters):
         """Gère le tableau de résumé des données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -4167,6 +4689,9 @@ def register_callbacks(app):
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
             
+            # Filtrer par étiquettes de variables (Donor type, Match, etc.)
+            df = apply_variable_filters(df, variable_filters)
+
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
                 df = df[df['Year'] == selected_year]
@@ -4245,22 +4770,23 @@ def register_callbacks(app):
          Input('indicators-age-filter', 'value'),
          Input('indicators-custom-age-switch', 'value'),
          Input('indicators-custom-age-slider', 'value'),
-         Input('indicators-malignancy-filter', 'value')],
+         Input('indicators-malignancy-filter', 'value'),
+         Input('indicators-filters-store', 'data')],
         prevent_initial_call=False
     )
-    def update_indicators_missing_panels(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+    def update_indicators_missing_panels(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, variable_filters):
         """Tableaux résumé + détail des données manquantes Indicators"""
         summary = indicators_missing_summary_callback(
             data, current_page, selected_indicator, analysis_mode, selected_year,
             selected_years, selected_age_groups, use_custom_age, custom_age_range,
-            malignancy_filter)
+            malignancy_filter, variable_filters)
         detail, export_disabled, missing_store, name_store = indicators_missing_detail_callback(
             data, current_page, selected_indicator, analysis_mode, selected_year,
             selected_years, selected_age_groups, use_custom_age, custom_age_range,
-            malignancy_filter)
+            malignancy_filter, variable_filters)
         return summary, detail, export_disabled, missing_store, name_store
 
-    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter):
+    def indicators_missing_detail_callback(data, current_page, selected_indicator, analysis_mode, selected_year, selected_years, selected_age_groups, use_custom_age, custom_age_range, malignancy_filter, variable_filters):
         """Gère le tableau détaillé des patients avec données manquantes pour Indicators"""
         
         if current_page != 'Indicators' or not data:
@@ -4278,6 +4804,9 @@ def register_callbacks(app):
             # Filtrer par type de diagnostic
             df = apply_malignancy_filter(df, malignancy_filter)
             
+            # Filtrer par étiquettes de variables (Donor type, Match, etc.)
+            df = apply_variable_filters(df, variable_filters)
+
             # Filtrer selon le mode d'analyse
             if analysis_mode == 'yearly' and selected_year and 'Year' in df.columns:
                 df = df[df['Year'] == selected_year]

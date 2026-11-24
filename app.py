@@ -465,16 +465,25 @@ def _build_metadata(df_original, df_processed, filename):
     """
     Construit les métadonnées légères envoyées au navigateur (jamais de données patient).
     'years' et 'n_patients' suffisent aux sidebars et à la navigation.
+    'filter_options' expose les valeurs distinctes des variables filtrables
+    (page Indicators) sans transporter les lignes patients.
     """
     years = []
     if 'Year' in df_processed.columns:
         years = sorted(df_processed['Year'].astype(str).unique().tolist())
+
+    filter_options = {}
+    for col in layouts.FILTER_VARIABLES.values():
+        if col in df_processed.columns:
+            filter_options[col] = sorted(df_processed[col].dropna().astype(str).unique().tolist())
+
     return {
         'original_shape': df_original.shape,
         'processed_shape': df_processed.shape,
         'filename': filename,
         'years': years,
         'n_patients': len(df_processed),
+        'filter_options': filter_options,
     }
 
 
@@ -656,6 +665,7 @@ _PAGE_STORE_COLUMNS = {
         'First Cgvhd Occurrence Date', 'First cGvHD Maximum NIH Score',
         'First Relapse', 'First Relapse Date', 'Anc Recovery', 'Date Anc Recovery',
         'Platelet Reconstitution', 'Date Platelet Reconstitution', 'Death Cause',
+        'Donor Type', 'Source Stem Cells', 'Match Type', 'Conditioning Regimen Type',
     ] + _FILTER_COLS,
 }
 
