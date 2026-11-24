@@ -331,10 +331,8 @@ def update_sidebar(current_page, metadata, pediatric_view):
                     color="primary",
                     size="sm",
                     disabled=False,
-                    style={"margin-bottom": "0.5em"}
+                    className="mb-2"
                 ),
-                dcc.Download(id="download-indicators-docx"),
-                html.Br(),
                 dbc.Button(
                     [html.I(className="fas fa-download me-2"), "Export to HTML"],
                     id="download-indicators-html-button",
@@ -342,6 +340,7 @@ def update_sidebar(current_page, metadata, pediatric_view):
                     size="sm",
                     disabled=False,
                 ),
+                dcc.Download(id="download-indicators-docx"),
                 dcc.Download(id="download-indicators-html")
             ], style={'display': 'flex', 'flex-direction': 'column'})
                 
@@ -829,7 +828,7 @@ def purge_data(confirm_clicks):
 def toggle_purge_button_visibility(metadata):
     """Affiche le bouton Purge data seulement quand des données sont chargées"""
     if metadata is not None:
-        return {'display': 'block'}
+        return {'display': 'block', 'whiteSpace': 'nowrap'}
     else:
         return {'display': 'none'}
 
@@ -840,7 +839,7 @@ def toggle_purge_button_visibility(metadata):
 def toggle_export_all_missing_button_visibility(metadata):
     """Affiche le bouton d'export seulement quand des données sont chargées"""
     if metadata is not None:
-        return {'display': 'block'}
+        return {'display': 'block', 'whiteSpace': 'nowrap'}
     else:
         return {'display': 'none'}
 
