@@ -512,7 +512,7 @@ def process_uploaded_file(contents, filename):
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
         
-        if filename.endswith('.csv'):
+        if filename.endswith(('.csv', '.txt')):
             # Détection automatique de l'encodage (UTF-8/16, cp1252) et du séparateur
             decoded_content = data_processing.decode_csv_bytes(decoded)
             separator = data_processing.detect_csv_separator(decoded_content, is_file_path=False)
